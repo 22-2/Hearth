@@ -28,7 +28,7 @@ import {
 	type OperonTaskPage,
 	type OperonTaxonomy,
 } from "../operon";
-import { isOperonAvailable } from "../operon";
+import { isOperonAvailable, isOperonPlatformSupported } from "../operon";
 import { type DashboardCard, type OperonConfig } from "../types";
 import { makeClickable } from "../ui";
 import { type HomeView } from "../view";
@@ -792,7 +792,13 @@ function template(id: string, name: string, icon: string, cfg: OperonConfig, w: 
 		name,
 		icon,
 		build: () => ({ kind: "operon" as const, title: name, operon: cfg, w, h }),
-		available: (app: Parameters<typeof isOperonAvailable>[0]) => isOperonAvailable(app),
+		// Operon itself runs on mobile, but its developer API does not, so the
+		// accessor being present is not enough: offering these on a phone would
+		// be offering a card that can only ever say "desktop only". A card
+		// synced from a desktop still shows that explanation — this only keeps
+		// the menu honest about what can be added here.
+		available: (app: Parameters<typeof isOperonAvailable>[0]) =>
+			isOperonAvailable(app) && isOperonPlatformSupported(),
 	};
 }
 
