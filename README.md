@@ -225,7 +225,12 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   note from the event** — pick a template, a folder and filename pattern, and
   route each value how you like (date/time into custom frontmatter, description
   into the body, or ignored). The note is linked back to the event by its ID so
-  it's reopened rather than duplicated.
+  it's reopened rather than duplicated. With the
+  [Operon](https://github.com/hasanyilmaz/operon) plugin connected it can also
+  mark days that have an **Operon task** due — a small square, so it never reads
+  as a calendar event — and list those tasks under each day in the agenda.
+  (Operon's query filters range over the due date, so a task that is only
+  *scheduled* isn't shown.)
 - **Vault statistics** — notes, attachments, folders, unique tags and your
   daily-note streak, read entirely from the in-memory vault index.
 - **Saved search** — runs a stored query (the same syntax as the search bar) and
@@ -284,6 +289,26 @@ toolbar; configure each one from the card itself (title, content, colors, size).
   refreshes). The card runs with no "current note", so global queries (e.g.
   `FROM #tag`) work fully; a query relying on `this.file` has no file to resolve
   to on the dashboard.
+- **Operon** *(requires the [Operon](https://github.com/hasanyilmaz/operon) plugin,
+  desktop only)* — four cards backed by Operon's own in-process developer API:
+  an **Operon tasks** list, an **Operon board** whose columns are Operon's
+  pipeline statuses (in its order, with its colours), an **Operon agenda**
+  grouping the next few days of due work, and an **Operon timer** showing the
+  running time tracker, ticking live. Filter by pipeline, status, priority,
+  completion state, note or text — the pickers list what Operon actually has, so
+  you never type an id by hand — or hand the whole question to Operon by
+  choosing one of its own scopes (*Happening today*, *Overdue*, *Recently
+  touched*), which keeps working as its rules evolve. Clicking a task opens its
+  note, landing on the exact line for an inline task. Hearth reads through the
+  API and never parses Operon's notes, so recurrence, statuses and completion
+  stay Operon's to define. It is **read-only**: nothing here changes a task.
+
+  Two things to know before adding one. Operon's developer API is **desktop-only
+  and needs Obsidian 1.12.2 or newer**, and it requires **your approval** —
+  Hearth's first request appears in **Settings → Operon → Core → General →
+  Developer API Integrations**, where you approve the read capabilities it asked
+  for. Until then the cards say exactly what they're waiting for. See
+  Settings → Hearth → Integrations for the connection status and a kill switch.
 - **Plugin view** *(beta)* — host another plugin's — or a core — registered
   **side-panel view** (calendar, outline, tag pane, a Kanban board view…)
   right inside a dashboard card. Pick from the views your enabled plugins and
@@ -417,7 +442,9 @@ many fields have a reset (↺) button back to their default.
 - **Behaviour** — open on startup, replace empty new tabs, mobile search-only,
   mobile action bar, and a **Privacy & network** toggle to disable external
   calls (Jira, calendars, RSS, and currency rates).
-- **Integrations** — Tasks / TaskNotes frontmatter field names and the status
+- **Integrations** — Operon connection status, the read access Hearth requests
+  and a switch to turn the integration off entirely; Tasks / TaskNotes
+  frontmatter field names and the status
   value(s) that count as "done".
 - **Backup** — import / export the current dashboard's layout as JSON.
 - **About** — links to the GitHub repository and issue tracker, a Ko-fi tip

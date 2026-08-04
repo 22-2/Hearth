@@ -21,6 +21,7 @@ import { calculatorCard } from "./calculator";
 import { dataviewCard } from "./dataview";
 import { rssCard } from "./rss";
 import { jiraCard } from "./jira";
+import { operonCard } from "./operon";
 import { leafCard } from "./leaf";
 
 export type {
@@ -57,6 +58,7 @@ export const CARD_DEFINITIONS: { [K in CardKind]: CardDefinition<K> } = {
 	dataview: dataviewCard,
 	rss: rssCard,
 	jira: jiraCard,
+	operon: operonCard,
 	leaf: leafCard,
 };
 
@@ -115,6 +117,10 @@ export const TEMPLATE_MENU_ORDER: string[] = [
 	"dataview",
 	"rss",
 	"jira",
+	"operon-tasks",
+	"operon-board",
+	"operon-agenda",
+	"operon-timer",
 	"leaf",
 ];
 

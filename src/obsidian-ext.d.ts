@@ -20,6 +20,10 @@ declare module "obsidian" {
 			enabledPlugins: Set<string>;
 			/** The loaded community plugin instances, keyed by id. */
 			plugins: Record<string, unknown>;
+			/** The loaded instance of one community plugin, or null. Same object
+			 * as `plugins[id]`; Operon's Developer API documents this accessor
+			 * and verifies consumers against it, so integrations use it. */
+			getPlugin(id: string): unknown;
 		};
 		/** Registry of every view type registered via `registerView` (core and
 		 * community). `viewByType` is keyed by the view-type id. Used by the

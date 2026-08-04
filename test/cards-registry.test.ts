@@ -72,6 +72,30 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 					h: 5,
 				},
 			},
+			{
+				id: "operon-tasks",
+				icon: "list-checks",
+				gated: true,
+				build: { kind: "operon", title: "Operon tasks", operon: { view: "list" }, w: 4, h: 4 },
+			},
+			{
+				id: "operon-board",
+				icon: "columns-3",
+				gated: true,
+				build: { kind: "operon", title: "Operon board", operon: { view: "board" }, w: 8, h: 5 },
+			},
+			{
+				id: "operon-agenda",
+				icon: "calendar-clock",
+				gated: true,
+				build: { kind: "operon", title: "Operon agenda", operon: { view: "agenda" }, w: 4, h: 5 },
+			},
+			{
+				id: "operon-timer",
+				icon: "timer",
+				gated: true,
+				build: { kind: "operon", title: "Operon timer", operon: { view: "timer" }, w: 3, h: 2 },
+			},
 			{ id: "leaf", icon: "layout-panel-left", gated: true, build: { kind: "leaf", title: "Plugin view", leafView: {}, w: 5, h: 4 } },
 		]);
 	});
@@ -128,6 +152,14 @@ function maximalCard(): DashboardCard {
 			controls: ["status"],
 			selections: { status: ["Open"] },
 		} as never,
+		operon: {
+			pipelineIds: ["p1"],
+			statusIds: ["s1"],
+			priorityIds: ["pr1"],
+			checkbox: ["open"],
+			boardOrder: ["s1"],
+			boardHidden: ["s2"],
+		},
 	};
 }
 
@@ -160,6 +192,12 @@ describe("cloneCard deep-clone independence", () => {
 		copy.rss!.sources!.push({ id: "s2", name: "Feed 2", url: "https://example.com/feed2" });
 		copy.jira!.controls!.push("assignee");
 		copy.jira!.selections!.status!.push("Closed");
+		copy.operon!.pipelineIds!.push("p2");
+		copy.operon!.statusIds!.push("s3");
+		copy.operon!.priorityIds!.push("pr2");
+		copy.operon!.checkbox!.push("done");
+		copy.operon!.boardOrder!.push("s3");
+		copy.operon!.boardHidden!.push("s4");
 
 		// ...and confirm none of it reached the original.
 		const pristine = maximalCard();
@@ -176,6 +214,7 @@ describe("cloneCard deep-clone independence", () => {
 		expect(orig.dataview).toEqual(pristine.dataview);
 		expect(orig.rss).toEqual(pristine.rss);
 		expect(orig.jira).toEqual(pristine.jira);
+		expect(orig.operon).toEqual(pristine.operon);
 	});
 });
 
@@ -208,6 +247,7 @@ describe("liveness classification", () => {
 			dataview: "static",
 			rss: "static",
 			jira: "static",
+			operon: "vault",
 			leaf: "static",
 		});
 	});

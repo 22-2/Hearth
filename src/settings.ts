@@ -7,6 +7,12 @@ import { type BackgroundKind, CARD_BORDER_WIDTH_MAX, DEFAULT_SETTINGS, defaultMo
 import { exportLayout, exportSettings, importLayout, importSettings } from "./layout";
 import { confirmAction, downloadTextFile, pickTextFile } from "./ui";
 import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
+import {
+	isOperonAvailable,
+	OPERON_PLUGIN_ID,
+	OPERON_READ_CAPABILITIES,
+	type OperonAccessState,
+} from "./operon";
 import { CHANGELOG, WhatsNewModal } from "./whatsnew";
 import { t } from "./i18n";
 
@@ -345,6 +351,9 @@ export class HomeSettingTab extends PluginSettingTab {
 				break;
 			case "integrations":
 				this.section(body, s.tasks.heading, s.tasks.headingDesc, (b) => this.tasksSection(b));
+				this.section(body, s.operon.heading, s.operon.headingDesc, (b) =>
+					this.operonSection(b),
+				);
 				this.section(body, s.fileIcons.heading, s.fileIcons.headingDesc, (b) =>
 					this.fileIconsSection(b),
 				);
@@ -974,6 +983,104 @@ export class HomeSettingTab extends PluginSettingTab {
 			});
 			this.addTextReset(doneValue, txt, "taskNotesDoneValue");
 		});
+	}
+
+	// ---- Operon ---------------------------------------------------------
+
+	/** Which of Operon's states describes the connection right now, for the
+	 * readout below. Reuses the same rules the cards branch on, so the settings
+	 * pane and the dashboard never disagree about why nothing is showing. */
+	private operonStatusText(state: OperonAccessState | "idle"): string {
+		const s = t().settings.operon;
+		switch (state) {
+			case "unsupported":
+				return s.statusUnsupported;
+			case "booting":
+				return s.statusBooting;
+			case "pending":
+				return s.statusPending;
+			case "suspended":
+				return s.statusSuspended;
+			case "revoked":
+				return s.statusRevoked;
+			case "ready":
+				return s.statusReady;
+			case "idle":
+				return s.statusIdle;
+			case "absent":
+			default:
+				return s.statusAbsent;
+		}
+	}
+
+	private operonSection(containerEl: HTMLElement): void {
+		const settings = this.plugin.settings;
+		const s = t().settings.operon;
+
+		new Setting(containerEl)
+			.setName(s.enable)
+			.setDesc(s.enableDesc)
+			.addToggle((tog) =>
+				tog.setValue(settings.operonIntegration).onChange(async (v) => {
+					settings.operonIntegration = v;
+					// Drop any live session immediately, so turning the switch off
+					// stops Hearth holding a handle to Operon rather than merely
+					// hiding the cards.
+					if (!v) this.plugin.operon.invalidate();
+					await this.save();
+					this.rerender();
+				}),
+			);
+
+		// Reading the state is what opens a session, so only do it once the user
+		// has opted in and Operon is actually there — otherwise this pane would
+		// file a capability request nobody asked for.
+		const state: OperonAccessState | "idle" =
+			settings.operonIntegration && isOperonAvailable(this.plugin.app)
+				? this.plugin.operon.access().state
+				: isOperonAvailable(this.plugin.app)
+					? "idle"
+					: "absent";
+
+		new Setting(containerEl).setName(s.status).setDesc(this.operonStatusText(state));
+
+		const capabilities = new Setting(containerEl)
+			.setName(s.capabilities)
+			.setDesc(s.capabilitiesDesc);
+		capabilities.controlEl.createDiv({
+			cls: "hearth-operon-caps",
+			text: OPERON_READ_CAPABILITIES.join(", "),
+		});
+		const missing = settings.operonIntegration ? this.plugin.operon.access().missing : [];
+		if (state !== "ready" && state !== "idle" && missing.length > 0) {
+			capabilities.descEl.createDiv({
+				cls: "hearth-operon-caps-missing",
+				text: s.missing(missing.join(", ")),
+			});
+		}
+
+		new Setting(containerEl)
+			.setName(s.recheck)
+			.setDesc(s.recheckDesc)
+			.addButton((btn) =>
+				btn.setButtonText(s.recheckAction).onClick(() => {
+					this.plugin.operon.invalidate();
+					new Notice(t().notices.operonRechecked);
+					this.rerender();
+				}),
+			);
+
+		if (!isOperonAvailable(this.plugin.app)) {
+			const link = containerEl.createEl("a", {
+				cls: "hearth-operon-install",
+				text: s.statusAbsent,
+				href: `obsidian://show-plugin?id=${OPERON_PLUGIN_ID}`,
+			});
+			link.addEventListener("click", (e) => {
+				e.preventDefault();
+				window.open(link.href);
+			});
+		}
 	}
 
 	// ---- File icons (Iconic / Iconize) ----------------------------------
