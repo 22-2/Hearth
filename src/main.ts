@@ -28,6 +28,10 @@ export default class HearthPlugin extends Plugin {
 	/** The ribbon crystal, kept so the icon can be swapped when the
 	 * themeColorTarget setting changes. */
 	private ribbonEl?: HTMLElement;
+	/** True after the initial workspace layout has finished loading. New empty
+	 * tabs should be replaced after that point, but the startup tab must remain
+	 * untouched when `openOnStartup` is disabled. */
+	private startupComplete = false;
 
 	/** Home-view leaves that have already been the active leaf at least once.
 	 * Their first activation was the fresh onOpen render, so the focus refresh
@@ -140,8 +144,12 @@ export default class HearthPlugin extends Plugin {
 		);
 
 		this.app.workspace.onLayoutReady(() => {
+			// Mark startup complete before opening Hearth. This also prevents the
+			// `replaceNewTabs` listener from treating the initial empty workspace
+			// tab as a request to open Hearth when startup is disabled.
+			this.startupComplete = true;
 			this.applyMobileDefaultDashboard();
-			if (this.settings.openOnStartup) void this.activateView();
+			if (this.settings.openOnStartup === true) void this.activateView();
 			// Pop the release-notes dialog after an update (but not on a fresh
 			// install). Runs once layout is ready so it doesn't fight startup.
 			void maybeShowWhatsNew(this);
@@ -156,6 +164,7 @@ export default class HearthPlugin extends Plugin {
 	}
 
 	private maybeReplaceNewTab(leaf: WorkspaceLeaf | null) {
+		if (!this.startupComplete) return;
 		if (!leaf || !this.settings.replaceNewTabs) return;
 		if (leaf.getViewState().type !== "empty") return;
 		void leaf.setViewState({ type: VIEW_TYPE_HOME });
