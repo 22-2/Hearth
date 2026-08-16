@@ -10,6 +10,7 @@ import type {
 /** The kind of content a dashboard card renders. */
 export type CardKind =
 	| "embed"
+	| "slideshow"
 	| "daily"
 	| "web"
 	| "bookmarks"
@@ -1026,6 +1027,79 @@ export interface EmbedView {
 	livePreview?: boolean;
 }
 
+/** One hand-picked picture in a "slideshow" card. Kept as its own object (rather
+ * than a bare path) so a picture can carry a caption and keep a stable identity
+ * while the list is reordered. */
+export interface SlideshowSlide {
+	id: string;
+	/** Vault path of the image file. */
+	path: string;
+	/** Caption shown over the picture; falls back to the file's basename. */
+	caption?: string;
+}
+
+/** Where a "slideshow" card takes its pictures from: the hand-picked `slides`
+ * list, or every image inside a folder. */
+export type SlideshowSource = "list" | "folder";
+
+/**
+ * The order a slideshow shows its pictures in.
+ *
+ * "manual" is the `slides` list's own order — the only order a folder source
+ * cannot honour, so it resolves to "name" there (see `slideshowOrder`).
+ * "random" reshuffles after every full pass, so nothing repeats until every
+ * picture has been shown.
+ */
+export type SlideshowOrder =
+	| "manual"
+	| "name"
+	| "nameDesc"
+	| "created"
+	| "createdDesc"
+	| "modified"
+	| "modifiedDesc"
+	| "random";
+
+/** How one picture gives way to the next. "none" is a cut. */
+export type SlideshowTransition = "none" | "fade" | "slide" | "zoom";
+
+/** How a picture fills the card: cropped to fill it edge to edge ("cover"), or
+ * scaled down whole with letterboxing ("contain"). */
+export type SlideshowFit = "cover" | "contain";
+
+/** Per-card configuration for a "slideshow" card — a picture embed that
+ * rotates. All fields are optional; the defaults noted below are the ones a
+ * freshly added card runs with. */
+export interface SlideshowConfig {
+	/** Where the pictures come from. Default "list". */
+	source?: SlideshowSource;
+	/** The hand-picked pictures, in list order (source "list"). */
+	slides?: SlideshowSlide[];
+	/** Vault folder every image is taken from (source "folder"). */
+	folder?: string;
+	/** Also take images from subfolders of `folder`. Default false. */
+	includeSubfolders?: boolean;
+	/** Display order. Default "manual" (a folder source: "name"). */
+	order?: SlideshowOrder;
+	/** Seconds each picture is shown. Default 8; 0 holds the first picture. */
+	intervalSec?: number;
+	/** How one picture gives way to the next. Default "fade". */
+	transition?: SlideshowTransition;
+	/** Transition length in milliseconds. Default 700. */
+	transitionMs?: number;
+	/** Slowly zoom the picture while it is shown (the "Ken Burns" effect).
+	 * Default false. */
+	kenBurns?: boolean;
+	/** How the picture fills the card. Default "cover". */
+	fit?: SlideshowFit;
+	/** Show the previous/pause/next controls on hover. Default true. */
+	controls?: boolean;
+	/** Show the picture's caption (or file name) over it. Default false. */
+	showCaption?: boolean;
+	/** Hold the current picture while the pointer is over the card. Default false. */
+	pauseOnHover?: boolean;
+}
+
 /** A single tile inside a "links" (launchpad) card. */
 export interface LinkItem {
 	id: string;
@@ -1062,6 +1136,9 @@ export interface DashboardCard {
 	/** kind === "embed": Bases view name to embed when target is a .base file;
 	 * omitted means the default view. */
 	baseView?: string;
+	/** kind === "slideshow": the pictures, where they come from, and how they
+	 * rotate. */
+	slideshow?: SlideshowConfig;
 	/** kind === "web": the web page URL to embed in an iframe. */
 	url?: string;
 	/** kind === "web": allow the framed page same-origin access. Off by default
@@ -1221,8 +1298,44 @@ export type BackgroundKind =
  * decode, opacity layer or blur behind it. */
 export const LOW_POWER_BACKGROUND = "#4a4459";
 
+/**
+ * Where the background is painted.
+ *
+ * "full" is the classic Hearth board: the backdrop fills the whole view and the
+ * cards float on top of it. "banner" turns the same backdrop into a strip
+ * across the top of the content — a cover image, the way a note's banner works
+ * — and leaves the rest of the board on the theme's own surface, so the cards
+ * read against a plain background instead of a picture.
+ *
+ * Both modes share one background configuration: the kind, value, opacity and
+ * blur mean exactly the same thing in each, so switching between them is a
+ * single dropdown and never loses what was set up.
+ */
+export type BackgroundLayout = "full" | "banner";
+
+/** How tall a banner is by default, in pixels: big enough to read as a cover
+ * image, short enough that the first row of cards is still on screen. */
+export const BANNER_HEIGHT_DEFAULT = 220;
+/** Banner height bounds. The floor keeps a banner from collapsing into a line;
+ * the ceiling keeps it from pushing the whole board off the fold. */
+export const BANNER_HEIGHT_MIN = 60;
+export const BANNER_HEIGHT_MAX = 600;
+
+/** Clamp a banner height to {@link BANNER_HEIGHT_MIN}..{@link BANNER_HEIGHT_MAX},
+ * falling back to the default for a missing or non-numeric value. */
+export function clampBannerHeight(h: number | undefined): number {
+	if (typeof h !== "number" || Number.isNaN(h)) return BANNER_HEIGHT_DEFAULT;
+	return Math.max(BANNER_HEIGHT_MIN, Math.min(BANNER_HEIGHT_MAX, Math.round(h)));
+}
+
 /** A self-contained background configuration (used for per-dashboard overrides
- * as well as the global default). */
+ * as well as the global default).
+ *
+ * This is *what the backdrop is* and nothing else. How a board wears it — full
+ * view or banner, and the banner's shape — is deliberately not in here: those
+ * are their own per-dashboard overrides ({@link BannerOverrides}) so a board can
+ * turn the vault's background into a banner without having to restate the
+ * picture. {@link effectiveBackground} joins the two. */
 export interface BackgroundConfig {
 	kind: BackgroundKind;
 	/** A CSS colour, a vault image path, a URL, or — for "weather" — a packed
@@ -1230,6 +1343,41 @@ export interface BackgroundConfig {
 	value: string;
 	opacity: number;
 	blur: number;
+}
+
+/**
+ * How a board wears its background, as *overrides*: every field is optional and
+ * falls back to the global setting, the same way `gridColumns`, `maxWidth` and
+ * `cardOpacity` already do.
+ *
+ * Kept separate from {@link BackgroundConfig} on purpose. A board's background
+ * override is all-or-nothing — take it and you restate the kind, the value, the
+ * opacity and the blur — and making the banner part of it would have meant a
+ * board could only have a banner by re-specifying the whole picture. These
+ * override independently, so "the vault's background, but as a banner on this
+ * board" is one dropdown.
+ */
+export interface BannerOverrides {
+	/** Full-view wallpaper or a banner strip at the top. */
+	backgroundLayout?: BackgroundLayout;
+	/** Banner height in pixels; only read when the layout resolves to "banner". */
+	bannerHeight?: number;
+	/** Fade the banner's lower edge into the page instead of cutting it off with
+	 * a hard line. */
+	bannerFade?: boolean;
+	/** Let the banner run edge to edge instead of lining up with the content
+	 * column. */
+	bannerFullWidth?: boolean;
+}
+
+/** A background resolved for painting: what the backdrop is, plus how this
+ * board wears it, with every fallback already applied. What
+ * {@link effectiveBackground} hands to the renderer. */
+export interface ResolvedBackground extends BackgroundConfig {
+	layout: BackgroundLayout;
+	bannerHeight: number;
+	bannerFade: boolean;
+	bannerFullWidth: boolean;
 }
 
 /** A named dashboard: one arrangeable board of cards. The vault can hold several
@@ -1257,7 +1405,7 @@ export interface DashboardHeaderConfig {
 	spacingBelow?: number;
 }
 
-export interface Dashboard {
+export interface Dashboard extends BannerOverrides {
 	id: string;
 	name: string;
 	/** Optional emoji/short text shown on the switcher button instead of its
@@ -1270,6 +1418,9 @@ export interface Dashboard {
 	/** Optional overrides; when omitted the global setting is used. */
 	gridColumns?: number;
 	rowHeight?: number;
+	/** Override *what* the backdrop is for this board. Independent of the
+	 * banner overrides inherited from {@link BannerOverrides}, which say how it
+	 * is worn — a board can override either, both, or neither. */
 	background?: BackgroundConfig;
 	/** Override "fit to page" for this board (undefined = use global). */
 	fitToPage?: boolean;
@@ -1385,6 +1536,16 @@ export interface HomeSettings {
 	backgroundValue: string;
 	backgroundOpacity: number;
 	backgroundBlur: number;
+	/** Paint the background across the whole view, or as a banner strip at the
+	 * top of the content. See {@link BackgroundLayout}. */
+	backgroundLayout: BackgroundLayout;
+	/** Banner height in pixels; only used when `backgroundLayout` is "banner". */
+	bannerHeight: number;
+	/** Fade the banner's lower edge into the page. Default true. */
+	bannerFade: boolean;
+	/** Run the banner edge to edge rather than aligning it with the content
+	 * column. Default false. */
+	bannerFullWidth: boolean;
 	/** Let the "weather" background drift, fall and twinkle. Default true; low
 	 * power mode replaces the whole background anyway, and a reader who has
 	 * asked their OS for reduced motion gets a still sky regardless. */
@@ -1531,7 +1692,23 @@ export interface HomeSettings {
 	 * when to pop the "What's new" dialog after an update. Empty on a fresh
 	 * install (which is seeded silently, without showing the dialog). */
 	lastSeenVersion: string;
+	/** How far the first-run setup wizard has got. See {@link SetupStatus}. */
+	setupStatus: SetupStatus;
 }
+
+/**
+ * Whether the first-run setup wizard still has something to do.
+ *
+ * - `pending` — a fresh install that hasn't been offered the wizard yet. The
+ *   only value that pops it automatically.
+ * - `done` — the wizard was completed, *or* this is a vault that predates it
+ *   (see `migrateSettings`): an existing dashboard must never be interrupted by
+ *   a wizard offering to rebuild it.
+ * - `skipped` — the wizard was offered and dismissed. Behaves like `done`, but
+ *   is kept distinct so "Set up Hearth" in settings can still read as an
+ *   invitation rather than a redo.
+ */
+export type SetupStatus = "pending" | "done" | "skipped";
 
 export const DEFAULT_SETTINGS: HomeSettings = {
 	title: "Obsidian",
@@ -1553,6 +1730,12 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	 * the image is still recognizable, not a wash of colour. */
 	backgroundOpacity: 0.35,
 	backgroundBlur: 2,
+	/* The wallpaper board is what Hearth has always been, so it stays the
+	 * default; the banner is a choice, not an upgrade. */
+	backgroundLayout: "full",
+	bannerHeight: BANNER_HEIGHT_DEFAULT,
+	bannerFade: true,
+	bannerFullWidth: false,
 
 	openOnStartup: true,
 	replaceNewTabs: true,
@@ -1616,6 +1799,10 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	maxWidth: 1600,
 
 	lastSeenVersion: "",
+	// Fresh installs start out owing the wizard a run; `migrateSettings` marks
+	// every *existing* vault as done, so nobody is offered a rebuild of a
+	// dashboard they already have.
+	setupStatus: "pending",
 };
 
 /** The cards a brand-new vault starts with. Coordinates and sizes are taken
@@ -1942,20 +2129,49 @@ export function setCardPinned(s: HomeSettings, card: DashboardCard, pinned: bool
 	}
 }
 
-/** Effective background for the active board (per-dashboard override or global,
- * or the flat low power colour when that mode is on). */
-export function effectiveBackground(s: HomeSettings): BackgroundConfig {
-	// Overrides the per-dashboard background too: the point is that no board can
-	// pull in a wallpaper while low power mode is on.
-	if (lowPowerActive(s)) return lowPowerBackground(s);
-	return (
-		activeDashboard(s).background ?? {
-			kind: s.backgroundKind,
-			value: s.backgroundValue,
-			opacity: s.backgroundOpacity,
-			blur: s.backgroundBlur,
-		}
-	);
+/**
+ * Effective background for the active board: what the backdrop is, and how the
+ * board wears it, with every fallback applied.
+ *
+ * The two halves resolve *separately*, which is the whole point of splitting
+ * them. A board can override the picture and keep the global layout, override
+ * the layout and keep the global picture, or override both — so "the vault's
+ * wallpaper, but as a banner on this one board" needs no picture restated.
+ */
+export function effectiveBackground(s: HomeSettings): ResolvedBackground {
+	const dash = activeDashboard(s);
+	// Low power replaces the backdrop — and only the backdrop. The layout is not
+	// a paint cost, and swapping it would move every card on the board the
+	// moment the mode is toggled, which is exactly what the mode promises not to
+	// do. So a bannered board keeps its banner and simply fills it with the flat
+	// colour. The per-dashboard background is overridden along with the global
+	// one: no board may pull in a wallpaper while the mode is on.
+	const source = lowPowerActive(s)
+		? lowPowerBackground(s)
+		: (dash.background ?? {
+				kind: s.backgroundKind,
+				value: s.backgroundValue,
+				opacity: s.backgroundOpacity,
+				blur: s.backgroundBlur,
+			});
+
+	return {
+		...source,
+		layout: dash.backgroundLayout ?? s.backgroundLayout ?? "full",
+		bannerHeight: clampBannerHeight(dash.bannerHeight ?? s.bannerHeight),
+		bannerFade: (dash.bannerFade ?? s.bannerFade) !== false,
+		bannerFullWidth: (dash.bannerFullWidth ?? s.bannerFullWidth) === true,
+	};
+}
+
+/** Whether the active board paints its backdrop as a banner rather than as a
+ * full-view wallpaper. A "none" background has nothing to put in a banner, so
+ * it reports false and the board is drawn without one. Low power mode does not
+ * change the answer — it swaps what fills the banner, not whether there is one
+ * (see {@link effectiveBackground}). */
+export function bannerActive(s: HomeSettings): boolean {
+	const bg = effectiveBackground(s);
+	return bg.layout === "banner" && bg.kind !== "none";
 }
 
 /**
@@ -2023,6 +2239,13 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	}
 	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = 0.35;
 	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = 2;
+	// Banner mode is purely additive: settings saved before it existed have none
+	// of these keys, and defaulting them to the full-view wallpaper leaves every
+	// existing board looking exactly as it did.
+	if (s.backgroundLayout !== "banner") s.backgroundLayout = "full";
+	s.bannerHeight = clampBannerHeight(s.bannerHeight);
+	if (typeof s.bannerFade !== "boolean") s.bannerFade = true;
+	if (typeof s.bannerFullWidth !== "boolean") s.bannerFullWidth = false;
 	// Fit-to-page is the default for fresh installs; existing users keep their
 	// choice (only backfill when the field is missing entirely).
 	if (typeof raw.fitToPage !== "boolean") s.fitToPage = true;
@@ -2074,6 +2297,18 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 				migratedCommandId = true;
 			}
 		}
+	}
+	// The first-run wizard is for first runs. A vault that has any persisted
+	// settings at all already has a dashboard — possibly one it has been using
+	// for a year — so it is marked done rather than being offered a rebuild.
+	// Mirrors how `lastSeenVersion` tells a fresh install from an upgrade: no
+	// persisted keys whatsoever is the only signal that means "brand new".
+	if (typeof raw.setupStatus !== "string") {
+		s.setupStatus = Object.keys(raw).length === 0 ? "pending" : "done";
+	} else if (s.setupStatus !== "pending" && s.setupStatus !== "done" && s.setupStatus !== "skipped") {
+		// A hand-edited or partially-synced data.json; anything unrecognised is
+		// treated as done, which is the outcome that never surprises anyone.
+		s.setupStatus = "done";
 	}
 	// The short-lived "split" pill mode was replaced by a plain single button
 	// whose action is chosen here; fall back to the original New-note behaviour.

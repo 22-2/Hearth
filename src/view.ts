@@ -4,8 +4,10 @@ import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
 import { renderDashboardSwitcher } from "./dashboards";
 import { renderMobileActionBar } from "./mobileactions";
-import { applyBackground } from "./background";
+import { applyBackground, renderBanner } from "./background";
+import { deferRedrawWhileTyping } from "./cardfocus";
 import {
+	bannerActive,
 	effectiveFitToPage,
 	effectiveMaxWidth,
 	effectiveShowSearch,
@@ -43,6 +45,9 @@ export class HomeView extends ItemView {
 	hideHeaderInArrange = false;
 	/** Per-render child component so embeds/markdown get cleaned up on re-render. */
 	private renderChild: Component | null = null;
+	/** {@link liveRender}'s focus-held re-render, built on first use (the
+	 * listener it registers lives on `contentEl`, which outlives every render). */
+	private heldLiveRender: (() => void) | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: HearthPlugin) {
 		super(leaf);
@@ -125,6 +130,19 @@ export class HomeView extends ItemView {
 		}
 	}
 
+	/**
+	 * The vault-driven re-render behind the "Live refresh on vault changes"
+	 * setting. Identical to {@link render}, except that it is held while the user
+	 * is typing into a field on the board and runs once after focus leaves
+	 * (#212) — otherwise the board rebuild takes the focused input with it, one
+	 * level above the same guard on each card's own redraw. Every other caller
+	 * re-renders on something the user just did, so they keep calling `render`.
+	 */
+	liveRender(): void {
+		this.heldLiveRender ??= deferRedrawWhileTyping(this.contentEl, () => this.render(), this);
+		this.heldLiveRender();
+	}
+
 	/** Full rebuild of the view. Cheap enough to call on any settings change. */
 	render(): void {
 		// Re-read on every render (which includes every settings save) so the
@@ -167,10 +185,23 @@ export class HomeView extends ItemView {
 			renderCards(this.plugin.settings).length === 0;
 		root.toggleClass("hearth-empty-board", emptyBoard);
 
-		applyBackground(this, root, child);
+		// The backdrop is painted one of two ways. As a wallpaper it goes behind
+		// everything, so it is laid down before the scroll area; as a banner it is
+		// a strip at the top of the content, so it is the scroll area's first
+		// child and the board flows below it.
+		//
+		// Mobile-only mode is the one board with nothing for a banner to head: it
+		// is a centred search field and nothing else, so the same background is
+		// painted as a wallpaper there rather than as a strip floating above a
+		// launcher.
+		const banner = !mobileOnly && bannerActive(this.plugin.settings);
+		root.toggleClass("hearth-has-banner", banner);
+		if (!banner) applyBackground(this, root, child);
 
 		const scroll = root.createDiv("hearth-scroll");
 		scroll.toggleClass("hearth-fit", effectiveFitToPage(this.plugin.settings));
+
+		if (banner) renderBanner(this, scroll, child);
 
 		const inner = scroll.createDiv("hearth-inner");
 		inner.style.maxWidth = `${effectiveMaxWidth(this.plugin.settings)}px`;

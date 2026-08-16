@@ -11,6 +11,132 @@ preceding beta series.
 History begins at 1.5.0. For releases before 1.5.0, see the
 [GitHub Releases](https://github.com/ondreu/Hearth/releases) page.
 
+## [2.1.0]
+
+### Added
+
+- **A setup wizard that builds your first dashboard.** A new install no longer
+  lands on a generic starter grid and a wallpaper nobody chose. Hearth asks
+  instead — a title and logo, a card style and a background, what you actually
+  use the vault for, how it should behave on startup — and lays out a board from
+  the answers.
+
+  **It looks before it asks.** Every supported plugin that is installed and
+  enabled in *your* vault is offered on its own step, each with the single
+  concrete thing accepting it will do: TaskNotes and Kanban configure a Tasks
+  card, Dataview and Datacore add a card seeded with an editable query, Git adds
+  a Git card, Omnisearch becomes the search bar's engine, Iconic/Iconize turn on
+  your own file icons, a `.base` in the vault gets embedded, and Daily notes and
+  Bookmarks add the matching cards. Nothing is installed and nothing is changed
+  inside the other plugin.
+
+  **TaskNotes is read properly, not merely noticed.** Its field names are
+  remappable and its statuses are user-defined, so Hearth reads the running
+  plugin's own configuration — the status, due and priority properties, and
+  every status it counts as complete — and copies them across. The step shows
+  you exactly what it found. A vault that renamed `due` to `deadline`, or that
+  treats "cancelled" as finished, gets a Tasks card that is right on its first
+  render instead of one that silently shows nothing.
+
+  **Nothing is written until you say so.** The last step draws the board to
+  scale and lists every card with the answer that put it there. A board too tall
+  to squeeze onto one screen is set to scroll rather than being scaled down to
+  nothing — as an override on that board alone.
+
+  **And it says so up front.** The final step *opens* by saying that the board
+  it is about to build is a starting point rather than a preset: enough to show
+  what Hearth can do for you, but only a fraction of what there is. Every card
+  can be moved, resized, retitled, recoloured, reconfigured or thrown out, and
+  there is a great deal more in the settings than the wizard asks about — so go
+  and edit all of it to your liking.
+
+  Run it again any time from **Settings → Hearth → About → Build a dashboard**
+  or the **Set up Hearth** command. Run that way it **always adds a new
+  dashboard** and never touches an existing one, so it is safe to press just to
+  see what it would make. Only the first-run prompt offers to replace the
+  untouched starter board.
+
+  Existing vaults are never interrupted: the wizard is offered only to an
+  install with no saved Hearth settings at all, and dismissing it counts as an
+  answer, so it can't nag.
+
+- **A board that wears its background as a banner.** **Appearance → Background →
+  Background layout** offers a second way to show the backdrop you already have:
+  instead of filling the view, it is cropped into a strip across the top of the
+  board — a cover image, the way one sits above a note — and the cards sit below
+  it on your theme's own surface.
+
+  It is the same background either way. The kind, the value, the opacity and the
+  blur all mean exactly what they meant before, a live weather sky included, so
+  switching between the two is one dropdown and loses nothing. What the banner
+  adds is its own shape: **how tall** the strip is, whether its lower edge
+  **fades** into the page or ends on a line, and whether it **lines up with the
+  content** or runs edge to edge.
+
+  **Every board chooses for itself**, in its own settings under **Background**.
+  The layout and each part of the banner's shape are separate overrides, and
+  each one either follows the vault or doesn't — so a board can wear the
+  wallpaper you already have as a banner without restating the picture, keep a
+  full background while the rest of the vault has moved to banners, or set its
+  own height and let the fade and width follow along. Every control says which
+  it is doing, and resets to following the vault.
+
+  On a fit-to-page board the grid simply takes the height the banner leaves it.
+  Low power mode still replaces the picture with its flat colour, but it now
+  leaves the *layout* alone: a bannered board keeps its banner, so toggling the
+  mode no longer moves every card on it.
+
+- **A slideshow card.** **Notes & files → Slideshow** is the image embed with
+  more than one picture: it shows them in turn, on a timer you set. Choose the
+  pictures one by one — each can carry its own caption, and the list can be
+  reordered by hand — or point the card at a folder and let every image in it
+  (optionally including subfolders) play, so a card fills itself as you drop
+  photos in.
+
+  **The order is yours**: your own list order, by name, by date created or
+  modified (either direction), or shuffled — a shuffled card reshuffles between
+  passes, so it shows everything once per round without settling into the same
+  running order forever.
+
+  **And so is the way pictures change**: a plain cut, a crossfade, a slide or a
+  zoom, over as long as you like, with an optional slow zoom into each picture
+  while it is held. Pictures either fill the card or fit whole inside it, the
+  caption can be shown over them, and hovering brings up previous / pause / next
+  with the position. It rotates two `<img>` layers no matter how many pictures
+  there are, so a folder of hundreds costs the same as a pair — and it respects
+  low power mode and a reduced-motion preference, holding still rather than
+  animating.
+
+### Fixed
+
+- **Arranging a fit-to-page board keeps the arrangement.** On a board whose
+  cards are taller than the pane — which is what happens as soon as you zoom
+  Obsidian in, so it depended on your screen and zoom level rather than on
+  anything you did — cards no longer jump when you finish arranging. The board
+  squeezes the layout vertically to fit one screen, but a drag or resize was
+  stored as the *squeezed* pixels, so the squeeze was applied a second time on
+  the next draw: the card landed above where you dropped it, shorter than you
+  made it, gaps between neighbours narrowed, and every further arrange session
+  walked the whole board a little further up. The stored geometry is now
+  converted back out of the fit, so a card stays exactly where you put it.
+- **Snapping works at every zoom level.** On the same fitted boards, the
+  magnetic alignment guides were computed from the cards' unsqueezed positions
+  while you were dragging against their visible edges, so edges tens of pixels
+  away never came close enough to snap — matching a neighbour's height or edge
+  was simply impossible until you zoomed back out. Guides now come from where
+  the cards actually are on screen. A dragged card also no longer jolts to a
+  different position the instant it starts moving.
+- **Cards wait for you to finish typing before they refresh.** A card that
+  tracks a file redraws when that file changes on disk — but if the thing
+  changing it was you, typing into a field the card itself is showing, the
+  redraw took the field (and your cursor) with it. Plugin-rendered inputs inside
+  an embedded note are the clearest case: every write went back into the note,
+  and a moment later the card reloaded under your hands, so finishing a sentence
+  meant clicking back in over and over. A card now holds a refresh while a field
+  inside it has focus and catches up once you click away — exactly when you want
+  it to. The same wait applies to **Live refresh on vault changes**, which
+  rebuilt the whole board out from under the same field.
+
 ## [2.0.0]
 
 ### Added

@@ -14,6 +14,7 @@ import { openFile } from "./opener";
 import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
 import { setLanguage, t } from "./i18n";
 import { maybeShowWhatsNew } from "./whatsnew";
+import { maybeRunSetup, openSetupWizard } from "./onboarding";
 import { clearContentSearchCache } from "./query";
 
 /** Core "Audio recorder" plugin id, used by the "Record voice" mobile action. */
@@ -111,6 +112,15 @@ export default class HearthPlugin extends Plugin {
 			callback: () => this.openDailyNote(),
 		});
 
+		// Like the settings button, and for the same reason: run on demand the
+		// wizard builds an *additional* dashboard and never overwrites one. Only
+		// the first-run prompt may offer to replace the starter board.
+		this.addCommand({
+			id: "run-setup",
+			name: t().commands.runSetup,
+			callback: () => openSetupWizard(this, { forceNewDashboard: true }),
+		});
+
 		this.registerDashboardCommands();
 
 		this.addSettingTab(new HomeSettingTab(this.app, this));
@@ -152,7 +162,10 @@ export default class HearthPlugin extends Plugin {
 			if (this.settings.openOnStartup === true) void this.activateView();
 			// Pop the release-notes dialog after an update (but not on a fresh
 			// install). Runs once layout is ready so it doesn't fight startup.
-			void maybeShowWhatsNew(this);
+			// The setup wizard is the fresh install's counterpart and is offered
+			// after it, so the two can never stack: on a first run the changelog
+			// is silently seeded and only the wizard appears.
+			void maybeShowWhatsNew(this).then(() => maybeRunSetup(this));
 		});
 	}
 
@@ -414,7 +427,10 @@ export default class HearthPlugin extends Plugin {
 		if (lowPowerActive(this.settings)) return;
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_HOME).forEach((leaf) => {
 			const view = leaf.view;
-			if (view instanceof HomeView && !view.arrangeMode) view.render();
+			// liveRender, not render: a rebuild triggered by a vault write must not
+			// destroy a field the user is typing into — including the field whose
+			// own writes triggered it (#212).
+			if (view instanceof HomeView && !view.arrangeMode) view.liveRender();
 		});
 	}
 }
