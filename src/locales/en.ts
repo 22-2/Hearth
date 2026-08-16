@@ -225,6 +225,7 @@ export const en = {
 			default: "Use global default",
 			none: "None",
 			hdefault: "Hearth default",
+			animated: "Hearth animated GIF",
 			color: "Solid color",
 			image: "Vault image",
 			url: "Image URL",
@@ -417,6 +418,7 @@ export const en = {
 			blurDesc: "Background blur in pixels.",
 			labels: {
 				default: "Hearth default",
+				animated: "Hearth animated GIF",
 				none: "None",
 				color: "Solid color",
 				image: "Vault image",

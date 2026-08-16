@@ -868,7 +868,7 @@ function sanitizeLeafView(r: Record<string, unknown>): LeafViewConfig {
 function sanitizeBackground(raw: unknown): BackgroundConfig | undefined {
 	if (!raw || typeof raw !== "object") return undefined;
 	const r = raw as Record<string, unknown>;
-	const kinds: BackgroundKind[] = ["none", "color", "image", "url", "weather"];
+	const kinds: BackgroundKind[] = ["none", "color", "image", "url", "weather", "animated"];
 	if (!kinds.includes(r.kind as BackgroundKind)) return undefined;
 	return {
 		kind: r.kind as BackgroundKind,
@@ -1211,6 +1211,7 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	const bgKinds: BackgroundKind[] = [
 		"none",
 		"default",
+		"animated",
 		"color",
 		"image",
 		"url",

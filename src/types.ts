@@ -1203,13 +1203,14 @@ export interface DashboardCard {
 	fh?: number;
 }
 
-/** Background mode for the home view. "default" uses Hearth's bundled
- * background (a curated image shipped with a release); "weather" paints the
- * live sky for a place (see sky.ts); the other kinds use the user's own
- * value. */
+/** Background mode for the home view. "default" uses Hearth's current bundled
+ * background, "animated" uses the older animated release background, and
+ * "weather" paints the live sky for a place (see sky.ts); the other kinds use
+ * the user's own value. */
 export type BackgroundKind =
 	| "none"
 	| "default"
+	| "animated"
 	| "color"
 	| "image"
 	| "url"

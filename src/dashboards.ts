@@ -809,7 +809,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			});
 		}
 
-		if (bg.kind !== "default" && bg.kind !== "weather") {
+		if (bg.kind !== "default" && bg.kind !== "animated" && bg.kind !== "weather") {
 			const desc =
 				bg.kind === "color"
 					? t().dashboards.backgroundValueDesc.color

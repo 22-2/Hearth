@@ -18,6 +18,10 @@ import { cachedWeather, loadWeather, type WeatherRequest } from "./weather";
 const DEFAULT_BG_URL =
 	"https://raw.githubusercontent.com/ondreu/Hearth/refs/heads/main/assets/default-bg.gif";
 
+/** The animated background shipped with the 1.5.0 beta release. */
+const ANIMATED_BG_URL =
+	"https://github.com/ondreu/Hearth/releases/download/1.5.0-beta/default-bg.gif";
+
 /**
  * Apply the optional, customizable background as a separate layer behind the
  * content so opacity/blur don't affect the foreground. Uses the active
@@ -30,8 +34,8 @@ export function applyBackground(
 ): void {
 	const bg = effectiveBackground(view.plugin.settings);
 	if (bg.kind === "none") return;
-	// "default" uses the bundled Hearth background; no value field needed.
-	if (bg.kind !== "default" && !bg.value) return;
+	// Built-in backgrounds do not need a value field.
+	if (bg.kind !== "default" && bg.kind !== "animated" && !bg.value) return;
 
 	const layer = root.createDiv("hearth-bg");
 	layer.style.opacity = String(bg.opacity);
@@ -50,6 +54,8 @@ export function applyBackground(
 	let url: string | null = null;
 	if (bg.kind === "default") {
 		url = DEFAULT_BG_URL;
+	} else if (bg.kind === "animated") {
+		url = ANIMATED_BG_URL;
 	} else if (bg.kind === "url") {
 		url = bg.value;
 	} else if (bg.kind === "image") {

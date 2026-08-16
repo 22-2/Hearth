@@ -827,10 +827,11 @@ export class HomeSettingTab extends PluginSettingTab {
 			this.weatherBackgroundSection(containerEl);
 		}
 
-		// "default", "none" and "weather" have no free-text value field; the rest do.
+		// Built-in backgrounds, "none" and "weather" have no free-text value field; the rest do.
 		if (
 			s.backgroundKind !== "none" &&
 			s.backgroundKind !== "default" &&
+			s.backgroundKind !== "animated" &&
 			s.backgroundKind !== "weather"
 		) {
 			const desc =
