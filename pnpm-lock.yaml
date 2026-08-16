@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@22-2/obsidian-copy-bundler-plugin':
+        specifier: ^1.0.2
+        version: 1.0.2(esbuild@0.28.2)(vite@8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.0))
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.43
@@ -40,6 +43,12 @@ importers:
         version: 4.1.10(@types/node@20.19.43)(vite@8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.0))
 
 packages:
+
+  '@22-2/obsidian-copy-bundler-plugin@1.0.2':
+    resolution: {integrity: sha512-C0s1qK8c1oP4SXhCT0iIfnia6Xsdmj1xhA52G5kYO8kQaX0XnQotDOE4r825lqjzSrcSBq71weU7UldVMOcIDQ==, tarball: https://npm.pkg.github.com/download/@22-2/obsidian-copy-bundler-plugin/1.0.2/05ca1fd83a5f4a3ca34e26ae5c9d28dd54df082b}
+    peerDependencies:
+      esbuild: '>=0.27.0'
+      vite: '>=8.0.0'
 
   '@codemirror/state@6.5.0':
     resolution: {integrity: sha512-MwBHVK60IiIHDcoMet78lxt6iw5gJOGSbNbOIVBHWVXIH4/Nq1+GQgLLGgI1KlnN86WDXsPudVaqYHKBIx7Eyw==}
@@ -1805,6 +1814,11 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@22-2/obsidian-copy-bundler-plugin@1.0.2(esbuild@0.28.2)(vite@8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.0))':
+    dependencies:
+      esbuild: 0.28.2
+      vite: 8.2.1(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.0)
 
   '@codemirror/state@6.5.0':
     dependencies:
