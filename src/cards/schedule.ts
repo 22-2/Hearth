@@ -1,6 +1,6 @@
 import { Component, setIcon, setTooltip, Setting, TFile } from "obsidian";
 import {
-	dailyNotePath,
+	dailyNoteFinder,
 	dailyNotesOptions,
 	emptyState,
 	moment,
@@ -91,7 +91,8 @@ export function renderSchedule(
 		);
 		if (cfg.hideToolbar !== true) renderToolbar(wrap, state, cfg, range.label, draw);
 		const main = wrap.createDiv("hearth-sched-body");
-		const ctx: ViewContext = { view, cfg, options, ics, component, redraw: draw };
+		const noteAt = options ? dailyNoteFinder(view, options) : null;
+		const ctx: ViewContext = { view, cfg, options, noteAt, ics, component, redraw: draw };
 		if (state.view === "month") renderMonth(main, state, ctx);
 		else if (state.view === "list") renderList(main, state, ctx);
 		else renderTimeGrid(main, state, ctx);
@@ -109,6 +110,8 @@ interface ViewContext {
 	cfg: ScheduleConfig;
 	/** Daily-notes settings, or null when the card doesn't touch daily notes. */
 	options: DailyNotesOptions | null;
+	/** Locale-tolerant lookup of a day's existing note, paired with `options`. */
+	noteAt: ((day: Moment) => TFile | null) | null;
 	ics: IcsContext;
 	component: Component;
 	/** Redraw the whole card (after navigating or switching view). */
@@ -305,9 +308,7 @@ function viewName(view: ScheduleView): string {
 
 /** The daily note for a day, when the card is showing daily notes at all. */
 function noteFor(ctx: ViewContext, day: Moment): TFile | null {
-	if (!ctx.options) return null;
-	const file = ctx.view.app.vault.getAbstractFileByPath(dailyNotePath(day, ctx.options));
-	return file instanceof TFile ? file : null;
+	return ctx.noteAt?.(day) ?? null;
 }
 
 /** Clicking a day's number: its daily note, opened or offered for creation.
@@ -908,7 +909,6 @@ export function scheduleEditor(ctx: CardEditorContext, containerEl: HTMLElement)
 		s
 			.setLimits(0, 10, 1)
 			.setValue(cfg.maxPerDay ?? 3)
-			.setDynamicTooltip()
 			.onChange((v) => {
 				cfg.maxPerDay = v === 3 ? undefined : v;
 				save();
@@ -949,7 +949,6 @@ export function scheduleEditor(ctx: CardEditorContext, containerEl: HTMLElement)
 		s
 			.setLimits(20, 160, 4)
 			.setValue(clampHourHeight(cfg.hourHeight))
-			.setDynamicTooltip()
 			.onChange((v) => {
 				cfg.hourHeight = v === 44 ? undefined : v;
 				save();
@@ -977,7 +976,6 @@ export function scheduleEditor(ctx: CardEditorContext, containerEl: HTMLElement)
 		s
 			.setLimits(3, 90, 1)
 			.setValue(listDays(cfg))
-			.setDynamicTooltip()
 			.onChange((v) => {
 				cfg.listDays = v === 14 ? undefined : v;
 				save();

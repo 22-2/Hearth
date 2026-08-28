@@ -19,6 +19,7 @@ export type CardKind =
 	| "recent"
 	| "links"
 	| "commands"
+	| "templater"
 	| "clock"
 	| "tasks"
 	| "calendar"
@@ -34,6 +35,7 @@ export type CardKind =
 	| "jira"
 	| "weather"
 	| "git"
+	| "operon"
 	| "leaf"
 	| "pet";
 
@@ -94,6 +96,50 @@ export interface CommandItem {
 	row?: number;
 }
 
+/**
+ * A single tile inside a "templater" card: one template, one destination.
+ *
+ * Deliberately shaped like {@link LinkItem} and {@link CommandItem} — same
+ * label/icon/size/position fields — because the three render through the same
+ * tile machinery and share their arrange-mode drag and resize. What differs is
+ * only what a click *does*.
+ */
+export interface TemplaterItem {
+	id: string;
+	label: string;
+	/** Lucide icon id, or the vault path of an image (see `applyTileVisual`). */
+	icon: string;
+	/** Vault path of the Templater template file. */
+	template: string;
+	/** Vault-relative destination folder. Empty means Templater decides, which
+	 * in practice is Obsidian's "Default location for new notes". */
+	folder?: string;
+	/** Filename pattern, without extension. Supports `{{date}}`, `{{date:FMT}}`,
+	 * `{{time}}`, `{{time:FMT}}` and `{{prompt}}` (which asks before creating).
+	 * Empty means Templater names it "Untitled". */
+	filename?: string;
+	/** Open the new note after creating it. Default true; turn it off for tiles
+	 * that only file something away (a log entry, an inbox capture). */
+	open?: boolean;
+	/** Optional per-tile width in pixels, overriding the card's default. */
+	sizeW?: number;
+	/** Optional per-tile height in pixels, overriding the card's default. */
+	sizeH?: number;
+	/** Legacy single per-tile pixel size (drove width and height together).
+	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
+	size?: number;
+	/** Free-form grid position (1-based grid line). See LinkItem.col. */
+	col?: number;
+	/** Free-form grid row (1-based). See LinkItem.row. */
+	row?: number;
+}
+
+/** Per-card configuration for a "templater" card. */
+export interface TemplaterConfig {
+	/** The tiles, in order. */
+	items?: TemplaterItem[];
+}
+
 /** The Tasks-plugin metadata Hearth's Kanban editor reads and writes on a card.
  * Dates are YYYY-MM-DD or ""; `priority` is a key ("highest".."lowest") or "";
  * `recurrence` is the raw text written after 🔁 (e.g. "every week") or "". */
@@ -136,6 +182,12 @@ export interface TaskFilterConfig {
 	statuses?: string[];
 	/** Only tasks at one of these coarse priority levels. */
 	priorities?: TaskPriorityLevel[];
+	/** TaskNotes only: task must carry at least one of these contexts
+	 * (case-insensitive; wikilink brackets ignored). */
+	contexts?: string[];
+	/** TaskNotes only: task must carry at least one of these projects
+	 * (case-insensitive; wikilink brackets ignored). */
+	projects?: string[];
 	/** A due-date constraint (see {@link TaskDueFilter}). */
 	due?: TaskDueFilter;
 	/** Case-insensitive substring the task text must contain. */
@@ -286,6 +338,20 @@ export interface TasksConfig {
 	 * e.g., both "done" and "canceled" can be treated as complete. When unset, the
 	 * single global `taskNotesDoneValue` from Settings → Hearth is used. */
 	taskNotesDoneStatuses?: string[];
+	/** TaskNotes source: this card's own frontmatter field names, overriding the
+	 * global mapping in Settings → Hearth. Set by the setup wizard, which reads
+	 * them from TaskNotes itself — a vault that renamed its fields gets a card
+	 * that works on the first render without the wizard reaching into a global
+	 * setting every other card and board also follows. Undefined = follow the
+	 * global mapping. */
+	taskNotesStatusField?: string;
+	taskNotesDueField?: string;
+	taskNotesPriorityField?: string;
+	/** TaskNotes source: this card's own single "complete" status, overriding the
+	 * global `taskNotesDoneValue`. Only consulted when
+	 * {@link taskNotesDoneStatuses} is unset — a card that lists its complete
+	 * statuses has already answered this. */
+	taskNotesDoneValue?: string;
 	/** List layout: an active filter narrowing which tasks appear. Presets in the
 	 * filter modal are conveniences that fill in these concrete criteria; the
 	 * filter is "active" (and applied) when any field below is set. */
@@ -314,6 +380,68 @@ export interface TasksConfig {
 	/** Kanban: column keys that mark a card done when it lands in them (dragged
 	 * or added). Toggled per column from the board header. */
 	kanbanDoneColumns?: string[];
+}
+
+/**
+ * Per-card configuration for an "operon" card.
+ *
+ * Every field maps onto something Operon's Developer API already understands —
+ * its pipelines, statuses, priorities and finder scopes — so the card asks
+ * Operon for a set of tasks rather than filtering a vault scan of its files.
+ * Ids are Operon's; the card resolves them to labels and colors through its
+ * taxonomy at render time, and shows the raw id if one has been deleted.
+ */
+export interface OperonConfig {
+	/** What the card draws. "list" is a flat task list, "board" groups tasks
+	 * into pipeline-status columns, "agenda" lists the next few days, "timer"
+	 * shows the running time tracker. */
+	view?: "list" | "board" | "agenda" | "timer";
+	/** List view: which of Operon's own scoped views to read. "query" (default)
+	 * applies the filters below instead; the rest delegate the definition of
+	 * "overdue" or "happening today" to Operon. */
+	scope?: "query" | "normal" | "overdue" | "happens-today" | "recent";
+	/** Restrict to these Operon pipelines. Empty means all. */
+	pipelineIds?: string[];
+	/** Restrict to these Operon status ids. Empty means all. */
+	statusIds?: string[];
+	/** Restrict to these Operon priority ids. Empty means all. */
+	priorityIds?: string[];
+	/** Which checkbox states to include. Unset shows open tasks only. */
+	checkbox?: ("open" | "done" | "cancelled")[];
+	/** Restrict to tasks living in this note. */
+	filePath?: string;
+	/** Free-text match on the task description. */
+	text?: string;
+	/** Agenda view: how many days ahead to list, including today. Default 7. */
+	agendaDays?: number;
+	/** Max tasks shown. Default 10. */
+	count?: number;
+	/** Board view: explicit left-to-right order of status ids (drag to
+	 * reorder). Statuses not listed keep their Operon order after the listed
+	 * ones, so a status added upstream still appears. */
+	boardOrder?: string[];
+	/** Board view: status ids the user has hidden. */
+	boardHidden?: string[];
+	/** Where the card's "+" asks Operon to put a new task: unset follows
+	 * Operon's own default, "inline" forces its configured inline target (daily
+	 * note, a specific file, the active file), "file" forces a task note in its
+	 * configured folder. The path is always Operon's — this only picks which of
+	 * its two configured targets to use, which is the way past an inline target
+	 * Operon can't currently resolve. */
+	createAs?: "inline" | "file";
+	/** Sort order for the list and each board column. Default "smart"
+	 * (date → priority → age). Open tasks always sort before closed ones. */
+	sortKey?: "smart" | "due" | "priority" | "created" | "alpha";
+	/** Reverse the chosen sort direction. */
+	sortReverse?: boolean;
+	/** Which metadata chips each row shows. All on by default. */
+	showDue?: boolean;
+	showPriority?: boolean;
+	showStatus?: boolean;
+	showRecurrence?: boolean;
+	showTracker?: boolean;
+	showPinned?: boolean;
+	showFile?: boolean;
 }
 
 /** An external calendar (ICS/iCal) subscription a "calendar" card overlays on
@@ -372,6 +500,12 @@ export interface CalendarConfig extends CalendarSourcesConfig {
 	heatmap?: boolean;
 	/** Which timestamp the heatmap counts. Default "modified". */
 	heatmapMetric?: "modified" | "created";
+	/** Overlay Operon tasks with a due date on the grid and agenda, the same
+	 * way external calendars are overlaid. Requires the Operon integration to
+	 * be available and approved. */
+	operonTasks?: boolean;
+	/** CSS color for the Operon task markers. Falls back to the accent color. */
+	operonTaskColor?: string;
 }
 
 
@@ -881,7 +1015,7 @@ export interface WeatherConfig {
 
 	// ---- Artistic style ----
 	/** Animate the painted sky (drifting clouds, falling rain, twinkling stars).
-	 * Default true; forced off by low power mode. */
+	 * Default true; forced off from the `reduced` tier down. */
 	animate?: boolean;
 
 	// ---- Refresh ----
@@ -1008,6 +1142,30 @@ export interface MobileActionButton {
 	commandId?: string;
 }
 
+/**
+ * How an embedded picture fills its card.
+ *
+ * "natural" is the original behaviour and stays the default: Obsidian's own
+ * transclusion, the picture at its natural size in a scrolling box. The rest
+ * hand the picture the whole card body and differ in what gives — the crop
+ * ("cover"), the empty space ("contain"), the aspect ratio ("stretch") or the
+ * height ("width", which fills the width and scrolls).
+ */
+export type EmbedImageFit = "natural" | "contain" | "cover" | "stretch" | "width";
+
+/** Where a formatted picture sits in its card — and, when it is cropped, which
+ * part of it survives the crop. The nine points of a 3×3 grid. */
+export type EmbedImagePosition =
+	| "top-left"
+	| "top"
+	| "top-right"
+	| "left"
+	| "center"
+	| "right"
+	| "bottom-left"
+	| "bottom"
+	| "bottom-right";
+
 /** A secondary embed a card can switch to. Only `target` is required; `scale`
  * and `editable` mirror the primary embed's fields and default to that view's
  * behaviour when omitted. A card with a valid second view shows a switcher —
@@ -1020,6 +1178,12 @@ export interface EmbedView {
 	baseView?: string;
 	/** Zoom factor for the embedded content (1 = 100%); omitted means no scaling. */
 	scale?: number;
+	/** How an embedded picture fills the card; omitted means "natural" (the
+	 * picture at its own size). Ignored by every other file type. */
+	imageFit?: EmbedImageFit;
+	/** Where a formatted picture sits, and which part of it a crop keeps;
+	 * omitted means "center". Only read when `imageFit` frames the picture. */
+	imagePosition?: EmbedImagePosition;
 	/** Edit the embedded note's text in place instead of read-only (Markdown only). */
 	editable?: boolean;
 	/** Edit through Obsidian's own Live Preview editor rather than Hearth's plain
@@ -1151,8 +1315,15 @@ export interface DashboardCard {
 	links?: LinkItem[];
 	/** kind === "commands": command-palette tiles. */
 	commands?: CommandItem[];
-	/** kind === "recent": how many recent files to show. */
+	/** kind === "templater": the new-note-from-template tiles. */
+	templater?: TemplaterConfig;
+	/** kind === "recent": how many recent files to show. Clamped to what Hearth's
+	 * own recent-file history can hold (see RECENT_HISTORY_MAX); ignored when
+	 * `recentAuto` is on. */
 	count?: number;
+	/** kind === "recent": show as many files as fit the card's height instead of
+	 * a fixed count. Undefined/false is the fixed-count behaviour. */
+	recentAuto?: boolean;
 	/** kind === "recent": file-type group ids (see FILE_TYPE_GROUPS) to include.
 	 * Any combination of the search filter's types; undefined or empty means all
 	 * types are shown. */
@@ -1189,6 +1360,8 @@ export interface DashboardCard {
 	weather?: WeatherConfig;
 	/** kind === "git": sections, action buttons and commit behaviour. */
 	git?: GitConfig;
+	/** kind === "operon": view, Operon filters and display options. */
+	operon?: OperonConfig;
 	/** kind === "leaf": the registered view type to host. */
 	leafView?: LeafViewConfig;
 	/** kind === "pet": species, colors, name and what feeds its mood. */
@@ -1212,6 +1385,16 @@ export interface DashboardCard {
 	 * raw-Markdown box. Only meaningful together with `editable`. */
 	livePreview?: boolean;
 
+	/** kind === "embed": how an embedded picture fills the card. Omitted means
+	 * "natural" — the picture at its own size, as Obsidian renders it. Ignored
+	 * for every other file type. */
+	imageFit?: EmbedImageFit;
+
+	/** kind === "embed": where a formatted picture sits in the card, and which
+	 * part of it survives a crop. Omitted means "center". Only read when
+	 * `imageFit` frames the picture. */
+	imagePosition?: EmbedImagePosition;
+
 	/** kind === "embed": an optional second view the card can switch to. When it
 	 * carries a target, a switcher toggles the body between the primary embed
 	 * (`target`/`scale`/`editable`) and this one — shown in the card header when
@@ -1223,11 +1406,11 @@ export interface DashboardCard {
 	 * only the results show. No effect on non-base embeds. */
 	hideBaseHeader?: boolean;
 
-	/** kind === "commands": pixel size of the command tiles (min column width).
-	 * Omitted means the default tile size. */
+	/** kind === "commands" / "templater": pixel size of the tiles (min column
+	 * width). Omitted means the default tile size. */
 	tileSize?: number;
 
-	/** kind === "links" / "commands" (beta): when true, tiles auto-shift out
+	/** kind === "links" / "commands" / "templater" (beta): when true, tiles auto-shift out
 	 * of the way (swap with a placeholder) as one is dragged, so the layout
 	 * reorders live like phone widgets. Default off — tiles are pure
 	 * free-form and may overlap. */
@@ -1293,10 +1476,43 @@ export type BackgroundKind =
 	| "url"
 	| "weather";
 
-/** The flat backdrop low power mode paints instead of the wallpaper: a muted
+/** The flat backdrop the `minimal` tier paints instead of the wallpaper: a muted
  * grey-purple that sits close to Hearth's brand colour without any image
  * decode, opacity layer or blur behind it. */
 export const LOW_POWER_BACKGROUND = "#4a4459";
+
+/**
+ * How much of the home view's decoration to pay for, as a ladder rather than a
+ * switch.
+ *
+ * Each step is a measured cost, not a taste: see
+ * docs/performance/macos-power-investigation.md. The old boolean low power mode
+ * was only ever the bottom rung — it fixed the power draw by removing the
+ * wallpaper, the frosted glass, the animation *and* every refresh timer at
+ * once, which is far more than most people need to give up.
+ *
+ * - `full` — everything on.
+ * - `balanced` — the painted sky is drawn at half density (fewer drops, stars,
+ *   clouds and fog wisps). Nothing is switched off; there is simply less of it.
+ *   Worth about a third of the sky's main-thread cost, not half: the per-frame
+ *   layout the sky forces has a fixed component that no amount of thinning
+ *   removes. Measured at 168.9ms -> 120.0ms per 4s for a board-spread rain
+ *   field. Only `reduced` and below remove the cost rather than trimming it.
+ * - `reduced` — no animation anywhere, and no frosted glass. The wallpaper and
+ *   every refresh timer stay, so the board still looks like itself and still
+ *   updates; it just holds still.
+ * - `minimal` — the former low power mode: a flat colour instead of the
+ *   wallpaper, opaque cards, no animation, and no timer-driven refresh.
+ */
+export type PerformanceTier = "full" | "balanced" | "reduced" | "minimal";
+
+/** Every tier, richest first — the order the settings dropdown offers them. */
+export const PERFORMANCE_TIERS: readonly PerformanceTier[] = [
+	"full",
+	"balanced",
+	"reduced",
+	"minimal",
+];
 
 /**
  * Where the background is painted.
@@ -1391,6 +1607,16 @@ export interface DashboardHeaderConfig {
 	title?: string;
 	/** Override the global logo text/icon for this dashboard. Empty = Hearth icon. */
 	logo?: string;
+	/** Override the global title Lucide icon for this dashboard. A bare Lucide id
+	 * (`"flame"`), drawn instead of the logo text. An empty string is a real
+	 * override meaning "no icon on this board" — it falls back to the logo text,
+	 * not to the global icon; undefined follows the global setting. */
+	logoIcon?: string;
+	/** Override which parts of this board's brand mark follow the theme's icon
+	 * colour (undefined = use the global {@link HomeSettings.themeColorTarget}).
+	 * Scoped to the board's own title block; Hearth's tab and ribbon icons are
+	 * app-level and keep following the global setting. */
+	themeColorTarget?: HomeSettings["themeColorTarget"];
 	/** Align only the title/logo block; the search section below has its own
 	 * layout. */
 	align?: HeaderAlign;
@@ -1426,6 +1652,8 @@ export interface Dashboard extends BannerOverrides {
 	fitToPage?: boolean;
 	/** Override the content max-width (px) for this board (undefined = global). */
 	maxWidth?: number;
+	/** Override compact spacing for this board (undefined = global). */
+	compact?: boolean;
 	/** Override the card surface opacity for this board (undefined = global). */
 	cardOpacity?: number;
 	/** Override the card surface backdrop blur (px) for this board (undefined =
@@ -1510,6 +1738,14 @@ export interface HomeSettings {
 	showTitle: boolean;
 	/** Emoji or short text shown as a logo next to the title. */
 	logo: string;
+	/** A Lucide icon id drawn as the title icon instead of the emoji/text logo
+	 * (`"flame"`, `"layout-dashboard"`). Empty = fall back to {@link logo}, and
+	 * to the Hearth crystal when that is empty too. Each dashboard can override
+	 * it — see {@link DashboardHeaderConfig.logoIcon}. */
+	logoIcon: string;
+	/** A Lucide icon id used for Hearth's tab header and ribbon button instead of
+	 * the Hearth crystal. Empty = the crystal. */
+	tabIcon: string;
 	/** What follows the theme's icon color: nothing (brand-purple crystal and
 	 * normal title text, the historical look), the crystal icon, the title
 	 * text, or both. */
@@ -1522,6 +1758,18 @@ export interface HomeSettings {
 	/** What the single button beside the search bar does: create a new note, or
 	 * run a web search for the current search-field contents. */
 	newNoteButtonMode: "newNote" | "searchOnline";
+	/** Text on the New-note button. Empty means the built-in "New note". */
+	newNoteButtonLabel: string;
+	/** Vault path of a Templater template the New-note button runs instead of
+	 * making a blank note. Empty (or Templater missing) means a blank note. */
+	newNoteTemplate: string;
+	/** Destination folder for the notes the New-note button makes. Empty hands
+	 * the choice back to Obsidian's "Default location for new notes". */
+	newNoteFolder: string;
+	/** Filename pattern for those notes, without the extension. Supports the
+	 * same `{{date}}` / `{{time}}` / `{{prompt}}` tokens as the Templater card;
+	 * empty keeps Obsidian's "Untitled" (or lets Templater name it). */
+	newNoteFilename: string;
 	/** Also search inside note bodies (full-text), not just names/tags/properties. */
 	searchContents: boolean;
 	/** Which engine powers the search bar: Hearth's built-in vault search, or the
@@ -1593,24 +1841,36 @@ export interface HomeSettings {
 	 * choice would flip this for everyone on upgrade. */
 	openFromOutside: OpenOutsideRule;
 
-	// ---- Low power mode ----
+	// ---- Performance ----
 	/**
-	 * Strip the expensive parts of the home view: the wallpaper (replaced by a
-	 * flat colour), the frosted-glass card blur, card translucency, CSS
-	 * transitions/animations and every timer-driven background refresh.
+	 * How much of the home view's decoration to pay for. See
+	 * {@link PerformanceTier} for what each step drops.
 	 *
 	 * Deliberately an *override*, not a bulk edit of the settings below: nothing
-	 * else in this object is touched while it is on, and every resolver
-	 * (`effectiveBackground`, `effectiveCardBlur`, …) simply reports the low
-	 * power value instead. Turning it back off therefore restores the previous
-	 * look exactly — including per-dashboard and per-card overrides — with no
-	 * snapshot to keep in sync and nothing to lose if the vault is synced or the
-	 * settings file is edited by hand while the mode is on.
+	 * else in this object is touched by the tier, and every resolver
+	 * (`effectiveBackground`, `effectiveCardBlur`, …) simply reports the tier's
+	 * value instead. Moving back up a tier therefore restores the previous look
+	 * exactly — including per-dashboard and per-card overrides — with no snapshot
+	 * to keep in sync and nothing to lose if the vault is synced or the settings
+	 * file is edited by hand while a lower tier is selected.
 	 */
-	lowPower: boolean;
-	/** The flat background colour used while {@link lowPower} is on. Any CSS
-	 * colour; defaults to {@link LOW_POWER_BACKGROUND}. */
+	performanceTier: PerformanceTier;
+	/** The flat background colour used on the "minimal" tier. Any CSS colour;
+	 * defaults to {@link LOW_POWER_BACKGROUND}. */
 	lowPowerBackgroundColor: string;
+	/**
+	 * Hold every animation while the Obsidian window is not the one being used.
+	 *
+	 * A Hearth tab the workspace has hidden already costs nothing — Obsidian
+	 * takes an inactive leaf out of layout, and the browser stops animating a
+	 * subtree that isn't laid out. A *visible* Hearth tab in an unfocused window
+	 * is the gap this closes: side by side with a browser, or on a second
+	 * monitor, the board keeps animating at the full frame rate for nobody.
+	 *
+	 * On by default because the animation it pauses is one nobody is looking at;
+	 * off for anyone who wants the board live on a second screen.
+	 */
+	pauseWhenUnfocused: boolean;
 
 	// ---- Appearance (layout density) ----
 	/** Tighten card and top-of-page spacing to enlarge the usable area. */
@@ -1684,6 +1944,20 @@ export interface HomeSettings {
 	 * default rather than assuming nobody changed it. */
 	iconizeIconProperty: string;
 
+	// ---- Operon ----
+	/** Let Hearth talk to the Operon plugin's Developer API. Turning this off
+	 * is a kill switch: Operon cards stop reading and no capability grant is
+	 * ever requested. On by default, but nothing happens until an Operon card
+	 * is added — the session is only opened when one renders. */
+	operonIntegration: boolean;
+
+	/** Let Hearth *change* Operon tasks: dragging a card between board columns,
+	 * and the card's "+". Off by default, and separate from the switch above
+	 * because Operon's grant is all-or-nothing — turning this on widens what
+	 * Hearth asks for and needs a fresh approval in Operon's settings, so it is
+	 * never done on a vault's behalf. */
+	operonWrites: boolean;
+
 	// ---- Layout ----
 	maxWidth: number;
 
@@ -1715,11 +1989,19 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	showTitle: true,
 	// Empty => the Hearth crystal icon is shown as the brand mark.
 	logo: "",
+	// Empty => no Lucide title icon; the logo text (or the crystal) is drawn.
+	logoIcon: "",
+	// Empty => the Hearth crystal is the tab and ribbon icon.
+	tabIcon: "",
 	themeColorTarget: "none",
 	showSearch: true,
 	searchPlaceholder: "Search or command",
 	showNewNoteButton: true,
 	newNoteButtonMode: "newNote",
+	newNoteButtonLabel: "",
+	newNoteTemplate: "",
+	newNoteFolder: "",
+	newNoteFilename: "",
 	searchContents: true,
 	searchEngine: "builtin",
 
@@ -1755,16 +2037,27 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	openInOverrides: { link: "default", search: "default", card: "default", newNote: "default" },
 	openFromOutside: "same",
 
-	lowPower: false,
+	performanceTier: "full",
 	lowPowerBackgroundColor: LOW_POWER_BACKGROUND,
+	// On by default: it pauses animation nobody is looking at (see the field's
+	// own note for why a hidden tab is already free but an unfocused window is
+	// not), and anyone running the board on a second screen can turn it off.
+	pauseWhenUnfocused: true,
 
 	compact: false,
 	arrangeButtonVisibility: "always",
 	dashboardSwitcherVisibility: "always",
 	cardOpacity: 0.5,
-	// Frosted glass on by default: a translucent card surface with a gentle blur
-	// of the background behind it. Pairs with the 0.5 opacity above.
-	cardBlur: 7,
+	// Frosted glass is off by default, and is the one default that changed for
+	// power rather than for looks. Every blurred card is a backdrop-filter layer
+	// the compositor re-evaluates whenever anything behind it changes, so on a
+	// board with a moving wallpaper it is re-blurred every frame at the display's
+	// full pixel density. Translucency (above) is kept: alpha compositing is
+	// cheap, so the cards still read as glass over the wallpaper.
+	//
+	// Existing vaults are unaffected — `cardBlur` is already present in their
+	// data.json, so loadSettings keeps whatever they chose.
+	cardBlur: 0,
 	// The design baseline corner radius; also the maximum (only sharper is
 	// allowed) so it matches the hardcoded 14 the layout was tuned around.
 	cardRadius: 14,
@@ -1795,6 +2088,13 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	// to see. "icon" is Iconize's own default property name.
 	customFileIcons: true,
 	iconizeIconProperty: "icon",
+
+	// On by default, but inert until an Operon card exists: no session is
+	// opened — and so no grant is requested — until one renders.
+	operonIntegration: true,
+	// Reading is the default; writing is a decision, since it widens the grant
+	// the user has to approve in Operon.
+	operonWrites: false,
 
 	maxWidth: 1600,
 
@@ -1960,6 +2260,13 @@ export function effectiveLogo(s: HomeSettings): string {
 	return activeDashboard(s).header?.logo ?? s.logo;
 }
 
+/** Lucide title icon for the active board. Empty = none, so the logo text (or
+ * the Hearth crystal) is drawn instead. A board's own empty string wins over a
+ * global icon: that is how a single board opts back out of it. */
+export function effectiveLogoIcon(s: HomeSettings): string {
+	return activeDashboard(s).header?.logoIcon ?? s.logoIcon;
+}
+
 /** Alignment for the active board's title/logo block; search layout is separate. */
 export function effectiveHeaderAlign(s: HomeSettings): HeaderAlign {
 	const align = activeDashboard(s).header?.align;
@@ -1986,20 +2293,95 @@ export function effectiveHeaderSpacingBelow(s: HomeSettings): number | undefined
 	return clampHeaderSpacingBelow(activeDashboard(s).header?.spacingBelow);
 }
 
+/** Whether the active board draws with compact spacing (per-dashboard override
+ * or global). */
+export function effectiveCompact(s: HomeSettings): boolean {
+	return activeDashboard(s).compact ?? s.compact;
+}
+
+/** Which parts of the active board's brand mark follow the theme's icon colour
+ * (per-dashboard override or global). The board's title block only — the tab
+ * and ribbon icons are app-level and read {@link HomeSettings.themeColorTarget}
+ * directly. */
+export function effectiveThemeColorTarget(s: HomeSettings): HomeSettings["themeColorTarget"] {
+	return activeDashboard(s).header?.themeColorTarget ?? s.themeColorTarget;
+}
+
 /** Effective content max-width for the active board (per-dashboard override or global). */
 export function effectiveMaxWidth(s: HomeSettings): number {
 	return activeDashboard(s).maxWidth ?? s.maxWidth;
 }
 
-/** Whether low power mode is currently on. Every override below funnels
- * through this so the mode has exactly one switch. */
-export function lowPowerActive(s: HomeSettings): boolean {
-	return s.lowPower === true;
+/**
+ * The selected tier, repaired on read.
+ *
+ * Every predicate below funnels through this, so the ladder has exactly one
+ * definition and an unknown value (a hand-edited data.json, a newer tier synced
+ * back from a future version) can only ever read as `full` rather than as
+ * something arbitrary.
+ */
+export function performanceTier(s: HomeSettings): PerformanceTier {
+	return PERFORMANCE_TIERS.includes(s.performanceTier) ? s.performanceTier : "full";
 }
 
-/** The background low power mode substitutes for whatever is configured: a flat
- * colour at full opacity with no blur, so there is no image to fetch/decode and
- * no filtered layer to composite. */
+/** Rank on the ladder, so the predicates below can say "at least this frugal"
+ * without spelling out every tier. */
+function tierRank(s: HomeSettings): number {
+	return PERFORMANCE_TIERS.indexOf(performanceTier(s));
+}
+
+/**
+ * Whether the board may animate at all: the painted sky's drift and fall, the
+ * pet's moods, slideshow transitions, the clock's second hand, and every CSS
+ * transition and hover lift.
+ *
+ * False from `reduced` down. This is the predicate that matters for power —
+ * animation is the single most expensive thing Hearth does.
+ */
+export function motionAllowed(s: HomeSettings): boolean {
+	return tierRank(s) < PERFORMANCE_TIERS.indexOf("reduced");
+}
+
+/**
+ * How much of the painted sky's field to draw, as a fraction.
+ *
+ * The `balanced` tier's whole content: the sky keeps drifting and falling, there
+ * is simply less of it to move, and a sky at half density still reads as rain
+ * rather than as a broken effect.
+ *
+ * Buys about a third, not a half. Cost scales with the number of animated shapes
+ * but not only with it — the per-frame layout an animated SVG forces has a fixed
+ * component too — so thinning trims the bill rather than halving it. Measured at
+ * 168.9ms -> 120.0ms per 4s for a board-spread rain field.
+ */
+export function skyDensity(s: HomeSettings): number {
+	if (!motionAllowed(s)) return 1; // A still sky costs nothing; keep it whole.
+	return performanceTier(s) === "balanced" ? 0.5 : 1;
+}
+
+/** Whether the frosted-glass blur behind cards may be built. False from
+ * `reduced` down: each layer is a backdrop-filter the compositor has to
+ * re-evaluate whenever anything behind it changes. */
+export function frostAllowed(s: HomeSettings): boolean {
+	return tierRank(s) < PERFORMANCE_TIERS.indexOf("reduced");
+}
+
+/** Whether timer-driven work may run at all: card auto-refresh and the
+ * vault-driven live rebuild. False only on `minimal`. */
+export function timersAllowed(s: HomeSettings): boolean {
+	return performanceTier(s) !== "minimal";
+}
+
+/** The bottom rung — what used to be "low power mode". Replaces the wallpaper
+ * with a flat colour and makes cards opaque, on top of everything the tiers
+ * above it already drop. */
+export function lowPowerActive(s: HomeSettings): boolean {
+	return performanceTier(s) === "minimal";
+}
+
+/** The background the `minimal` tier substitutes for whatever is configured: a
+ * flat colour at full opacity with no blur, so there is no image to fetch/decode
+ * and no filtered layer to composite. */
 export function lowPowerBackground(s: HomeSettings): BackgroundConfig {
 	const value = s.lowPowerBackgroundColor?.trim() || LOW_POWER_BACKGROUND;
 	return { kind: "color", value, opacity: 1, blur: 0 };
@@ -2007,15 +2389,15 @@ export function lowPowerBackground(s: HomeSettings): BackgroundConfig {
 
 /**
  * Timer-driven auto-refresh interval a live card should actually use, in
- * minutes. Low power mode reports 0 (manual refresh only) so no card wakes the
- * app up on a timer; the configured value is left untouched and comes back the
- * moment the mode is turned off.
+ * minutes. The `minimal` tier reports 0 (manual refresh only) so no card wakes
+ * the app up on a timer; the configured value is left untouched and comes back
+ * the moment a higher tier is selected.
  *
  * Only the *timer* is suppressed — callers that also derive a cache TTL from
  * the configured interval must keep using the raw value for that.
  */
 export function effectiveAutoRefreshMinutes(s: HomeSettings, minutes: number): number {
-	return lowPowerActive(s) ? 0 : minutes;
+	return timersAllowed(s) ? minutes : 0;
 }
 
 /** Effective card surface opacity for the active board (per-dashboard override
@@ -2040,10 +2422,11 @@ export function resolveCardOpacity(s: HomeSettings, card: DashboardCard): number
 /** Effective card backdrop blur (px) for the active board (per-dashboard
  * override or global). 0 = no frosted-glass blur. Clamped to a sane range. */
 export function effectiveCardBlur(s: HomeSettings): number {
-	// Low power: no frosted glass. Reporting 0 here (and in resolveCardBlur) is
-	// enough to switch it off wholesale — no card is marked .has-blur, so
-	// updateFrostLayers never builds a backdrop-filter layer or its SVG mask.
-	if (lowPowerActive(s)) return 0;
+	// From `reduced` down: no frosted glass. Reporting 0 here (and in
+	// resolveCardBlur) is enough to switch it off wholesale — no card is marked
+	// .has-blur, so updateFrostLayers never builds a backdrop-filter layer or its
+	// SVG mask.
+	if (!frostAllowed(s)) return 0;
 	const v = activeDashboard(s).cardBlur ?? s.cardBlur;
 	return typeof v === "number" && !Number.isNaN(v) ? Math.max(0, Math.min(40, v)) : 0;
 }
@@ -2051,7 +2434,7 @@ export function effectiveCardBlur(s: HomeSettings): number {
 /** Resolve the per-card blur override (px), falling back to the board/global
  * value from effectiveCardBlur. */
 export function resolveCardBlur(s: HomeSettings, card: DashboardCard): number {
-	if (lowPowerActive(s)) return 0;
+	if (!frostAllowed(s)) return 0;
 	const v = card.cardBlur ?? effectiveCardBlur(s);
 	return typeof v === "number" && !Number.isNaN(v) ? Math.max(0, Math.min(40, v)) : 0;
 }
@@ -2225,15 +2608,36 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	}
 	if (typeof s.rowHeight !== "number" || s.rowHeight <= 0) s.rowHeight = 92;
 	if (typeof s.cardOpacity !== "number") s.cardOpacity = 0.5;
-	if (typeof s.cardBlur !== "number") s.cardBlur = 7;
+	if (typeof s.cardBlur !== "number") s.cardBlur = DEFAULT_SETTINGS.cardBlur;
 	if (typeof s.cardRadius !== "number") s.cardRadius = CARD_RADIUS_MAX;
 	if (typeof s.cardBorderWidth !== "number") s.cardBorderWidth = 1;
-	// Low power mode is purely additive: settings saved before it existed have
-	// neither key, so both are simply defaulted (fillMissingDefaults already does
-	// this on load; these guards also repair a wrong-typed value from a
-	// hand-edited or partially-synced data.json). Nothing else is touched — the
-	// mode never rewrites the settings it overrides.
-	if (typeof s.lowPower !== "boolean") s.lowPower = false;
+	// ---- Performance tier (replaced the boolean low power mode) ----
+	//
+	// One-way: the old `lowPower` flag is folded into the tier and the key is
+	// dropped, so it cannot linger and then contradict the tier once someone
+	// changes it. Keyed off `raw` rather than `s`, because loadSettings has
+	// already merged DEFAULT_SETTINGS over the persisted data by the time this
+	// runs — `s.performanceTier` is therefore always populated, and testing it
+	// would mean never seeing the legacy flag at all.
+	let migratedLowPower = false;
+	if (!PERFORMANCE_TIERS.includes(raw.performanceTier as PerformanceTier)) {
+		// No tier persisted. If the legacy flag is there, honour it; otherwise
+		// leave whatever is already in memory (a valid tier set by a caller, or
+		// the default) rather than stamping over it.
+		if ("lowPower" in raw) {
+			s.performanceTier = raw.lowPower === true ? "minimal" : "full";
+			migratedLowPower = true;
+		} else if (!PERFORMANCE_TIERS.includes(s.performanceTier)) {
+			s.performanceTier = "full";
+		}
+	} else {
+		s.performanceTier = raw.performanceTier as PerformanceTier;
+	}
+	if ("lowPower" in (s as object)) {
+		delete (s as Partial<HomeSettings> & { lowPower?: unknown }).lowPower;
+		migratedLowPower = true;
+	}
+	if (typeof s.pauseWhenUnfocused !== "boolean") s.pauseWhenUnfocused = true;
 	if (typeof s.lowPowerBackgroundColor !== "string" || !s.lowPowerBackgroundColor.trim()) {
 		s.lowPowerBackgroundColor = LOW_POWER_BACKGROUND;
 	}
@@ -2315,5 +2719,5 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	if ((s.newNoteButtonMode as string) === "split") s.newNoteButtonMode = "newNote";
 	// Drop the obsolete single-board field so it can't shadow the dashboards.
 	delete (s as unknown as { cards?: unknown }).cards;
-	return migratedCommandId;
+	return migratedCommandId || migratedLowPower;
 }

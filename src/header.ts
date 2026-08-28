@@ -2,6 +2,7 @@ import { type Component, Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { hearthIconIdFor } from "./icon";
+import { resolveIconId } from "./lucide";
 import {
 	effectiveHeaderAlign,
 	effectiveHeaderLogoScale,
@@ -9,11 +10,14 @@ import {
 	effectiveHeaderSpacingBelow,
 	effectiveHeaderTitleScale,
 	effectiveLogo,
+	effectiveLogoIcon,
 	effectiveShowSearch,
 	effectiveShowTitle,
+	effectiveThemeColorTarget,
 	effectiveTitle,
 } from "./types";
 import { t } from "./i18n";
+import { newNoteButtonLabel } from "./newnote";
 
 /** The search engine used by the “Search online” button action.
  * DuckDuckGo's GET endpoint works without an API key and is privacy-friendly. */
@@ -41,8 +45,9 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 	if (effectiveShowTitle(s)) {
 		const titleRow = container.createDiv("hearth-title");
 		// Tint the crystal and/or title text with the theme's icon color per
-		// the themeColorTarget setting (see styles.css).
-		const target = s.themeColorTarget;
+		// the themeColorTarget setting — this board's override, or the global one
+		// (see styles.css).
+		const target = effectiveThemeColorTarget(s);
 		if (target === "icon" || target === "both") titleRow.addClass("is-icon-themed");
 		if (target === "title" || target === "both") titleRow.addClass("is-title-themed");
 		titleRow.style.setProperty("--hearth-title-scale", String(effectiveHeaderTitleScale(s)));
@@ -52,10 +57,16 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 			titleRow.style.setProperty("--hearth-title-margin-top", `${marginTop}px`);
 		}
 
+		// Three ways to mark the title, in order: a Lucide icon (global, or this
+		// board's override), a custom emoji/text logo shown verbatim, or the
+		// Hearth crystal as the fallback brand mark. An unknown Lucide id draws
+		// nothing, so it falls through rather than leaving an empty slot.
 		const logo = effectiveLogo(s).trim();
-		// A custom emoji/text logo is shown verbatim; otherwise fall back to the
-		// Hearth crystal icon as the brand mark.
-		if (logo === "") {
+		const lucideId = resolveIconId(effectiveLogoIcon(s));
+		if (lucideId) {
+			const logoEl = titleRow.createSpan({ cls: "hearth-logo hearth-logo-icon" });
+			setIcon(logoEl, lucideId);
+		} else if (logo === "") {
 			const logoEl = titleRow.createSpan({ cls: "hearth-logo hearth-logo-icon" });
 			setIcon(logoEl, hearthIconIdFor(target));
 		} else {
@@ -119,14 +130,21 @@ function searchOnline(bar: HTMLElement): void {
 	}
 }
 
-/** The original New-note button: creates a new note on click. */
+/** The New-note button: creates a note on click. What that note is — blank, or
+ * made from a Templater template, and where it lands — is configured in
+ * Settings → Appearance and resolved by `src/newnote.ts` (#227); the button's
+ * text is configurable there too, so a board can say "Capture" or "New meeting
+ * note" instead. */
 function createNewNoteButton(view: HomeView): HTMLElement {
+	const label = newNoteButtonLabel(view.plugin.settings);
 	const btn = createEl("button", {
 		cls: "hearth-newnote",
-		attr: { "aria-label": t().header.newNoteAria },
+		// A renamed button describes itself; the generic aria label is only
+		// right for the default one.
+		attr: { "aria-label": view.plugin.settings.newNoteButtonLabel.trim() || t().header.newNoteAria },
 	});
 	setIcon(btn.createSpan("hearth-newnote-icon"), "plus");
-	btn.createSpan({ cls: "hearth-newnote-label", text: t().header.newNote });
+	btn.createSpan({ cls: "hearth-newnote-label", text: label });
 	btn.addEventListener("click", () => {
 		void view.plugin.createNewNote(view);
 	});

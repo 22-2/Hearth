@@ -223,7 +223,7 @@ export function renderGit(
 
 	// Polling is off by default; the events above already cover everything done
 	// inside Obsidian. It earns its keep for a repo also being changed from a
-	// terminal or another device. Low power mode suppresses the timer entirely.
+	// terminal or another device. The minimal tier suppresses the timer entirely.
 	const refreshMin = effectiveAutoRefreshMinutes(view.plugin.settings, cfg.refreshMin ?? 0);
 	if (refreshMin > 0) {
 		component.registerInterval(
@@ -662,7 +662,6 @@ export function gitEditor(ctx: CardEditorContext, containerEl: HTMLElement): voi
 		s
 			.setLimits(0, 50, 1)
 			.setValue(cfg.changeLimit ?? 8)
-			.setDynamicTooltip()
 			.onChange((value) => {
 				cfg.changeLimit = value === 8 ? undefined : value;
 				ctx.opts.save();
@@ -692,7 +691,6 @@ export function gitEditor(ctx: CardEditorContext, containerEl: HTMLElement): voi
 			s
 				.setLimits(1, 25, 1)
 				.setValue(cfg.logLimit ?? 5)
-				.setDynamicTooltip()
 				.onChange((value) => {
 					cfg.logLimit = value === 5 ? undefined : value;
 					ctx.opts.save();
@@ -711,7 +709,6 @@ export function gitEditor(ctx: CardEditorContext, containerEl: HTMLElement): voi
 		s
 			.setLimits(0, 60, 5)
 			.setValue(cfg.refreshMin ?? 0)
-			.setDynamicTooltip()
 			.onChange((value) => {
 				cfg.refreshMin = value > 0 ? value : undefined;
 				ctx.opts.save();

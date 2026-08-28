@@ -33,6 +33,22 @@ export const en = {
 	// ---- Notices (transient toasts) ------------------------------------
 	notices: {
 		couldNotCreateNote: "Hearth: could not create a new note.",
+		operonTaskMissing:
+			"Hearth: that Operon task's note is no longer in the vault.",
+		operonRechecked: "Hearth: rechecked the Operon connection.",
+		operonWriteFailed: (reason: string) => `Hearth: Operon refused the change — ${reason}`,
+		/** A refused create, with the Operon setting that decided the target —
+		 * the error alone names a configured target without saying which one. */
+		operonCreateFailed: (reason: string, where: string) =>
+			`Hearth: Operon refused to create the task — ${reason} ${where} ` +
+			"Change it in Operon's settings, or pick a different target under “New tasks” " +
+			"in this card's settings.",
+		/** The mutation may have landed. Hearth has already spent its one legal
+		 * recovery attempt, so the honest report is "unknown", not "failed" —
+		 * and never an offer to retry, which could apply the change twice. */
+		operonWriteUnknown: (reason: string) =>
+			`Hearth: Operon couldn't confirm whether the change was applied (${reason}). ` +
+			"The card has been re-read — check the task before trying again.",
 		enableExcalidraw:
 			"Hearth: enable the Excalidraw plugin to create drawings.",
 		excalidrawCommandMissing:
@@ -55,6 +71,14 @@ export const en = {
 			"Hearth: couldn't undo the recurring task completion.",
 		couldNotAddKanbanCard: "Hearth: couldn't add the card to the Kanban board.",
 		couldNotConvertCard: "Hearth: couldn't convert the card into a note.",
+		templaterNoTemplate: (path: string) =>
+			`Hearth: template not found: ${path}`,
+		templaterFailed: (name: string) =>
+			`Hearth: Templater didn't create a note from ${name}.`,
+		templaterCreated: (path: string) => `Hearth: created ${path}`,
+		newNoteTemplaterMissing:
+			"Hearth: the “New note” button is set to a Templater template, but " +
+			"Templater isn’t enabled — making a blank note instead.",
 		layoutExported: "Hearth: layout exported.",
 		layoutImported: "Hearth: layout imported.",
 		layoutImportError: (error: string) => `Hearth: ${error}`,
@@ -88,14 +112,39 @@ export const en = {
 	confirm: {
 		confirm: "Confirm",
 		cancel: "Cancel",
+		ok: "OK",
 	},
 
 	// ---- "What's new" release-notes dialog -----------------------------
 	whatsNew: {
 		title: "What's new in Hearth",
 		intro: "Thanks for updating! Here's what's changed since you last checked.",
+		/** Shown instead of {@link intro} when there are headlines to click. */
+		introHint:
+			"Thanks for updating! Here's what's changed since you last checked — " +
+			"click any line to read the details.",
 		close: "Got it",
 		footer: "Full details live in the plugin's README.",
+		/** The Added / Changed / Fixed group labels. */
+		kinds: {
+			added: "New",
+			changed: "Changed",
+			fixed: "Fixed",
+			removed: "Removed",
+			deprecated: "Deprecated",
+			security: "Security",
+			other: "Also",
+		},
+		filterPlaceholder: "Filter changes…",
+		expandAll: "Expand all",
+		collapseAll: "Collapse all",
+		noMatches: (query: string) => `Nothing here mentions "${query}".`,
+		/** Tooltip on a version's compare/release link. */
+		releaseNotes: (version: string) => `Release notes for ${version} on GitHub`,
+		/** Label for the header row that folds a release away. */
+		releaseToggle: (version: string) => `Show or hide what changed in ${version}`,
+		/** Tooltip on the `#123` link beside a change. */
+		issue: (n: string) => `Issue #${n} on GitHub`,
 	},
 
 	// ---- First-run setup wizard ----------------------------------------
@@ -107,7 +156,6 @@ export const en = {
 			look: "Look",
 			purpose: "What for",
 			integrations: "Integrations",
-			behaviour: "Behaviour",
 			finish: "Finish",
 		},
 		/** The heading at the top of each step. */
@@ -117,19 +165,21 @@ export const en = {
 			look: "Pick a look",
 			purpose: "What do you use your vault for?",
 			integrations: "Found in your vault",
-			behaviour: "How Hearth behaves",
 			finish: "Here's your dashboard",
 		},
 		/** The line under each heading. */
 		stepDescs: {
 			welcome: "A few questions, then Hearth builds your first dashboard.",
-			vault: "The title and logo across the top of the board.",
-			look: "You can change any of this later in Settings → Appearance.",
+			vault: "The title and logo across the top of this board.",
+			look:
+				"This applies to the board being built — every other board keeps its " +
+				"own look. You can change any of it later from the board's own settings.",
 			purpose: "Pick as many as you like — each one adds cards to your board.",
 			integrations:
 				"Hearth found these already installed. Turn on the ones you'd like it to use.",
-			behaviour: "What happens when Obsidian starts and when you open a note.",
-			finish: "Nothing has been changed yet. Here's what will be built.",
+			finish:
+				"Nothing has been changed yet. Here's what will be built — as one " +
+				"dashboard, leaving your vault-wide settings alone.",
 		},
 		nav: {
 			back: "Back",
@@ -282,39 +332,35 @@ export const en = {
 		},
 		integrations: {
 			lead:
-				"Each one Hearth turns on here is configured for you — nothing is installed " +
-				"or changed in the other plugin.",
+				"Each one Hearth turns on here adds a card to this board, configured for " +
+				"you — nothing is installed or changed in the other plugin, and nothing " +
+				"outside this dashboard is touched.",
 			recommended: "Recommended",
 			effects: {
 				tasknotes:
-					"Add a Tasks card reading your TaskNotes tasks, using the field names and " +
-					"completed statuses TaskNotes is set to.",
+					"Add a Tasks card reading your TaskNotes tasks, with the field names and " +
+					"completed statuses TaskNotes is set to stored on the card itself.",
 				kanban: "Add a Tasks card showing your Kanban board as columns you can drag between.",
 				dataview: "Add a Dataview card, seeded with a query you can edit.",
 				datacore: "Add a Datacore card ready for a query.",
+				templater:
+					"Add a card of buttons — one per template you already have — that make a " +
+					"note from it in one click.",
 				git: "Add a Git card showing your repository's status, with commit and sync buttons.",
-				omnisearch: "Use Omnisearch as the engine behind Hearth's search bar.",
-				fileIcons: "Show the per-file icons you've already set, instead of Hearth's file-type icons.",
+				operon:
+					"Add an Operon tasks card, reading through Operon's Developer API. " +
+					"You'll be asked to approve Hearth in Operon's own settings the first " +
+					"time the card loads; until then it says what it's waiting for.",
 				bases: "Add a card embedding a base from your vault.",
 				dailyNotes: "Add a card showing today's daily note, editable in place.",
 				bookmarks: "Add a card listing your bookmarks.",
 			},
-			taskNotesTitle: "Read from your TaskNotes settings",
+			taskNotesTitle: "Read from your TaskNotes settings, onto this card",
 			taskNotesStatus: "Status field",
 			taskNotesDue: "Due field",
 			taskNotesPriority: "Priority field",
 			taskNotesDone: "Counts as done",
 			taskNotesDoneNone: "none defined — Hearth will use \"done\"",
-		},
-		behaviour: {
-			openOnStartup: "Open Hearth when Obsidian starts",
-			openOnStartupDesc: "Your dashboard is the first thing you see.",
-			replaceNewTabs: "Use Hearth for new empty tabs",
-			replaceNewTabsDesc: "A new tab opens on the dashboard instead of the empty state.",
-			focusSearch: "Focus the search field on open",
-			focusSearchDesc: "Start typing the moment a Hearth tab opens. Desktop only.",
-			openIn: "Open notes in",
-			openInDesc: "Where a note goes when you open one from the dashboard.",
 		},
 		finish: {
 			empty:
@@ -387,7 +433,9 @@ export const en = {
 				ambience: "A bit of life",
 				dataview: "Dataview is installed",
 				datacore: "Datacore is installed",
+				templater: "Templater templates were found",
 				git: "Git is installed",
+				operon: "Operon's developer API is available",
 				bases: "A base was found in your vault",
 			},
 		},
@@ -406,6 +454,10 @@ export const en = {
 		noteToFavorite: "Pick a note to favorite…",
 		folder: "Pick a folder…",
 		image: "Pick an image…",
+		icon: "Search Lucide icons…",
+		iconPlaceholder: "Lucide icon id",
+		iconBrowse: "Browse Lucide icons",
+		iconClear: "Clear icon",
 	},
 
 	// ---- Dashboard toolbar & card controls -----------------------------
@@ -460,8 +512,7 @@ export const en = {
 				"An emoji or short text shown on the switcher button. Empty = number.",
 			switcherLucide: "Switcher Lucide icon",
 			switcherLucideDesc:
-				"A Lucide icon id (e.g. “home”, “star”, “layout-dashboard”). Takes precedence over the emoji above.",
-			lucidePlaceholder: "home",
+				"A Lucide icon (e.g. “home”, “star”, “layout-dashboard”) — browse the set, or type an id. Takes precedence over the emoji above.",
 			linkedWorkspace: "Linked workspace",
 			linkedWorkspaceDesc:
 				"Auto-switch to this dashboard when this workspace loads. Requires the core Workspaces plugin.",
@@ -488,6 +539,9 @@ export const en = {
 			logoText: "Logo text",
 			logoTextDesc:
 				"Override the global logo for this dashboard. Empty uses the Hearth crystal icon.",
+			logoIcon: "Title icon",
+			logoIconDesc:
+				"A Lucide icon drawn beside this dashboard's title instead of the logo text. Clear it to show the logo text (or the Hearth crystal) on this board alone.",
 			titleAlign: "Title alignment",
 			titleAlignDesc:
 				"Align only the title/logo block. The search bar keeps its own layout.",
@@ -507,6 +561,23 @@ export const en = {
 			fitStateScroll: "scroll",
 			fitOptionFit: "Fit to one page",
 			fitOptionScroll: "Allow scrolling",
+			themeColorTarget: "Accent colour on the title",
+			themeColorTargetDesc:
+				"Which parts of this board's brand mark follow the theme's icon colour. Overrides the global setting for this board; Hearth's tab and ribbon icons keep following the global one.",
+			themeColorTargetDefault: (state: string) => `Use global default (${state})`,
+			themeColorTargetOptions: {
+				none: "Neither",
+				icon: "The icon",
+				title: "The title",
+				both: "Both",
+			},
+			compact: "Compact spacing",
+			compactDesc: "Override the global spacing for this board.",
+			compactDefault: (state: string) => `Use global default (${state})`,
+			compactOptionOn: "Compact",
+			compactOptionOff: "Roomy",
+			compactStateOn: "compact",
+			compactStateOff: "roomy",
 			cardOpacity: "Card opacity",
 			cardBlur: "Card blur",
 			cardRadius: "Card corner radius",
@@ -600,11 +671,12 @@ export const en = {
 		},
 		/** Sub-section headings used to group settings within a tab. */
 		sections: {
-			lowPower: "Low power mode",
-			lowPowerDesc:
-				"Trade the visual effects for battery life and smoothness on slower hardware.",
+			performance: "Performance",
+			performanceDesc:
+				"How much of the decoration to pay for. Trade visual effects for battery life and smoothness on slower hardware.",
 			home: "Home",
-			homeDesc: "Title, logo, search visibility and overall content width.",
+			homeDesc:
+				"Title, logo, title and tab icons, search visibility and overall content width.",
 			searchBar: "Search bar",
 			searchBarDesc: "How the search field looks and what it does.",
 			grid: "Grid & spacing",
@@ -634,7 +706,9 @@ export const en = {
 			setupAgain: "Build a dashboard",
 			setupAgainDesc:
 				"Run the setup wizard again to generate another dashboard. It's always " +
-				"added as a new board, so your existing dashboards are never touched.",
+				"added as a new board, so your existing dashboards are never touched — " +
+				"and everything it sets lands on that one board, not on your vault-wide " +
+				"settings.",
 			setupButton: "Start setup",
 			whatsNew: "What's new",
 			whatsNewDesc: "Read the release notes for this and every past version.",
@@ -668,6 +742,15 @@ export const en = {
 			logo: "Logo",
 			logoDesc:
 				"An emoji or short text shown next to the title. Leave empty for the Hearth crystal icon.",
+			logoIcon: "Title icon",
+			logoIconDesc:
+				"A Lucide icon drawn next to the title instead of the logo text. " +
+				"Browse the set or type an id; leave empty to keep the logo text. " +
+				"Each dashboard can override it in its own settings.",
+			tabIcon: "Tab icon",
+			tabIconDesc:
+				"A Lucide icon for Hearth's tab header and ribbon button, in place of " +
+				"the Hearth crystal. Browse the set or type an id; leave empty for the crystal.",
 			themeColorTarget: "Follow theme icon color",
 			themeColorTargetDesc:
 				"Draw the crystal icon and/or the title text in your theme's icon " +
@@ -699,34 +782,95 @@ export const en = {
 				"search the web for the current search-field contents.",
 			newNoteButtonModeNewNote: "New note",
 			newNoteButtonModeSearchOnline: "Search online",
+			newNoteHeading: "The “New note” button",
+			newNoteHeadingDesc:
+				"What the button makes, and where. The same settings drive the " +
+				"button beside the search bar, the one on a search-bar card, and " +
+				"Hearth’s “Create new note” command.",
+			newNoteButtonLabel: "Button text",
+			newNoteButtonLabelDesc:
+				"Text on the button. Leave empty for “New note”.",
+			newNoteTemplate: "Template",
+			newNoteTemplateDesc:
+				"Make the note from a Templater template instead of a blank one. " +
+				"Templater does the templating — your user scripts, " +
+				"tp.system.prompt() dialogs and cursor placement all behave as they " +
+				"do from its own command.",
+			newNoteTemplateNone: "Blank note",
+			newNoteTemplatePick: "Pick a template…",
+			newNoteTemplateClear: "Use a blank note",
+			newNoteTemplaterMissing:
+				"Templater isn’t enabled. Install and enable it to use a template " +
+				"here; until then the button makes a blank note.",
+			newNoteFolder: "Location",
+			newNoteFolderDesc:
+				"Folder the new note goes in, created if it doesn’t exist yet. " +
+				"“Default location” means wherever Obsidian puts new notes.",
+			newNoteFolderClear: "Use the default location",
+			newNoteFilename: "Filename",
+			newNoteFilenameDesc:
+				"Name for the new note, without the extension. {{date}}, " +
+				"{{date:FMT}}, {{time}}, {{time:FMT}} and {{prompt}} are " +
+				"substituted — {{prompt}} asks you for the name on each click. " +
+				"Leave empty for “Untitled”.",
+			newNoteFilenamePlaceholder: "Untitled",
+			newNoteDestination: (destination: string) => `Creates ${destination}`,
 			contentWidth: "Content width",
 			contentWidthDesc: "Maximum width of the home content, in pixels.",
 		},
-		lowPower: {
-			enable: "Low power mode",
-			enableDesc:
-				"Replace the background with a flat colour and switch off the " +
-				"frosted glass, card transparency, animations and every timed " +
-				"background refresh. Nothing below is overwritten — your settings " +
-				"come back exactly as they were when you turn this off.",
-			color: "Low power background",
+		performance: {
+			tier: "Performance tier",
+			tierDesc:
+				"Each step down drops the next most expensive thing the board does. " +
+				"Nothing below is overwritten — your settings come back exactly as " +
+				"they were when you move back up.",
+			tierFull: "Full — everything on",
+			tierBalanced: "Balanced — a lighter sky",
+			tierReduced: "Reduced — nothing moves",
+			tierMinimal: "Minimal — plain and still",
+			/** One line per tier, shown under the dropdown for the selected one. */
+			tierFullDesc:
+				"Every effect at full strength. The painted weather sky is the most " +
+				"expensive thing here: if the board is warming up your machine, this " +
+				"is the setting to step down.",
+			tierBalancedDesc:
+				"The painted sky is drawn at half density — fewer raindrops, stars, " +
+				"clouds and wisps of fog. Nothing is switched off and nothing stops " +
+				"moving; there is simply less of it, for about a third less work.",
+			tierReducedDesc:
+				"Nothing on the board moves, and the frosted glass behind cards is " +
+				"off. Your wallpaper stays, cards stay translucent, and every card " +
+				"still refreshes on its timer — the board just holds still.",
+			tierMinimalDesc:
+				"The frugal end: a flat colour instead of the wallpaper, opaque " +
+				"cards, no motion, and no card refreshing itself on a timer.",
+			pauseWhenUnfocused: "Pause animation when Obsidian isn't in front",
+			pauseWhenUnfocusedDesc:
+				"Hold every animation while you are working in another app or " +
+				"another window. A Hearth tab hidden behind another tab already " +
+				"costs nothing; this covers a visible board in a window you are not " +
+				"using — beside a browser, or on a second screen. Turn it off if you " +
+				"keep the dashboard running on a second display.",
+			color: "Minimal background",
 			colorDesc:
-				"The flat colour shown behind the home view while low power mode is " +
-				"on. Any CSS colour, e.g. #4a4459.",
-			/** Bullet list of what the mode currently changes, shown under the toggle. */
-			effects: "While it is on:",
+				"The flat colour shown behind the home view on the minimal tier. " +
+				"Any CSS colour, e.g. #4a4459.",
+			/** Bullet list of what the selected tier changes, shown under the dropdown. */
+			effects: "At this tier:",
+			effectSkyHalf: "the painted weather sky is drawn at half density",
 			effectBackground: "the background is a flat colour — no image, GIF, opacity layer or blur",
-			effectFrost: "cards are opaque, with no frosted-glass blur behind them",
+			effectOpaque: "cards are opaque rather than translucent",
+			effectFrost: "no frosted-glass blur behind cards",
 			effectMotion: "transitions, hover lifts, shadows and animations are off",
 			effectRefresh:
 				"web, RSS, calendar-subscription and Jira cards stop refreshing on a timer (manual refresh still works)",
 			effectLiveRefresh: "the dashboard stops rebuilding itself on vault changes",
 			effectClock: "clock cards drop seconds and the sweeping second hand",
 			effectSlideshow: "slideshow cards hold one picture instead of rotating",
-			/** Shown in the sections whose settings the mode currently overrides. */
+			/** Shown in the sections whose settings the tier currently overrides. */
 			overridden:
-				"Low power mode is on, so these are overridden right now. They are " +
-				"kept as they are and take effect again when you turn it off.",
+				"The performance tier overrides these right now. They are kept as " +
+				"they are and take effect again when you move back up.",
 		},
 		background: {
 			heading: "Background",
@@ -953,6 +1097,15 @@ export const en = {
 						"Dataview's successor. The Datacore card runs a Datacore query — or a " +
 						"JS/JSX/TS/TSX script — and renders it with Datacore's own live views.",
 				},
+				templater: {
+					name: "Templater",
+					desc:
+						"The “New note from template” card turns your Templater templates into " +
+						"buttons: each tile carries its own template, destination folder and " +
+						"filename pattern, and one click makes the note. Templater does the " +
+						"templating — your user scripts, tp.system.prompt() dialogs and cursor " +
+						"placement all behave as they do from its own command.",
+				},
 				git: {
 					name: "Git",
 					desc:
@@ -960,6 +1113,14 @@ export const en = {
 						"commits, and commits, syncs, pushes and pulls through the Git " +
 						"plugin itself — its remote, credentials and commit-message " +
 						"template all apply unchanged.",
+				},
+				operon: {
+					name: "Operon",
+					desc:
+						"The Operon cards — tasks, board, agenda and timer — read through " +
+						"Operon's own Developer API, so its statuses, priorities and " +
+						"recurrence stay its to define. Desktop only, needs Obsidian 1.12.2 " +
+						"or newer, and Operon must approve Hearth's read request.",
 				},
 				iconic: {
 					name: "Iconic",
@@ -1111,6 +1272,58 @@ export const en = {
 				"frontmatter rather than its menu. Match this to Iconize's own " +
 				"setting if you renamed it (its default is “icon”).",
 		},
+		operon: {
+			heading: "Operon",
+			headingDesc:
+				"Read tasks, boards, agendas and the running timer from the Operon " +
+				"plugin through its own developer API — Operon stays the source of " +
+				"truth for what a task is, and Hearth only displays what it returns.",
+			enable: "Connect to Operon",
+			enableDesc:
+				"Off is a kill switch: Operon cards stop reading and Hearth never " +
+				"asks Operon for access. Nothing is requested until an Operon card " +
+				"is on a dashboard.",
+			status: "Connection",
+			statusAbsent: "Operon isn't installed or enabled.",
+			statusUnsupported:
+				"Operon's developer API is desktop-only and needs Obsidian 1.12.2 or newer.",
+			statusBooting: "Operon is running but still starting up.",
+			statusPending:
+				"Waiting for approval. Open Settings → Operon → Core → General → " +
+				"Developer API Integrations and approve Hearth.",
+			statusSuspended:
+				"Access is suspended. Review Hearth's pending scope in Operon's " +
+				"Developer API Integrations.",
+			statusRevoked:
+				"Access was revoked. Grant it again in Operon's Developer API Integrations.",
+			statusReady: "Connected — Operon cards can read tasks.",
+			statusIdle: "Not connected yet. Add an Operon card to open a session.",
+			statusOff: "The integration is switched off, so Hearth isn't reading anything from Operon.",
+			statusError: "Operon refused the connection.",
+			detail: "Operon reported",
+			install: "Open Operon in Community plugins",
+			writes: "Allow changes",
+			writesDesc:
+				"Lets the board card move a task to another status by dragging it, and " +
+				"adds a “+” for creating one. Operon decides where a new task goes and " +
+				"whether a move is legal; Hearth only asks. Turning this on widens what " +
+				"Hearth requests, so you'll need to approve it again in Operon's " +
+				"Developer API Integrations. Off means Hearth can only read.",
+			writesPending:
+				"Reading works, but the change permissions haven't been granted yet — " +
+				"approve Hearth again in Operon's Developer API Integrations. Until then " +
+				"the cards stay read-only.",
+			capabilities: "Requested access",
+			capabilitiesDesc:
+				"Hearth asks for all of these at once because Operon does not open a " +
+				"partly approved session. Read-only unless “Allow changes” is on, which " +
+				"adds the task-transition and task-creation permissions.",
+			missing: (names: string) => `Not yet granted: ${names}`,
+			recheck: "Recheck",
+			recheckDesc:
+				"Reopen the connection after approving, revoking or reloading Operon.",
+			recheckAction: "Recheck now",
+		},
 		filters: {
 			heading: "Search filters",
 			headingDesc:
@@ -1223,6 +1436,7 @@ export const en = {
 			recent: "Recent files",
 			links: "Links / launchpad",
 			commands: "Commands",
+			templater: "New note from template",
 			clock: "Clock & greeting",
 			tasks: "Tasks",
 			calendar: "Mini calendar",
@@ -1238,6 +1452,7 @@ export const en = {
 			jira: "Jira filter",
 			weather: "Weather",
 			git: "Git",
+			operon: "Operon",
 			leaf: "Plugin view (beta)",
 			pet: "Pet",
 		},
@@ -1262,6 +1477,34 @@ export const en = {
 			zoom: "Zoom",
 			zoomDesc:
 				"Scale the embedded content. Applies when you close this dialog.",
+			zoomImageDesc:
+				"Scale the picture inside the frame it was fitted to — zooming a " +
+				"cropped picture crops in further. Applies when you close this dialog.",
+			imageFit: "Picture fit",
+			imageFitDesc:
+				"How the picture fills the card. Every mode but the first hands it " +
+				"the whole card, edge to edge.",
+			imageFits: {
+				natural: "Original size",
+				contain: "Fit the whole picture",
+				cover: "Fill the card (crop)",
+				stretch: "Stretch to the card",
+				width: "Fit the width (scroll)",
+			},
+			imagePosition: "Picture position",
+			imagePositionDesc: "Where the picture sits in the card.",
+			imagePositionCropDesc: "Which part of the picture the crop keeps.",
+			imagePositions: {
+				"top-left": "Top left",
+				top: "Top",
+				"top-right": "Top right",
+				left: "Left",
+				center: "Center",
+				right: "Right",
+				"bottom-left": "Bottom left",
+				bottom: "Bottom",
+				"bottom-right": "Bottom right",
+			},
 			editable: "Editable",
 			editableDesc:
 				"Edit the embedded note's text in place (Markdown notes only).",
@@ -1379,8 +1622,14 @@ export const en = {
 			refreshIntervalAria: "Refresh interval in seconds",
 		},
 		recent: {
+			fit: "Fit to card height",
+			fitDesc:
+				"List as many files as the card is tall enough to show, instead of a " +
+				"fixed number. Resizing the card changes how many appear.",
 			count: "Number of files",
-			countDesc: "How many recently-opened files to list.",
+			countDesc: (max: number) =>
+				`How many recently-opened files to list — at most ${max}, which is as ` +
+				`far back as Hearth's recent-file history goes.`,
 			types: "File types",
 			typesDesc: "Only list files of the selected types. Pick any combination; none selected shows every type.",
 		},
@@ -1399,6 +1648,14 @@ export const en = {
 			externalCalendars: "External calendars",
 			externalCalendarsDesc:
 				"Subscribe to ICS/iCal feeds (Google, iCloud, Fastmail, Nextcloud…). Events appear as coloured dots on the grid and are listed in the agenda view.",
+			operonTasks: "Show Operon tasks",
+			operonTasksDesc:
+				"Mark days that have an Operon task due, and list those tasks in the " +
+				"agenda. Reads through Operon's developer API, so it needs Operon " +
+				"approved in Settings → Hearth → Integrations. Tasks that are only " +
+				"scheduled (no due date) aren't included.",
+			operonTaskColor: "Operon task colour",
+			operonTaskColorDesc: "Colour of the task markers. Defaults to the accent colour.",
 			sourceNamePlaceholder: "Name",
 			sourceUrlPlaceholder: "ICS/iCal URL (https:// or webcal://)",
 			sourceShow: "Show this calendar",
@@ -1670,6 +1927,50 @@ export const en = {
 			moveDown: "Move down",
 			removeCommand: "Remove command",
 			addCommand: "Add command",
+		},
+		templater: {
+			missing: "Templater isn't enabled",
+			missingDesc:
+				"This card creates notes by calling the Templater plugin — install and " +
+				"enable it, and these tiles start working. Nothing else here needs " +
+				"changing in the meantime.",
+			autoShift: "Auto-shift tiles (beta)",
+			autoShiftDesc:
+				"When on, tiles shove each other aside as one is dragged (like phone " +
+				"widgets). Off by default — tiles are pure free-form and may overlap.",
+			buttonSize: "Button size",
+			buttonSizeDesc:
+				"Default size of the tiles. Resize an individual tile by dragging its " +
+				"bottom-right corner.",
+			heading: "Templates",
+			labelPlaceholder: "Label",
+			pickTemplate: "Pick a template…",
+			pickTemplateTooltip: "Choose the Templater template this tile runs",
+			pickFolderTooltip:
+				"Choose the folder the new note goes in. The vault root means “wherever " +
+				"Obsidian puts new notes”.",
+			filenamePlaceholder: "Filename",
+			filenameTooltip:
+				"Name for the new note, without the extension. {{date}}, {{date:FMT}}, " +
+				"{{time}}, {{time:FMT}} and {{prompt}} are substituted. Leave empty to " +
+				"let Templater name it.",
+			openOn: "Opens the new note — click to file it away silently instead",
+			openOff: "Files the new note away silently — click to open it instead",
+			removeTile: "Remove tile",
+			addTile: "Add a template",
+			tokensHelp:
+				"Filenames may use {{date}}, {{date:YYYY-MM}}, {{time}}, {{time:HH-mm}} " +
+				"and {{prompt}}, which asks you for the rest of the name before the note " +
+				"is made. Everything inside the template itself — <% tp.* %>, your user " +
+				"scripts, tp.system.prompt() — is Templater's own, and runs exactly as it " +
+				"does from Templater's command.",
+			tokensHelpScoped: (folder: string) =>
+				`The picker lists the templates in “${folder}”, Templater's own template ` +
+				"folder. Filenames may use {{date}}, {{date:YYYY-MM}}, {{time}}, " +
+				"{{time:HH-mm}} and {{prompt}}, which asks you for the rest of the name " +
+				"before the note is made. Everything inside the template itself — " +
+				"<% tp.* %>, your user scripts, tp.system.prompt() — is Templater's own, " +
+				"and runs exactly as it does from Templater's command.",
 		},
 		tasks: {
 			source: "Source",
@@ -2029,6 +2330,67 @@ export const en = {
 				"Git plugin's own updates. 0 — the default — follows those updates only, " +
 				"which already covers everything done inside Obsidian.",
 		},
+		operon: {
+			view: "View",
+			viewDesc: "What this card draws from Operon.",
+			viewList: "Task list",
+			viewBoard: "Status board",
+			viewAgenda: "Agenda",
+			viewTimer: "Timer",
+			scope: "Scope",
+			scopeDesc:
+				"Use one of Operon's own scoped views, or apply the filters below. " +
+				"Operon decides what counts as overdue or happening today, so its " +
+				"scopes stay correct as its rules evolve.",
+			scopeQuery: "Custom filters",
+			scopeNormal: "All tasks",
+			scopeToday: "Happening today",
+			scopeOverdue: "Overdue",
+			scopeRecent: "Recently touched",
+			createAs: "New tasks",
+			createAsDesc:
+				"What the card's “+” asks Operon to make. Operon's default follows its own " +
+				"settings; the other two pick which of its configured targets to use — " +
+				"useful when one of them can't be resolved. Where the task actually goes " +
+				"is Operon's decision either way.",
+			createAsDefault: "Operon's default",
+			createAsInline: "Inline, in a note",
+			createAsFile: "Its own note",
+			agendaDays: "Days ahead",
+			agendaDaysDesc: "How many days the agenda covers, including today.",
+			count: "Tasks shown",
+			countDesc: "Maximum tasks in the list, or per board column.",
+			pipelines: "Pipelines",
+			pipelinesDesc: "Limit to these Operon pipelines. None selected means all.",
+			statuses: "Statuses",
+			statusesDesc: "Limit to these Operon statuses. None selected means all.",
+			priorities: "Priorities",
+			prioritiesDesc: "Limit to these Operon priorities. None selected means all.",
+			checkbox: "Completion",
+			checkboxDesc: "Which completion states to include. Open tasks only by default.",
+			checkboxOpen: "Open",
+			checkboxDone: "Done",
+			checkboxCancelled: "Cancelled",
+			text: "Text match",
+			textDesc: "Only tasks whose description contains this text.",
+			sort: "Sort",
+			sortDesc:
+				"Order of the list and of each board column. Open tasks always come " +
+				"before completed ones. The toggle reverses the direction.",
+			sortSmart: "Smart (date, priority, age)",
+			sortDue: "Date",
+			sortPriority: "Priority",
+			sortCreated: "Created",
+			sortAlpha: "Alphabetical",
+			showDue: "Show dates",
+			showPriority: "Show priority",
+			showStatus: "Show status",
+			showRecurrence: "Show recurring marker",
+			showTracker: "Show running timer marker",
+			showPinned: "Show pinned marker",
+			showFile: "Show note name",
+			noOptions: "Add an Operon card to the board first to load these options",
+		},
 		rss: {
 			feeds: "Feeds",
 			namePlaceholder: "Name (optional)",
@@ -2195,10 +2557,10 @@ export const en = {
 				"plugin's own timers, listeners and rendering going for as long as " +
 				"the board is open — every one of these cards costs again. Use one " +
 				"or two at most, and expect a slower dashboard on modest hardware.",
-			perfNoteLowPower:
-				"Low power mode is on. It cannot slow this card down — a hosted view " +
-				"manages itself — so this is the one card worth removing if the " +
-				"dashboard still feels heavy.",
+			perfNoteTier:
+				"You have stepped the performance tier down. It cannot slow this " +
+				"card down — a hosted view manages itself — so this is the one card " +
+				"worth removing if the dashboard still feels heavy.",
 			note: "Beta",
 			noteDesc:
 				"Hosts another plugin's view inside the card. Some views expect a " +
@@ -2317,6 +2679,8 @@ export const en = {
 			recentEmpty: "No recent files",
 			linksEmpty: "Add links in settings",
 			commandsEmpty: "Add commands in card settings",
+			templaterEnable: "Enable the Templater plugin to create notes from templates",
+			templaterEmpty: "Add a template in card settings",
 			tasksEnable:
 				"Enable the TaskNotes plugin, or switch source to checkboxes",
 			tasksEmpty: "No open tasks",
@@ -2339,6 +2703,66 @@ export const en = {
 			leafPickView: "Pick a plugin view in card settings",
 			leafViewMissing:
 				"This view isn't available — enable the plugin that provides it",
+			operonEnable: "Enable the Operon plugin to show its tasks",
+			operonDisabled:
+				"The Operon integration is off — turn it on in Settings → Hearth → Integrations",
+			operonUnsupported:
+				"Operon's developer API is desktop-only and needs Obsidian 1.12.2 or newer",
+			operonPending:
+				"Approve Hearth in Settings → Operon → Core → General → Developer API Integrations",
+			operonSuspended:
+				"Operon suspended Hearth's access — review it in Operon's Developer API Integrations",
+			operonRevoked:
+				"Operon access was revoked — grant it again in Operon's Developer API Integrations",
+			operonBooting: "Operon is still starting up",
+			operonError: "Operon refused the connection",
+			operonNoTasks: "No Operon tasks match",
+			operonNoAgenda: "Nothing scheduled in this window",
+			operonNoColumns: "No Operon statuses to show — pick a pipeline in card settings",
+		},
+		operon: {
+			loading: "Reading Operon…",
+			untitled: "Untitled task",
+			settling: "Operon is still settling",
+			timerIdle: "No timer running",
+			timerStarting: "Starting…",
+			timerStopping: "Stopping…",
+			timerUnassigned: "Unassigned time",
+			truncated: (shown: number, total: number) => `Showing ${shown} of ${total}`,
+			readFailed: (reason: string) => `Operon couldn't answer: ${reason}`,
+			/** Operon's own words, shown verbatim under an empty state so the
+			 * problem is diagnosable instead of guessed at. */
+			errorDetail: (code: string, reason: string) => (reason ? `${code} — ${reason}` : code),
+			addTask: "Add task",
+			moveTo: "Move to",
+			targetDaily: "Operon is set to put new inline tasks in today's daily note.",
+			targetFile: (path: string) => `Operon is set to put new inline tasks in ${path}.`,
+			targetActive: "Operon is set to put new inline tasks in the active file.",
+			targetAsk:
+				"Operon is set to ask where each new inline task goes, which a dashboard " +
+				"card can't answer — choose “Its own note” on this card instead.",
+			targetNote: (folder: string) =>
+				folder
+					? `Operon is set to create new tasks as notes in ${folder}.`
+					: "Operon is set to create new tasks as their own notes.",
+			addTaskPlaceholder: "What needs doing?",
+			addTaskDue: "Due date",
+			confirmTitle: "Operon needs a confirmation",
+			/** Operon assessed the change and asked for consent; its own summary
+			 * of what would happen is shown rather than Hearth's guess at it. */
+			confirmMessage: (risk: string, effects: string) =>
+				effects
+					? `Operon rates this change as ${risk}: ${effects}`
+					: `Operon rates this change as ${risk}.`,
+			confirmApply: "Apply",
+		},
+		templater: {
+			untitledTile: "New note",
+			vaultRoot: "Default location",
+			untitledNote: "Untitled",
+			createsIn: (destination: string) => `Creates ${destination}`,
+			promptTitle: "Name the new note",
+			promptPlaceholder: "What is it about?",
 		},
 		pet: {
 			species: {
@@ -2517,6 +2941,8 @@ export const en = {
 			nextMonth: "Next month",
 			backToToday: "Back to today",
 			dayEdited: (date: string, count: number) => `${date}: ${count} edited`,
+			dayTasks: (date: string, count: number) =>
+				count === 1 ? `${date}: 1 task` : `${date}: ${count} tasks`,
 			dayMetric: (date: string, count: number, metric: string) =>
 				`${date}: ${count} ${metric}`,
 			dayEvents: (date: string, count: number) =>
@@ -2657,12 +3083,13 @@ export const en = {
 			filterTitle: "Filter tasks",
 			filterPresets: {
 				overdue: "Overdue",
-				today: "Due today",
-				week: "Due this week",
+				today: "Today",
+				week: "This week",
 				highPriority: "High priority",
 				noDate: "No date",
 			},
-			filterDue: "Due date",
+			filterDue: "Date",
+			filterDueDesc: "Matches a task's due date or its scheduled date.",
 			filterDueAny: "Any",
 			filterDueHasDate: "Has a date",
 			filterPriority: "Priority",
@@ -2673,6 +3100,8 @@ export const en = {
 				none: "None",
 			},
 			filterStatus: "Status",
+			filterContexts: "Contexts",
+			filterProjects: "Projects",
 			filterText: "Text contains",
 			filterTextPlaceholder: "Search task text…",
 			filterApply: "Apply",
@@ -2776,6 +3205,7 @@ export const en = {
 		recent: "Recent files",
 		links: "Links / launchpad",
 		commands: "Commands",
+		templater: "New note from template",
 		clock: "Clock & greeting",
 		tasks: "Tasks",
 		calendar: "Mini calendar",
@@ -2792,6 +3222,10 @@ export const en = {
 		jira: "Jira filter",
 		weather: "Weather",
 		git: "Git",
+		"operon-tasks": "Operon tasks",
+		"operon-board": "Operon board",
+		"operon-agenda": "Operon agenda",
+		"operon-timer": "Operon timer",
 		leaf: "Plugin view (beta)",
 		pet: "Pet",
 	},
@@ -2813,6 +3247,7 @@ export const en = {
 		recent: "The files you opened most recently",
 		links: "A launchpad of links, notes and folders",
 		commands: "Buttons that run Obsidian commands",
+		templater: "Buttons that make a note from a Templater template, in a folder you pick",
 		clock: "The time, the date and a greeting",
 		tasks: "Checkboxes from your vault, as a list or a board",
 		calendar: "A month at a glance, with your notes on it",
@@ -2829,6 +3264,10 @@ export const en = {
 		jira: "Issues from a Jira filter or JQL search",
 		weather: "The forecast for a place you pick",
 		git: "Repository status, with commit, pull and push",
+		"operon-tasks": "Your Operon tasks, filtered the way you like",
+		"operon-board": "Operon's pipeline statuses as board columns",
+		"operon-agenda": "The next few days of Operon work, day by day",
+		"operon-timer": "Operon's running time tracker, ticking live",
 		leaf: "Another plugin's side panel, hosted in a card",
 		pet: "A small companion that lives on your board",
 	},

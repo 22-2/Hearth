@@ -11,9 +11,253 @@ preceding beta series.
 History begins at 1.5.0. For releases before 1.5.0, see the
 [GitHub Releases](https://github.com/ondreu/Hearth/releases) page.
 
+## [2.2.0]
+
+### Added
+
+- **The "New note" button is yours to configure.** Settings → Appearance →
+  **The "New note" button** now decides what that button makes: give it a
+  **Templater template** and it creates the note from that instead of a blank
+  one, send it to a **folder** of your choosing (created if it isn't there yet),
+  and name the note with a **filename pattern** — `{{date}}`, `{{date:FMT}}`,
+  `{{time}}`, `{{time:FMT}}` and `{{prompt}}`, the same tokens the Templater
+  card uses, with `{{prompt}}` asking you for the name on each click. The
+  button's **text** is configurable too, so it can read "Capture" or "New
+  meeting note". Templater does the templating, exactly as it does from its own
+  command: your user scripts, `tp.system.prompt()` dialogs and cursor placement
+  all behave unchanged, and the note opens the way Hearth opens notes rather
+  than replacing your board. The settings drive the header button, a search-bar
+  card's button and Hearth's "Create new note" command alike; leave them alone
+  and the button does what it always did. Folder and filename apply to a blank
+  note too, so it is configurable without Templater installed (#227).
+
+- **Move an Operon task by dragging it, and add one from the card.** The Operon
+  board card now supports **drag and drop between status columns** — with the
+  same move on each row's **right-click menu**, so it is reachable without a
+  pointer — and the
+  board and list cards offer a **+** that creates a task. Both are off until you
+  switch on **Allow changes** under Settings → Hearth → Integrations → Operon:
+  Operon's developer grant is all-or-nothing, so asking for write access by
+  default would make every read-only vault approve it, and turning it on widens
+  the request and needs a fresh approval in Operon's own Developer API
+  Integrations.
+
+  Operon stays in charge of both. Hearth previews a change, Operon rates it and
+  applies it, and any plan it marks as needing consent — or as more than routine
+  — is confirmed with you before it runs. A move carries the status the board
+  was drawn from, so a drag on a board that has gone stale is refused instead of
+  silently reverting a change made elsewhere. Where a new task lives, and
+  whether it is an inline checkbox or its own note, is read from Operon's own
+  settings rather than decided by the card — with a **New tasks** choice on the
+  card for the times that decision doesn't work: Operon offers two configured
+  targets (an inline one — the daily note, a specific file or the active file —
+  and a task note in its own folder), and a card can ask for either when one of
+  them can't be resolved. A refused create now names the target Operon was
+  configured to use, so *"Configured Daily Note target is unavailable or
+  invalid"* says which setting it means. And if Operon can't confirm whether
+  a change landed, Hearth resolves that one plan with Operon and then says the
+  outcome is uncertain — it never re-applies, which is how a task ends up moved
+  twice.
+
+- **Operon tasks, boards, agendas and the running timer on the dashboard.** Four
+  new cards read from the [Operon](https://github.com/hasanyilmaz/operon) task
+  plugin: a task **list**, a **board** whose columns are Operon's own pipeline
+  statuses in its order and colours, an **agenda** grouping the next few days of
+  due work, and a **timer** showing the active tracker, ticking live. Filter by
+  pipeline, status, priority, completion state, note or text — the pickers offer
+  what Operon actually has, so there are no ids to type — or delegate the
+  question entirely by picking one of Operon's own scopes (*Happening today*,
+  *Overdue*, *Recently touched*). Clicking a task opens its note, landing on the
+  exact line for an inline task. The **Mini calendar** card can mark days with an
+  Operon task due and list them in the agenda alongside external-calendar events.
+
+  Unlike the TaskNotes integration, this reads nothing off disk: Operon ships an
+  in-process developer API, and Hearth uses it, so recurrence, statuses,
+  priorities and what counts as done all stay Operon's to define and keep working
+  as Operon changes. The integration is **read-only** — no card here modifies a
+  task.
+
+  Operon's developer API is **desktop-only, needs Obsidian 1.12.2 or newer**, and
+  requires **your approval**: Hearth's first request appears under Settings →
+  Operon → Core → General → Developer API Integrations, and the cards say exactly
+  what they're waiting for until you approve it. Settings → Hearth →
+  Integrations shows the connection status, the read access Hearth asks for, and
+  a switch to turn the whole thing off.
+
+- **Filter TaskNotes tasks by Context and Project.** The Tasks card's filter
+  modal now offers Contexts and Projects as chip rows for TaskNotes sources,
+  alongside the status and priority chips, so a card can show just the work for
+  one project or one context without a query (#231).
+
+- **The setup wizard offers Operon.** "Found in your vault" now includes Operon
+  and, when you accept it, the built board arrives with an **Operon tasks** card
+  on it. The offer appears only where the card could actually work — Operon's
+  Developer API is desktop-only and needs Obsidian 1.12.2, so the wizard uses
+  the same two checks the Add card picker does rather than merely noticing the
+  plugin is installed. It is off by default, and says up front that Operon will
+  ask you to approve Hearth the first time the card loads.
+
+- **Hearth speaks Simplified Chinese.** A full `zh` locale joins English, so
+  every string Hearth draws — commands, notices, the setup wizard, all of the
+  plugin and card settings, card bodies and the add-card picker — comes out in
+  简体中文 when Obsidian's own display language is Chinese. It is picked up from
+  Obsidian's language at load and needs no setting of its own; regional codes
+  fall back to `zh`, and anything untranslated still falls back to English. The
+  README has a Chinese translation too ([README.zh-CN.md](README.zh-CN.md)).
+
+### Fixed
+
+- **Hovering the search bar no longer lights a grey slab inside it.** Obsidian
+  paints every text input on hover, and that rule outranked the one that makes
+  Hearth's search field transparent, so a second rounded rectangle — carrying
+  the field's own corner radius, not the bar's — appeared inset inside the bar.
+  The bar keeps drawing its own hover and focus affordance; only the stray
+  rectangle is gone.
+- **The setup wizard no longer changes your vault-wide settings.** Running setup
+  — or re-running it later from **Settings → Hearth → About → Build a
+  dashboard** — used to write its answers straight into the global settings: the
+  title, logo and accent, the card surface preset, compact spacing, the
+  background, and the TaskNotes field mapping. On a fresh install that was
+  invisible; on a re-run it silently restyled *every* board you already had and
+  repointed every Tasks card in the vault. Every answer now lands on the
+  dashboard the wizard builds — as a per-board override, or on the card itself
+  for the TaskNotes field names and completed statuses — so a setup run cannot
+  touch another board or a vault-wide preference. Two new per-board overrides
+  came out of it, both also available from a board's own settings: **Compact
+  spacing** and **Accent colour on the title**. And the wizard no longer asks
+  about the things that can only be vault-wide — opening Hearth on startup,
+  using it for new tabs, focusing search on open, where notes open, Omnisearch
+  as the search engine, and Iconic/Iconize file icons — since it cannot set them
+  without changing Hearth everywhere; each is one toggle in **Settings →
+  Hearth**.
+- **Daily notes are found even when their name spells the weekday in another
+  language.** A daily-note format with a locale-dependent token — `dd`, `dddd`,
+  `Do` — was resolved by formatting the date in whatever locale Obsidian is
+  running in now, so a note written under a different one ("Wed, 19.08.2026"
+  next to a moment locale that spells it "Mi") looked missing: the day streak
+  read 0, the calendar day lost its dot and the daily card offered to create a
+  note that already existed. For those formats Hearth now reads the date back
+  out of the filenames in the daily-note folder, ignoring the parts only the
+  locale decides, so notes made by Periodic Notes with its own locale override
+  — or carried over from another machine — resolve the same as any other
+  (#229).
+- **Filtering tasks by date honours TaskNotes' scheduled dates.** A task due
+  next week but scheduled for today vanished from a **Today** filter: the card
+  looked only at the due date and fell back to the scheduled one when there was
+  no due date at all. **Today**, **This week**, **Overdue**, **Has a date** and
+  **No date** now match on either of a task's dates, the way TaskNotes' own
+  date views do, and the scheduled date is read through your TaskNotes field
+  mapping rather than the literal `scheduled` key. The filter's presets are
+  renamed to "Today" and "This week" to say what they now match (#225).
+- **Moving one occurrence of a repeating calendar event moves it, instead of
+  showing it twice.** Drag a single occurrence to another day in Google Calendar
+  (or edit or delete just that one) and the calendar card listed it in both
+  places at once. The feed says as much in two parts — the series keeps its
+  repeat rule untouched, and a second entry carries the same event with the
+  original time it replaces — and Hearth read those as two separate events.
+  Hearth now folds the second entry back into the series: the occurrence appears
+  where you moved it and nowhere else, a deleted one disappears, and an edit
+  that takes over "this and all following events" splits the series at that
+  point (#232).
+- **Recent files shows every file you asked for — or as many as the card is
+  tall.** Setting **Number of files** to 15 listed ten and left the rest of the
+  card empty, because Obsidian's own recent-files list stops at ten entries and
+  no amount of asking afterwards makes it longer. Hearth now keeps its own
+  recent-file history — up to 50 files, deduplicated, most recent first, stored
+  per vault on this machine like Obsidian's own and following renames — so a
+  larger number is a number the card can actually fill. The setting is clamped
+  to what that history holds rather than accepting a value it would quietly
+  ignore. And a new **Fit to card height** toggle lists as many files as the
+  card has room for, so a tall card fills instead of ending in a band of unused
+  space, and resizing it changes how many appear.
+
+### Changed
+
+- **Low power mode is now a four-step performance tier.** One switch used to
+  take the wallpaper, the frosted glass, every animation and every refresh
+  timer away together — far more than most people need to give up, which is why
+  it rescued nobody from the power draw it was meant to fix. Settings →
+  Appearance → **Performance** now ladders it:
+
+  - **Full** — everything on.
+  - **Balanced** — the painted sky is drawn at half density: fewer raindrops,
+    stars, clouds and fog wisps. Nothing is switched off, there is simply less
+    of it, for roughly half the cost.
+  - **Reduced** — nothing moves and no frosted glass, but the wallpaper stays,
+    cards stay translucent, and every refresh timer keeps running.
+  - **Minimal** — the former low power mode.
+
+  Card auto-refresh is no longer tangled up with animation, so a board on
+  **Reduced** holds still and still stays up to date, and translucency parts
+  company with the blur so cards still read as glass. An existing low power
+  mode setting folds into the ladder on upgrade.
+
+  Underneath, the animations themselves got much cheaper. The pet sprite and
+  the painted sky animated a CSS transform on an SVG element, which Chromium
+  will not composite — every frame recalculated style on the main thread, and
+  for the sky laid out as well. The pet now animates a wrapper `div` instead:
+  measured over four seconds with four pets, 123.6 ms of main-thread time and
+  239 style recalculations became 4.2 ms and none. Motion is also paused when
+  nobody can see it — a board in an unfocused window (**Pause animation when
+  unfocused**, on by default, desktop only) and a card scrolled off screen or
+  clipped away by a fit-to-page board. Pausing freezes each animation where it
+  stood rather than clearing it, so regaining focus resumes instead of
+  snapping the sky and the pet back to their static positions. And
+  `prefers-reduced-motion` is now honoured board-wide rather than by the three
+  features that had their own rules for it. Card blur defaults to 0 for new
+  vaults; existing vaults keep the value they have (#223).
+
+- **Deprecated Obsidian APIs cleared out of the settings UI.** Hearth no longer
+  calls `setDynamicTooltip()` on its sliders: Obsidian draws a slider's value
+  inline itself as of 1.13, where the call did nothing. On Obsidian 1.8.7–1.12.x
+  — still Hearth's declared minimum — a slider now shows no number while you
+  drag it; the value it lands on is the one the setting keeps, as before.
+
+- **"What's new" reads as a list of headlines, not a wall of text.** The dialog
+  after an update — and **View changelog** in Settings → About — now shows one
+  line per change, grouped under **New**, **Fixed** and **Changed** with a
+  count per group beside the version, and folds each explanation away until you
+  click the line you care about. A release you aren't reading collapses to a
+  single row, so upgrading across several versions is a short list rather than
+  several screens of prose, and a filter box searches every headline *and* its
+  detail. The issue a change closes sits beside it as a link to GitHub. It is
+  the same `CHANGELOG.md` as before, and still the only source: nothing is
+  rewritten or summarised, only folded.
+
 ## [2.1.0]
 
 ### Added
+
+- **A launchpad that makes notes: the Templater card.** Hearth's third tile card
+  sits beside Links and Commands, but each of its buttons creates a note. A tile
+  carries three things — one of your
+  [Templater](https://github.com/SilentVoid13/Templater) templates, the folder
+  the note goes in, and what it is called — and one click makes it.
+
+  **The destination is the point.** Templater's own per-template commands drop
+  the note wherever Obsidian's "Default location for new notes" says, so the
+  same template can only ever land in one place. A tile carries its own folder,
+  so *Meeting* → `Work/Meetings`, *Book note* → `Library`, and *Idea* → `Inbox`
+  are three buttons over one or three templates, whichever you have.
+
+  **Filenames are patterns.** `{{date}}`, `{{date:YYYY-MM}}`, `{{time}}` and
+  `{{time:HH-mm}}` are substituted when the tile is clicked, and `{{prompt}}`
+  asks you for the rest of the name first — so `Meeting {{date}} — {{prompt}}`
+  is one click and one line typed. Leave the field empty and Templater names the
+  note, as it does from its own command.
+
+  **Templater does the templating.** Hearth calls
+  `create_new_note_from_template` on the running plugin and nothing else: your
+  user scripts, `tp.system.prompt()` dialogs, folder templates and
+  `tp.file.cursor()` placement all behave exactly as they do everywhere else.
+  What Hearth adds is where the note *opens* — through its own "Open notes in"
+  setting, so a click from the dashboard no longer replaces the dashboard.
+
+  Tiles drag, resize and overlap like every other launchpad tile, take a Lucide
+  icon or a vault image, and can be told to file the note away silently instead
+  of opening it. The template picker lists Templater's own template folder. And
+  the setup wizard offers the card on a fresh install, seeded with a button per
+  template you already have.
 
 - **A setup wizard that builds your first dashboard.** A new install no longer
   lands on a generic starter grid and a wallpaper nobody chose. Hearth asks
@@ -85,6 +329,54 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   Low power mode still replaces the picture with its flat colour, but it now
   leaves the *layout* alone: a bannered board keeps its banner, so toggling the
   mode no longer moves every card on it.
+
+- **Lucide icons for the tab and the title.** Hearth's crystal is no longer the
+  only mark it can wear. **Appearance → Home → Tab icon** picks any Lucide icon
+  for Hearth's tab header and ribbon button, and **Title icon** does the same for
+  the icon beside the big title on the board. Leave either empty and nothing
+  changes: the crystal, and the emoji/text logo, stay exactly as they were.
+
+  **Each dashboard can set its own title icon**, under **Header → Title icon** in
+  that board's settings — one board a flame, the next a rocket, or one board back
+  to the plain logo text while the vault-wide setting shows an icon.
+
+  **Every icon field is now a picker.** Type an id if you know it, or press the
+  magnifier and search the whole Lucide set with each icon drawn beside its name;
+  a preview beside the field shows what you'll get. That applies to the dashboard
+  switcher's icon too, which until now was an id typed from memory. An id that
+  names no icon falls back — to the crystal, the logo text, or the switcher's
+  number — rather than leaving a blank where the icon should be.
+
+- **The calculator converts number bases.** Binary, octal, decimal and hex now
+  read and write in the same grammar as every other conversion:
+  `FF hex to decimal` → `255`, `1010 binary to hex` → `0xA`, `377 octal in
+  decimal` → `255`. A bare number is decimal, as it is everywhere else in the
+  card, so plain arithmetic converts too — `20 + 35 to hex` → `0x37`.
+
+  Results carry the notation you'd paste back into code (`0xFF`, `0b1010`,
+  `0o377`), and the card reads that notation back: `0xFF to decimal` works
+  without naming the source base. Negative values keep a sign in front of the
+  digits (`-0xA`) rather than wrapping into two's complement at a bit width the
+  card never asked you for.
+
+- **An embedded picture can be framed, not just embedded.** An image embed used
+  to render at whatever size the picture happened to be, in a box that scrolled
+  — a wide photo in a short card showed a sliver of itself. The embed card's
+  Content tab now offers the usual choices for any picture target, on the
+  primary view and the second view alike:
+
+  - **Fit the whole picture** — scaled down whole, letterboxed if it has to be.
+  - **Fill the card (crop)** — the whole card, edge to edge, cropping the
+    overflow.
+  - **Stretch to the card** — both edges pinned, aspect ratio be damned.
+  - **Fit the width (scroll)** — full width, its own height, scroll for the rest.
+  - **Original size** — what image embeds have always done, and still the
+    default, so no existing card changes.
+
+  **Picture position** anchors the picture to any of nine points, which is what
+  decides *which part* a crop keeps — a portrait cropped to a wide card can hold
+  onto the face instead of the middle. **Zoom** now works inside the frame too:
+  zooming a cropped picture crops in further rather than scrolling the box.
 
 - **A slideshow card.** **Notes & files → Slideshow** is the image embed with
   more than one picture: it shows them in turn, on a timer you set. Choose the

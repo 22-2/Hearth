@@ -10,12 +10,15 @@ import {
 	type DashboardCard,
 	type DatacoreConfig,
 	type DataviewConfig,
+	type EmbedImageFit,
+	type EmbedImagePosition,
 	type GitConfig,
 	type HeatmapConfig,
 	type HomeSettings,
 	type LeafViewConfig,
 	type LinkItem,
 	type MobileActionButton,
+	type OperonConfig,
 	type JiraConfig,
 	type JiraControl,
 	newDashboardId,
@@ -41,9 +44,12 @@ import {
 	activeDashboard,
 	CARD_BORDER_WIDTH_MAX,
 	clampBannerHeight,
+	PERFORMANCE_TIERS,
+	type PerformanceTier,
 } from "./types";
 import { CARD_KINDS } from "./cards";
 import { isEmbeddableBaseViewName } from "./bases";
+import { EMBED_IMAGE_FITS, EMBED_IMAGE_POSITIONS } from "./embedimage";
 import {
 	SLIDESHOW_MAX_INTERVAL_SEC,
 	SLIDESHOW_MAX_TRANSITION_MS,
@@ -144,10 +150,16 @@ export function exportSettings(s: HomeSettings): string {
 		title: s.title,
 		showTitle: s.showTitle,
 		logo: s.logo,
+		logoIcon: s.logoIcon,
+		tabIcon: s.tabIcon,
 		showSearch: s.showSearch,
 		searchPlaceholder: s.searchPlaceholder,
 		showNewNoteButton: s.showNewNoteButton,
 		newNoteButtonMode: s.newNoteButtonMode,
+		newNoteButtonLabel: s.newNoteButtonLabel,
+		newNoteTemplate: s.newNoteTemplate,
+		newNoteFolder: s.newNoteFolder,
+		newNoteFilename: s.newNoteFilename,
 		searchContents: s.searchContents,
 		searchEngine: s.searchEngine,
 
@@ -160,11 +172,12 @@ export function exportSettings(s: HomeSettings): string {
 		bannerHeight: s.bannerHeight,
 		bannerFade: s.bannerFade,
 		bannerFullWidth: s.bannerFullWidth,
-		// Low power mode overrides the four above rather than replacing them, so
-		// it has to travel with them — otherwise an export taken while it is on
-		// would describe a look the importing vault doesn't show.
-		lowPower: s.lowPower,
+		// The performance tier overrides the four above rather than replacing
+		// them, so it has to travel with them — otherwise an export taken on a
+		// lower tier would describe a look the importing vault doesn't show.
+		performanceTier: s.performanceTier,
 		lowPowerBackgroundColor: s.lowPowerBackgroundColor,
+		pauseWhenUnfocused: s.pauseWhenUnfocused,
 
 		// Behaviour
 		openOnStartup: s.openOnStartup,
@@ -194,6 +207,9 @@ export function exportSettings(s: HomeSettings): string {
 		taskNotesDoneValue: s.taskNotesDoneValue,
 		taskFieldsEnabled: s.taskFieldsEnabled,
 		taskFields: s.taskFields,
+
+		// Operon
+		operonIntegration: s.operonIntegration,
 	};
 	return JSON.stringify(data, null, 2);
 }
@@ -230,6 +246,21 @@ function sanitizeBaseViewName(raw: unknown): string | undefined {
 	return isEmbeddableBaseViewName(name) ? name : undefined;
 }
 
+/** An embed's picture-fit mode, or undefined when the import names one Hearth
+ * doesn't have (a newer file, or a hand-edited one). */
+function sanitizeImageFit(raw: unknown): EmbedImageFit | undefined {
+	return EMBED_IMAGE_FITS.includes(raw as EmbedImageFit)
+		? (raw as EmbedImageFit)
+		: undefined;
+}
+
+/** An embed's picture anchor point, or undefined when it isn't one of the nine. */
+function sanitizeImagePosition(raw: unknown): EmbedImagePosition | undefined {
+	return EMBED_IMAGE_POSITIONS.includes(raw as EmbedImagePosition)
+		? (raw as EmbedImagePosition)
+		: undefined;
+}
+
 function sanitizeEmbedView(
 	raw: unknown,
 ): DashboardCard["secondView"] | undefined {
@@ -241,6 +272,10 @@ function sanitizeEmbedView(
 	const baseView = sanitizeBaseViewName(r.baseView);
 	if (baseView !== undefined) view.baseView = baseView;
 	if (typeof r.scale === "number") view.scale = r.scale;
+	const imageFit = sanitizeImageFit(r.imageFit);
+	if (imageFit !== undefined) view.imageFit = imageFit;
+	const imagePosition = sanitizeImagePosition(r.imagePosition);
+	if (imagePosition !== undefined) view.imagePosition = imagePosition;
 	if (typeof r.editable === "boolean") view.editable = r.editable;
 	if (typeof r.livePreview === "boolean") view.livePreview = r.livePreview;
 	return view;
@@ -318,7 +353,12 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	const background = str(r.background);
 	if (background !== undefined) card.background = background;
 	if (typeof r.count === "number") card.count = r.count;
+	if (typeof r.recentAuto === "boolean") card.recentAuto = r.recentAuto;
 	if (typeof r.scale === "number") card.scale = r.scale;
+	const cardImageFit = sanitizeImageFit(r.imageFit);
+	if (cardImageFit !== undefined) card.imageFit = cardImageFit;
+	const cardImagePosition = sanitizeImagePosition(r.imagePosition);
+	if (cardImagePosition !== undefined) card.imagePosition = cardImagePosition;
 	if (typeof r.refreshSec === "number") card.refreshSec = r.refreshSec;
 	if (typeof r.editable === "boolean") card.editable = r.editable;
 	if (typeof r.livePreview === "boolean") card.livePreview = r.livePreview;
@@ -392,6 +432,9 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	}
 	if (r.git && typeof r.git === "object") {
 		card.git = sanitizeGit(r.git as Record<string, unknown>);
+	}
+	if (r.operon && typeof r.operon === "object") {
+		card.operon = sanitizeOperon(r.operon as Record<string, unknown>);
 	}
 	if (r.leafView && typeof r.leafView === "object") {
 		card.leafView = sanitizeLeafView(r.leafView as Record<string, unknown>);
@@ -619,6 +662,10 @@ function sanitizeTaskFilter(value: unknown): TaskFilterConfig | undefined {
 	if (TASK_DUE_FILTERS.includes(r.due as (typeof TASK_DUE_FILTERS)[number])) {
 		cfg.due = r.due as TaskFilterConfig["due"];
 	}
+	const contexts = strArray(r.contexts);
+	if (contexts) cfg.contexts = contexts;
+	const projects = strArray(r.projects);
+	if (projects) cfg.projects = projects;
 	const text = str(r.text);
 	if (text !== undefined) cfg.text = text;
 	return cfg;
@@ -668,6 +715,15 @@ function sanitizeTasks(r: Record<string, unknown>): TasksConfig {
 	if (folders) cfg.folders = folders;
 	const taskNotesDoneStatuses = strArray(r.taskNotesDoneStatuses);
 	if (taskNotesDoneStatuses) cfg.taskNotesDoneStatuses = taskNotesDoneStatuses;
+	const taskNotesStatusField = str(r.taskNotesStatusField);
+	if (taskNotesStatusField !== undefined) cfg.taskNotesStatusField = taskNotesStatusField;
+	const taskNotesDueField = str(r.taskNotesDueField);
+	if (taskNotesDueField !== undefined) cfg.taskNotesDueField = taskNotesDueField;
+	const taskNotesPriorityField = str(r.taskNotesPriorityField);
+	if (taskNotesPriorityField !== undefined)
+		cfg.taskNotesPriorityField = taskNotesPriorityField;
+	const taskNotesDoneValue = str(r.taskNotesDoneValue);
+	if (taskNotesDoneValue !== undefined) cfg.taskNotesDoneValue = taskNotesDoneValue;
 	const taskFilter = sanitizeTaskFilter(r.taskFilter);
 	if (taskFilter) cfg.taskFilter = taskFilter;
 	if (typeof r.taskFieldsEnabled === "boolean")
@@ -693,6 +749,67 @@ function sanitizeCalendar(r: Record<string, unknown>): CalendarConfig {
 	if (typeof r.heatmap === "boolean") cfg.heatmap = r.heatmap;
 	if (r.heatmapMetric === "modified" || r.heatmapMetric === "created") {
 		cfg.heatmapMetric = r.heatmapMetric;
+	}
+	if (typeof r.operonTasks === "boolean") cfg.operonTasks = r.operonTasks;
+	const operonTaskColor = str(r.operonTaskColor);
+	if (operonTaskColor !== undefined) cfg.operonTaskColor = operonTaskColor;
+	return cfg;
+}
+
+const OPERON_VIEWS = ["list", "board", "agenda", "timer"] as const;
+const OPERON_SCOPES = ["query", "normal", "overdue", "happens-today", "recent"] as const;
+const OPERON_CHECKBOX_STATES = ["open", "done", "cancelled"] as const;
+
+/**
+ * Operon card config. Everything here is either a fixed enum or a list of
+ * Operon's own ids, so the whitelist copies ids through verbatim without
+ * checking them against a taxonomy: an imported layout may well land in a vault
+ * whose Operon is configured differently, and the card already falls back to
+ * showing an id it can't resolve rather than dropping the filter silently.
+ */
+function sanitizeOperon(r: Record<string, unknown>): OperonConfig {
+	const cfg: OperonConfig = {};
+	if (OPERON_VIEWS.includes(r.view as (typeof OPERON_VIEWS)[number])) {
+		cfg.view = r.view as OperonConfig["view"];
+	}
+	if (OPERON_SCOPES.includes(r.scope as (typeof OPERON_SCOPES)[number])) {
+		cfg.scope = r.scope as OperonConfig["scope"];
+	}
+	const pipelineIds = strArray(r.pipelineIds);
+	if (pipelineIds?.length) cfg.pipelineIds = pipelineIds;
+	const statusIds = strArray(r.statusIds);
+	if (statusIds?.length) cfg.statusIds = statusIds;
+	const priorityIds = strArray(r.priorityIds);
+	if (priorityIds?.length) cfg.priorityIds = priorityIds;
+	const boardOrder = strArray(r.boardOrder);
+	if (boardOrder?.length) cfg.boardOrder = boardOrder;
+	const boardHidden = strArray(r.boardHidden);
+	if (boardHidden?.length) cfg.boardHidden = boardHidden;
+	const checkbox = strArray(r.checkbox)?.filter((v): v is (typeof OPERON_CHECKBOX_STATES)[number] =>
+		OPERON_CHECKBOX_STATES.includes(v as (typeof OPERON_CHECKBOX_STATES)[number]),
+	);
+	if (checkbox?.length) cfg.checkbox = checkbox;
+	const filePath = str(r.filePath);
+	if (filePath !== undefined) cfg.filePath = filePath;
+	const text = str(r.text);
+	if (text !== undefined) cfg.text = text;
+	if (typeof r.agendaDays === "number") cfg.agendaDays = r.agendaDays;
+	if (typeof r.count === "number") cfg.count = r.count;
+	if (TASK_SORT_KEYS.includes(r.sortKey as (typeof TASK_SORT_KEYS)[number])) {
+		cfg.sortKey = r.sortKey as OperonConfig["sortKey"];
+	}
+	if (typeof r.sortReverse === "boolean") cfg.sortReverse = r.sortReverse;
+	if (r.createAs === "inline" || r.createAs === "file") cfg.createAs = r.createAs;
+	for (const key of [
+		"showDue",
+		"showPriority",
+		"showStatus",
+		"showRecurrence",
+		"showTracker",
+		"showPinned",
+		"showFile",
+	] as const) {
+		if (typeof r[key] === "boolean") cfg[key] = r[key];
 	}
 	return cfg;
 }
@@ -1000,6 +1117,7 @@ function sanitizeDashboard(
 	}
 	if (typeof r.fitToPage === "boolean") dash.fitToPage = r.fitToPage;
 	if (typeof r.showSearch === "boolean") dash.showSearch = r.showSearch;
+	if (typeof r.compact === "boolean") dash.compact = r.compact;
 	const linkedWorkspace = str(r.linkedWorkspace);
 	if (linkedWorkspace !== undefined && linkedWorkspace.trim())
 		dash.linkedWorkspace = linkedWorkspace;
@@ -1012,6 +1130,18 @@ function sanitizeDashboard(
 		if (title !== undefined) header.title = title;
 		const logo = str(h.logo);
 		if (logo !== undefined) header.logo = logo;
+		// Kept even when empty: an empty override is a board that deliberately
+		// shows no Lucide title icon, which is not the same as no override.
+		const logoIcon = str(h.logoIcon);
+		if (logoIcon !== undefined) header.logoIcon = logoIcon.trim();
+		if (
+			h.themeColorTarget === "none" ||
+			h.themeColorTarget === "icon" ||
+			h.themeColorTarget === "title" ||
+			h.themeColorTarget === "both"
+		) {
+			header.themeColorTarget = h.themeColorTarget;
+		}
 		if (h.align === "left" || h.align === "center" || h.align === "right") {
 			header.align = h.align;
 		}
@@ -1273,6 +1403,10 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	if (typeof data.showTitle === "boolean") s.showTitle = data.showTitle;
 	const logo = str(data.logo);
 	if (logo !== undefined) s.logo = logo;
+	const logoIcon = str(data.logoIcon);
+	if (logoIcon !== undefined) s.logoIcon = logoIcon.trim();
+	const tabIcon = str(data.tabIcon);
+	if (tabIcon !== undefined) s.tabIcon = tabIcon.trim();
 	if (typeof data.showSearch === "boolean") s.showSearch = data.showSearch;
 	const searchPlaceholder = str(data.searchPlaceholder);
 	if (searchPlaceholder !== undefined) s.searchPlaceholder = searchPlaceholder;
@@ -1284,6 +1418,14 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	) {
 		s.newNoteButtonMode = data.newNoteButtonMode;
 	}
+	const newNoteButtonLabel = str(data.newNoteButtonLabel);
+	if (newNoteButtonLabel !== undefined) s.newNoteButtonLabel = newNoteButtonLabel;
+	const newNoteTemplate = str(data.newNoteTemplate);
+	if (newNoteTemplate !== undefined) s.newNoteTemplate = newNoteTemplate.trim();
+	const newNoteFolder = str(data.newNoteFolder);
+	if (newNoteFolder !== undefined) s.newNoteFolder = newNoteFolder.trim();
+	const newNoteFilename = str(data.newNoteFilename);
+	if (newNoteFilename !== undefined) s.newNoteFilename = newNoteFilename;
 	if (typeof data.searchContents === "boolean")
 		s.searchContents = data.searchContents;
 	if (data.searchEngine === "builtin" || data.searchEngine === "omnisearch") {
@@ -1320,9 +1462,19 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	if (typeof data.bannerFullWidth === "boolean") {
 		s.bannerFullWidth = data.bannerFullWidth;
 	}
-	if (typeof data.lowPower === "boolean") s.lowPower = data.lowPower;
+	// A layout exported before the tiers carries the old boolean; fold it the
+	// same way migrateSettings does so an old export still lands somewhere sane.
+	const tier = str(data.performanceTier);
+	if (PERFORMANCE_TIERS.includes(tier as PerformanceTier)) {
+		s.performanceTier = tier as PerformanceTier;
+	} else if (typeof data.lowPower === "boolean") {
+		s.performanceTier = data.lowPower ? "minimal" : "full";
+	}
 	const lowPowerColor = str(data.lowPowerBackgroundColor)?.trim();
 	if (lowPowerColor) s.lowPowerBackgroundColor = lowPowerColor;
+	if (typeof data.pauseWhenUnfocused === "boolean") {
+		s.pauseWhenUnfocused = data.pauseWhenUnfocused;
+	}
 
 	// Behaviour
 	if (typeof data.openOnStartup === "boolean")
@@ -1394,4 +1546,8 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 		s.taskFieldsEnabled = data.taskFieldsEnabled;
 	const taskFields = sanitizeTaskFields(data.taskFields);
 	if (taskFields) s.taskFields = taskFields;
+	// Operon
+	if (typeof data.operonIntegration === "boolean") {
+		s.operonIntegration = data.operonIntegration;
+	}
 }

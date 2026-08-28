@@ -7,6 +7,7 @@ import {
 	type Dashboard,
 	type DashboardHeaderConfig,
 	type HeaderAlign,
+	type HomeSettings,
 	BANNER_HEIGHT_MAX,
 	BANNER_HEIGHT_MIN,
 	CARD_RADIUS_MAX,
@@ -22,6 +23,7 @@ import {
 	newDashboardId,
 } from "./types";
 import { cloneCard } from "./cards";
+import { addIconPicker, renderIcon } from "./lucide";
 import { configuredPlaces, renderSkySource } from "./placepicker";
 import { formatSkyValue, parseSkyValue } from "./sky";
 import { confirmAction } from "./ui";
@@ -58,11 +60,9 @@ export function renderDashboardSwitcher(
 		const btn = bar.createEl("button", {
 			cls: "hearth-dash-btn",
 		});
-		if (lucide) {
-			setIcon(btn, lucide);
-		} else {
-			btn.setText(icon || String(i + 1));
-		}
+		// An icon id that names nothing renderable falls through to the emoji or
+		// the number, so a mistyped id never leaves a blank switcher button.
+		if (!renderIcon(btn, lucide)) btn.setText(icon || String(i + 1));
 		const active = d.id === s.activeDashboardId;
 		btn.toggleClass("is-active", active);
 		if (active) btn.setAttribute("aria-current", "true");
@@ -161,6 +161,7 @@ function showDashboardMenu(
 				if (dash.fitToPage != null) copy.fitToPage = dash.fitToPage;
 				if (dash.maxWidth != null) copy.maxWidth = dash.maxWidth;
 				if (dash.showSearch != null) copy.showSearch = dash.showSearch;
+				if (dash.compact != null) copy.compact = dash.compact;
 				if (dash.cardOpacity != null) copy.cardOpacity = dash.cardOpacity;
 				if (dash.cardBlur != null) copy.cardBlur = dash.cardBlur;
 				if (dash.cardRadius != null) copy.cardRadius = dash.cardRadius;
@@ -315,18 +316,17 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				}),
 			);
 
-		new Setting(containerEl)
-			.setName(t().dashboards.modal.switcherLucide)
-			.setDesc(t().dashboards.modal.switcherLucideDesc)
-			.addText((tx) =>
-				tx
-					.setPlaceholder(t().dashboards.modal.lucidePlaceholder)
-					.setValue(dash.iconLucide ?? "")
-					.onChange((v) => {
-						dash.iconLucide = v.trim() || undefined;
-						this.commit();
-					}),
-			);
+		addIconPicker(
+			new Setting(containerEl)
+				.setName(t().dashboards.modal.switcherLucide)
+				.setDesc(t().dashboards.modal.switcherLucideDesc),
+			this.view.app,
+			dash.iconLucide ?? "",
+			(v) => {
+				dash.iconLucide = v || undefined;
+				this.commit();
+			},
+		);
 
 		new Setting(containerEl)
 			.setName(t().dashboards.modal.mobileDefault)
@@ -479,6 +479,18 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			},
 		);
 
+		this.overrideHeaderIcon(
+			containerEl,
+			t().dashboards.modal.logoIcon,
+			t().dashboards.modal.logoIconDesc,
+			header?.logoIcon,
+			s.logoIcon,
+			(v) => {
+				this.setHeaderOverride("logoIcon", v);
+				this.commit();
+			},
+		);
+
 		new Setting(containerEl)
 			.setName(t().dashboards.modal.titleAlign)
 			.setDesc(t().dashboards.modal.titleAlignDesc)
@@ -495,6 +507,31 @@ class DashboardSettingsModal extends HearthTabbedModal {
 					);
 					this.commit();
 					this.render();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(t().dashboards.modal.themeColorTarget)
+			.setDesc(t().dashboards.modal.themeColorTargetDesc)
+			.addDropdown((d) => {
+				const labels = t().dashboards.modal.themeColorTargetOptions;
+				d.addOption(
+					"default",
+					t().dashboards.modal.themeColorTargetDefault(labels[s.themeColorTarget]),
+				);
+				d.addOption("none", labels.none);
+				d.addOption("icon", labels.icon);
+				d.addOption("title", labels.title);
+				d.addOption("both", labels.both);
+				d.setValue(header?.themeColorTarget ?? "default");
+				d.onChange((v) => {
+					this.setHeaderOverride(
+						"themeColorTarget",
+						v === "default"
+							? undefined
+							: (v as HomeSettings["themeColorTarget"]),
+					);
+					this.commit();
 				});
 			});
 
@@ -586,6 +623,42 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		}
 	}
 
+	/**
+	 * The icon counterpart of {@link overrideHeaderText}: a toggle that takes the
+	 * board off the global icon, and — once it has — a full Lucide picker.
+	 *
+	 * Turning the toggle on seeds the override with whatever the global icon is,
+	 * so the board starts from the look it already had; clearing the picker
+	 * leaves an empty override, which is a board that deliberately shows no
+	 * Lucide icon while the global setting has one.
+	 */
+	private overrideHeaderIcon(
+		containerEl: HTMLElement,
+		name: string,
+		desc: string,
+		current: string | undefined,
+		fallback: string,
+		set: (value: string | undefined) => void,
+	): void {
+		const overriding = current !== undefined;
+		const row = new Setting(containerEl)
+			.setName(name)
+			.setDesc(
+				overriding
+					? desc
+					: t().dashboards.modal.usingDefaultText(fallback || "∅"),
+			)
+			.addToggle((tg) =>
+				tg.setValue(overriding).onChange((v) => {
+					set(v ? fallback : undefined);
+					this.render();
+				}),
+			);
+		if (overriding) {
+			addIconPicker(row, this.view.app, current, (v) => set(v));
+		}
+	}
+
 	private overrideHeaderSlider(
 		containerEl: HTMLElement,
 		name: string,
@@ -615,7 +688,6 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				sl
 					.setLimits(min, max, step)
 					.setValue(current)
-					.setDynamicTooltip()
 					.onChange((v) => set(v)),
 			);
 		}
@@ -672,6 +744,27 @@ class DashboardSettingsModal extends HearthTabbedModal {
 	private styleSection(containerEl: HTMLElement): void {
 		const dash = this.dash;
 		const s = this.view.plugin.settings;
+
+		new Setting(containerEl)
+			.setName(t().dashboards.modal.compact)
+			.setDesc(t().dashboards.modal.compactDesc)
+			.addDropdown((d) => {
+				d.addOption(
+					"default",
+					t().dashboards.modal.compactDefault(
+						s.compact
+							? t().dashboards.modal.compactStateOn
+							: t().dashboards.modal.compactStateOff,
+					),
+				);
+				d.addOption("on", t().dashboards.modal.compactOptionOn);
+				d.addOption("off", t().dashboards.modal.compactOptionOff);
+				d.setValue(dash.compact === undefined ? "default" : dash.compact ? "on" : "off");
+				d.onChange((v) => {
+					dash.compact = v === "default" ? undefined : v === "on";
+					this.commit();
+				});
+			});
 
 		this.overrideSlider(
 			containerEl,
@@ -763,7 +856,6 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				sl
 					.setLimits(min, max, step)
 					.setValue(current)
-					.setDynamicTooltip()
 					.onChange((v) => set(v)),
 			);
 		}
@@ -956,7 +1048,6 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		setting.addSlider((sl) => {
 			sl.setLimits(min, max, step)
 				.setValue(dash[key] ?? globalValue)
-				.setDynamicTooltip()
 				.onChange((v) => {
 					dash[key] = v;
 					this.commit();
@@ -1028,10 +1119,6 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		setting.addSlider((sl) => {
 			sl.setLimits(min, max, step)
 				.setValue(bg[key])
-				// Show the live value in a tooltip. On our declared minAppVersion
-				// (1.8.7) sliders don't yet render the value inline, so this is
-				// how the current opacity/blur stays visible while dragging.
-				.setDynamicTooltip()
 				.onChange((v) => {
 					bg[key] = v;
 					this.commit();

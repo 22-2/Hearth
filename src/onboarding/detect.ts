@@ -14,10 +14,10 @@
 import type { App, TFile } from "obsidian";
 import { DATACORE_PLUGIN_ID } from "../datacore";
 import { DATAVIEW_PLUGIN_ID } from "../dataview";
-import { ICONIC_PLUGIN_ID, ICONIZE_PLUGIN_ID } from "../fileicons";
 import { GIT_PLUGIN_ID } from "../git";
-import { OMNISEARCH_PLUGIN_ID } from "../omnisearch";
+import { OPERON_PLUGIN_ID, isOperonAvailable, isOperonPlatformSupported } from "../operon";
 import { TASKNOTES_PLUGIN_ID, readTaskNotesSetup, type TaskNotesSetup } from "../tasknotes";
+import { TEMPLATER_PLUGIN_ID, templaterTemplateFiles } from "../templater";
 
 /** Community plugin id for the Kanban plugin, whose boards the Tasks card can
  * read as a task source. Declared here rather than in `cards/tasks.ts` because
@@ -28,19 +28,25 @@ export const KANBAN_PLUGIN_ID = "obsidian-kanban";
  * The integrations the wizard offers to set up.
  *
  * Deliberately a *subset* of `INTEGRATIONS`: an entry earns a place here only
- * when accepting it has a concrete, automatic effect — a card added and
- * configured, or a setting flipped. Anything Hearth merely tolerates (Canvas,
- * Excalidraw, the file explorer) has nothing for the wizard to do and would
- * only be a question with no answer worth giving.
+ * when accepting it has a concrete, automatic effect *on the board being
+ * built* — a card added and configured. Anything Hearth merely tolerates
+ * (Canvas, Excalidraw, the file explorer) has nothing for the wizard to do and
+ * would only be a question with no answer worth giving.
+ *
+ * Two former entries — Omnisearch as the search engine, and Iconic/Iconize as
+ * the file-icon source — are deliberately gone. Both are vault-wide switches
+ * with no per-board form, and the wizard writes nothing vault-wide (see
+ * `plan.ts`). They are one toggle away in Settings → Hearth → Integrations,
+ * which is where a setting that affects every board belongs.
  */
 export type SetupIntegrationId =
 	| "tasknotes"
 	| "kanban"
 	| "dataview"
 	| "datacore"
+	| "templater"
 	| "git"
-	| "omnisearch"
-	| "fileIcons"
+	| "operon"
 	| "bases"
 	| "dailyNotes"
 	| "bookmarks";
@@ -71,7 +77,17 @@ export interface SetupDetection {
 	basePath: string | null;
 	/** Path of a Kanban board note, when one exists. */
 	kanbanPath: string | null;
+	/** Paths of the templates Templater would offer, capped at
+	 * {@link TEMPLATER_TILE_LIMIT}. Empty when Templater isn't enabled or has no
+	 * templates yet. The wizard seeds one tile per entry, so the card arrives
+	 * with the user's own templates on it rather than blank. */
+	templaterTemplates: string[];
 }
+
+/** How many template tiles the wizard seeds. Enough to show what the card is
+ * for; a vault with forty templates does not want forty buttons chosen for it,
+ * and adding more is one click in the card's settings. */
+export const TEMPLATER_TILE_LIMIT = 6;
 
 /** Whether a community plugin is installed *and* on. */
 function pluginEnabled(app: App, id: string): boolean {
@@ -87,6 +103,29 @@ function pluginEnabled(app: App, id: string): boolean {
 function corePluginEnabled(app: App, id: string): boolean {
 	try {
 		return app.internalPlugins?.getPluginById(id)?.enabled === true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Whether an Operon card could work in this vault at all.
+ *
+ * Stricter than "the plugin is on", and deliberately so: Operon itself runs on
+ * mobile but its Developer API does not, and an old Operon exposes no accessor
+ * to call — so on a phone, or against a build without the API, the card can
+ * never show anything and offering it would be a promise the wizard can't keep.
+ * The two probes are the same ones the card's own picker requirement uses, so
+ * the wizard offers Operon exactly when the picker would let you add it.
+ *
+ * What this cannot know is whether the user has approved Hearth in Operon's own
+ * settings: that answer only exists after an async session negotiation, which
+ * is far more than a detection pass should do. The card explains the approval
+ * step itself, and the wizard's offer says so up front.
+ */
+function operonUsable(app: App): boolean {
+	try {
+		return isOperonPlatformSupported() && isOperonAvailable(app);
 	} catch {
 		return false;
 	}
@@ -178,6 +217,20 @@ export function detectSetup(app: App): SetupDetection {
 		});
 	}
 
+	// Offered on the strength of templates existing, not merely of the plugin
+	// being on: a Templater install with no templates yet has nothing for the
+	// card to put on a tile, and a card of zero buttons is worse than no card.
+	const templaterTemplates = pluginEnabled(app, TEMPLATER_PLUGIN_ID)
+		? findTemplaterTemplates(app)
+		: [];
+	if (templaterTemplates.length > 0) {
+		integrations.push({
+			id: "templater",
+			name: pluginName(app, TEMPLATER_PLUGIN_ID, "Templater"),
+			recommended: false,
+		});
+	}
+
 	if (pluginEnabled(app, GIT_PLUGIN_ID)) {
 		integrations.push({
 			id: "git",
@@ -186,26 +239,11 @@ export function detectSetup(app: App): SetupDetection {
 		});
 	}
 
-	if (pluginEnabled(app, OMNISEARCH_PLUGIN_ID)) {
+	if (operonUsable(app)) {
 		integrations.push({
-			id: "omnisearch",
-			name: pluginName(app, OMNISEARCH_PLUGIN_ID, "Omnisearch"),
-			recommended: true,
-		});
-	}
-
-	// Iconic and Iconize are interchangeable as far as Hearth is concerned —
-	// both feed the one "use the icons you already set" switch — so they are
-	// offered as a single row named after whichever is actually installed.
-	const iconic = pluginEnabled(app, ICONIC_PLUGIN_ID);
-	const iconize = pluginEnabled(app, ICONIZE_PLUGIN_ID);
-	if (iconic || iconize) {
-		integrations.push({
-			id: "fileIcons",
-			name: iconic
-				? pluginName(app, ICONIC_PLUGIN_ID, "Iconic")
-				: pluginName(app, ICONIZE_PLUGIN_ID, "Iconize"),
-			recommended: true,
+			id: "operon",
+			name: pluginName(app, OPERON_PLUGIN_ID, "Operon"),
+			recommended: false,
 		});
 	}
 
@@ -230,7 +268,20 @@ export function detectSetup(app: App): SetupDetection {
 		taskNotes: taskNotesOn ? readTaskNotesSetup(app) : null,
 		basePath,
 		kanbanPath,
+		templaterTemplates,
 	};
+}
+
+/** The first few templates Templater would offer, by path. Never throws: this
+ * runs while the wizard is being built. */
+function findTemplaterTemplates(app: App): string[] {
+	try {
+		return templaterTemplateFiles(app)
+			.slice(0, TEMPLATER_TILE_LIMIT)
+			.map((file) => file.path);
+	} catch {
+		return [];
+	}
 }
 
 /** The vault's name, or "" when it can't be read. */

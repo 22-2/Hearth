@@ -1,24 +1,43 @@
-import { addIcon, apiVersion, debounce, Platform, Plugin, setIcon, TFolder, WorkspaceLeaf, Notice } from "obsidian";
+import { addIcon, debounce, Platform, Plugin, setIcon, WorkspaceLeaf, Notice } from "obsidian";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
-import { DEFAULT_SETTINGS, fillMissingDefaults, HomeSettings, lowPowerActive, migrateSettings } from "./types";
+import { DEFAULT_SETTINGS, fillMissingDefaults, HomeSettings, migrateSettings, timersAllowed } from "./types";
 import { HomeSettingTab } from "./settings";
 import {
 	HEARTH_ICON_ID,
 	HEARTH_ICON_SVG,
 	HEARTH_ICON_THEMED_ID,
 	HEARTH_ICON_THEMED_SVG,
-	hearthIconIdFor,
+	tabIconIdFor,
 } from "./icon";
 import type { WorkspacesInstance } from "./obsidian-ext";
-import { openFile } from "./opener";
+import { createConfiguredNote } from "./newnote";
 import { EXCALIDRAW_PLUGIN_ID } from "./filetypes";
 import { setLanguage, t } from "./i18n";
 import { maybeShowWhatsNew } from "./whatsnew";
 import { maybeRunSetup, openSetupWizard } from "./onboarding";
 import { clearContentSearchCache } from "./query";
+import { recordRecentFile, renameRecentFile } from "./recentfiles";
+import { forgetTaxonomy, OperonSession } from "./operon";
 
 /** Core "Audio recorder" plugin id, used by the "Record voice" mobile action. */
 const AUDIO_RECORDER_PLUGIN_ID = "audio-recorder";
+
+/**
+ * Whether a leaf is actually on screen, rather than merely open.
+ *
+ * Obsidian takes an inactive leaf in a tab group out of layout, which is what
+ * makes a backgrounded Hearth tab cost nothing to have open. `offsetParent` is
+ * null for exactly that case (and for a collapsed sidebar), so it is the cheapest
+ * honest test available — no geometry, no observer, no undocumented API.
+ *
+ * Deliberately conservative: anything it cannot resolve reads as visible, so a
+ * board is only ever skipped when it is definitely not being looked at.
+ */
+function leafIsVisible(leaf: WorkspaceLeaf): boolean {
+	const el = leaf.view?.containerEl;
+	if (!el) return true;
+	return el.offsetParent !== null || el.isShown?.() === true;
+}
 
 export default class HearthPlugin extends Plugin {
 	settings: HomeSettings;
@@ -34,6 +53,13 @@ export default class HearthPlugin extends Plugin {
 	 * untouched when `openOnStartup` is disabled. */
 	private startupComplete = false;
 
+	/** Hearth's single connection to the Operon plugin's Developer API. Shared
+	 * by every Operon card and the settings tab so the vault sees one consumer,
+	 * one capability grant and one session — not one per card. Nothing is
+	 * negotiated here: the session opens lazily, the first time a card (or the
+	 * settings readout) actually asks for it. */
+	operon = new OperonSession(this, () => this.settings.operonWrites);
+
 	/** Home-view leaves that have already been the active leaf at least once.
 	 * Their first activation was the fresh onOpen render, so the focus refresh
 	 * (#110) skips it and only re-renders on genuine re-focus (this also avoids
@@ -47,21 +73,6 @@ export default class HearthPlugin extends Plugin {
 	private liveRefreshDebounced = debounce(() => this.runLiveRefresh(), 600, true);
 
 	async onload() {
-		// Temporary #52 diagnostic: one report has the settings pane blank with
-		// zero console output even from the render-path warns in settings.ts,
-		// which is only possible if the tab never renders at all — this line
-		// tells apart "an older build is still installed" from "this build is
-		// loaded but its settings tab is never rendered". It also embeds the
-		// environment details every hypothesis so far has hinged on (app/API
-		// version, Electron installer version, CPU architecture), so one
-		// screenshot answers them all. Remove together with the render-path
-		// warns once #52 is closed out.
-		const proc = (window as unknown as { process?: { versions?: Record<string, string>; arch?: string } }).process;
-		console.warn(
-			`Hearth ${this.manifest.version} loaded (Obsidian API ${apiVersion}, ` +
-				`electron ${proc?.versions?.electron ?? "n/a"}, arch ${proc?.arch ?? "n/a"})`,
-		);
-
 		// Pick the locale from Obsidian's UI language before anything renders or
 		// registers a translated command name.
 		setLanguage();
@@ -76,8 +87,12 @@ export default class HearthPlugin extends Plugin {
 
 		this.registerView(VIEW_TYPE_HOME, (leaf) => new HomeView(leaf, this));
 
+		// A renegotiated Operon session may be looking at different settings, so
+		// the cached taxonomy it filled is no longer trustworthy.
+		this.operon.registerInvalidation(forgetTaxonomy);
+
 		this.ribbonEl = this.addRibbonIcon(
-			hearthIconIdFor(this.settings.themeColorTarget),
+			this.brandIconId(),
 			t().ribbon.openHome,
 			() => this.activateView(),
 		);
@@ -145,6 +160,19 @@ export default class HearthPlugin extends Plugin {
 		this.registerEvent(this.app.vault.on("rename", onVaultChange));
 		this.registerEvent(this.app.vault.on("modify", onVaultChange));
 
+		// Hearth's own recent-file history (#228). Obsidian's getLastOpenFiles()
+		// stops at ten entries, so a Recent files card asking for more has to be
+		// told about opens as they happen; a rename is followed so a moved file
+		// keeps its place instead of vanishing from the list.
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) => recordRecentFile(this.app, file)),
+		);
+		this.registerEvent(
+			this.app.vault.on("rename", (file, oldPath) =>
+				renameRecentFile(this.app, oldPath, file.path),
+			),
+		);
+
 		// Follow core-Workspace loads: when the active workspace matches a
 		// dashboard's linked workspace, switch to that dashboard. There is no
 		// dedicated "workspace loaded" event, so listen to layout-change;
@@ -174,6 +202,9 @@ export default class HearthPlugin extends Plugin {
 		// The content-search cache holds lower-cased note bodies, though, so
 		// drop it rather than leave a copy of the vault behind after unload.
 		clearContentSearchCache();
+		// The Operon session holds a reference to that plugin's instance; drop
+		// it so an unloaded Hearth isn't left holding a live handle.
+		this.operon.invalidate();
 	}
 
 	private maybeReplaceNewTab(leaf: WorkspaceLeaf | null) {
@@ -279,29 +310,21 @@ export default class HearthPlugin extends Plugin {
 		await workspace.revealLeaf(leaf);
 	}
 
-	/** Create a new note in the user's configured default location and open it.
-	 * `from` is the view the "New note" button was pressed in, so the note can
-	 * replace that Hearth tab when the user asked for "same tab" (#106); the
-	 * command palette has no view and falls back to the active leaf. */
+	/** Create the note the "New note" button is configured to create, and open
+	 * it. What that is — a blank note in the default location, or a Templater
+	 * template landing in a folder of the user's choosing — lives in settings
+	 * and is resolved by `src/newnote.ts`, so this button, the search-bar card's
+	 * button and this command all behave the same.
+	 *
+	 * `from` is the view the button was pressed in, so the note can replace that
+	 * Hearth tab when the user asked for "same tab" (#106); the command palette
+	 * has no view and falls back to the active leaf. */
 	async createNewNote(from?: HomeView) {
-		try {
-			const parent = this.app.fileManager.getNewFileParent("");
-			const file = await this.app.fileManager.createNewMarkdownFile(
-				parent instanceof TFolder ? parent : this.app.vault.getRoot(),
-				"Untitled",
-			);
-			await openFile(
-				from ?? { app: this.app, settings: this.settings },
-				file,
-				"newNote",
-			);
-		} catch (err) {
-			// Fall back to the core command if the internal API shape changes.
-			if (!this.app.commands.executeCommandById("file-explorer:new-file")) {
-				new Notice(t().notices.couldNotCreateNote);
-				console.error("Hearth new note error", err);
-			}
-		}
+		await createConfiguredNote(
+			this.app,
+			this.settings,
+			from ?? { app: this.app, settings: this.settings },
+		);
 	}
 
 	/** Create a new Excalidraw drawing via the Excalidraw plugin's own "new
@@ -381,10 +404,16 @@ export default class HearthPlugin extends Plugin {
 		this.refreshViews();
 	}
 
-	/** Re-apply the brand/themed crystal to the ribbon and open tab headers
-	 * after the themeColorTarget setting changes. */
+	/** The mark Hearth wears in the ribbon and on its tab: the user's Lucide tab
+	 * icon, or the brand/themed crystal. */
+	private brandIconId(): string {
+		return tabIconIdFor(this.settings.themeColorTarget, this.settings.tabIcon);
+	}
+
+	/** Re-apply the tab icon to the ribbon and open tab headers after the tab
+	 * icon or themeColorTarget setting changes. */
 	refreshBrandIcons() {
-		if (this.ribbonEl) setIcon(this.ribbonEl, hearthIconIdFor(this.settings.themeColorTarget));
+		if (this.ribbonEl) setIcon(this.ribbonEl, this.brandIconId());
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_HOME).forEach((leaf) => {
 			// updateHeader is undocumented; when absent the tab icon simply
 			// refreshes the next time the leaf re-renders.
@@ -392,10 +421,20 @@ export default class HearthPlugin extends Plugin {
 		});
 	}
 
+	/**
+	 * Re-render every open home view.
+	 *
+	 * Only the ones actually on screen, though. A full rebuild tears down and
+	 * recreates the whole board — every card body, every embed, every hosted leaf
+	 * — and doing that for a leaf sitting behind another tab is work nobody can
+	 * see the result of. Nothing goes stale: `maybeRefreshOnFocus` re-renders a
+	 * home view when it becomes the active leaf again, so a board skipped here is
+	 * rebuilt from current settings before anyone looks at it.
+	 */
 	refreshViews() {
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_HOME).forEach((leaf) => {
 			const view = leaf.view;
-			if (view instanceof HomeView) view.render();
+			if (view instanceof HomeView && leafIsVisible(leaf)) view.render();
 		});
 	}
 
@@ -420,17 +459,24 @@ export default class HearthPlugin extends Plugin {
 	 * setting is on; never rebuilds a board mid-arrange. */
 	private runLiveRefresh() {
 		if (!this.settings.liveRefresh) return;
-		// Low power mode suppresses it without clearing the setting: a full board
+		// The minimal tier suppresses it without clearing the setting: a full board
 		// rebuild on every burst of vault writes is the most expensive thing
 		// Hearth does off its own render path. Views still refresh when their tab
 		// is focused again, so nothing goes permanently stale.
-		if (lowPowerActive(this.settings)) return;
+		if (!timersAllowed(this.settings)) return;
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_HOME).forEach((leaf) => {
 			const view = leaf.view;
 			// liveRender, not render: a rebuild triggered by a vault write must not
 			// destroy a field the user is typing into — including the field whose
 			// own writes triggered it (#212).
-			if (view instanceof HomeView && !view.arrangeMode) view.liveRender();
+			//
+			// Visible boards only, for the same reason as refreshViews: rebuilding a
+			// board behind another tab on every burst of vault writes is the single
+			// most expensive thing Hearth does off its own render path, and the
+			// focus refresh brings it up to date before it is seen.
+			if (view instanceof HomeView && !view.arrangeMode && leafIsVisible(leaf)) {
+				view.liveRender();
+			}
 		});
 	}
 }

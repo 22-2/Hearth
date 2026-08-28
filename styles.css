@@ -82,49 +82,117 @@
 	max-height: 60%;
 }
 
-/* ---- Low power mode ---------------------------------------------------
+/* ---- Performance tiers ------------------------------------------------
  *
- * The paint-cost half of the setting. Everything with a value behind it — the
- * background, the card blur, card opacity, the refresh timers — is handled by
- * the effective* resolvers in types.ts, which report low power values without
- * touching what the user configured. What is left here is the decoration that
- * has no setting to override: transitions, animations, shadows and hover
- * transforms. They are killed wholesale rather than case by case, so a card,
- * tile or control added later is covered without anyone remembering to.
+ * The paint-cost half of the performance tier (see PerformanceTier in
+ * types.ts). Everything with a value behind it — the background, the card blur,
+ * card opacity, the refresh timers — is handled by the effective* resolvers,
+ * which report the tier's value without touching what the user configured. What
+ * is left here is the decoration that has no setting to override.
  *
- * Nothing in this block changes layout, so toggling the mode never moves
+ * Two classes rather than one, because they are switched at different moments:
+ * `hearth-no-frost` follows the tier alone, while `hearth-no-motion` is also
+ * toggled at runtime by the focus/visibility gate (src/motion.ts) on a board
+ * whose tier still allows motion. They are killed wholesale rather than case by
+ * case, so a card, tile or control added later is covered without anyone
+ * remembering to.
+ *
+ * Nothing in this block changes layout, so toggling either class never moves
  * anything on the board — it only stops it from being animated or filtered. */
-.hearth-view.hearth-low-power *,
-.hearth-view.hearth-low-power *::before,
-.hearth-view.hearth-low-power *::after {
+.hearth-view.hearth-no-motion *,
+.hearth-view.hearth-no-motion *::before,
+.hearth-view.hearth-no-motion *::after {
 	transition: none !important;
 	animation: none !important;
-	/* Belt and braces: with every resolved blur at 0 the frost layers are never
-	 * built, but hard-coded backdrop filters elsewhere (the arrange-mode card
-	 * header) are switched off here too — each one is a separate backdrop root
-	 * the compositor has to re-filter on scroll. */
-	backdrop-filter: none !important;
-	-webkit-backdrop-filter: none !important;
 	box-shadow: none !important;
 }
 
-/* Loading spinners are the one animation worth keeping: frozen mid-spin they
- * read as a broken card rather than a calm one. */
-.hearth-view.hearth-low-power .is-loading {
+/* ---- The motion gates (src/motion.ts) --------------------------------
+ *
+ * Set while the window is not the one being used (`hearth-motion-paused` on the
+ * view) or while a card is off screen (`is-motion-paused` on the card).
+ *
+ * `animation-play-state` rather than `animation: none`, and the difference is
+ * the whole design. Clearing the animation snaps every element back to its
+ * static position, so a window regaining focus would jolt — raindrops jumping up
+ * the sky, a pet landing mid-hop. Pausing freezes each animation exactly where
+ * it was and resumes it there, which is invisible. It costs the same nothing:
+ * 52 paused SVG animations measure at 0 style recalcs and 0 layouts, the same as
+ * an empty page.
+ *
+ * Transitions are left alone. They are short, they only run in response to
+ * something the reader just did, and a transition frozen halfway is a control
+ * stuck mid-hover. */
+.hearth-view.hearth-motion-paused *,
+.hearth-view.hearth-motion-paused *::before,
+.hearth-view.hearth-motion-paused *::after,
+.hearth-view .hearth-card.is-motion-paused *,
+.hearth-view .hearth-card.is-motion-paused *::before,
+.hearth-view .hearth-card.is-motion-paused *::after {
+	animation-play-state: paused !important;
+}
+
+/* Belt and braces: with every resolved blur at 0 the frost layers are never
+ * built, but hard-coded backdrop filters elsewhere (the arrange-mode card
+ * header) are switched off here too — each one is a separate backdrop root the
+ * compositor has to re-filter on scroll. */
+.hearth-view.hearth-no-frost *,
+.hearth-view.hearth-no-frost *::before,
+.hearth-view.hearth-no-frost *::after {
+	backdrop-filter: none !important;
+	-webkit-backdrop-filter: none !important;
+}
+
+/* Loading spinners are the one animation the tier keeps: frozen mid-spin they
+ * read as a broken card rather than a calm one. The gates above still pause
+ * them, which is right — a spinner nobody can see is the clearest case of
+ * animating for no one, and it resumes the moment anyone looks. */
+.hearth-view.hearth-no-motion .is-loading {
 	animation: hearth-rss-spin 0.9s linear infinite !important;
 }
 
 /* Hover lift on cards and tiles: a transform promotes the element to its own
  * compositor layer on every pointer move across the board. */
-.hearth-view.hearth-low-power .hearth-card:hover,
-.hearth-view.hearth-low-power .hearth-link-tile:hover {
+.hearth-view.hearth-no-motion .hearth-card:hover,
+.hearth-view.hearth-no-motion .hearth-link-tile:hover {
 	transform: none;
 }
 
 /* The card's drop shadow is applied through a variable so merged edges can drop
  * it; clear the variable as well as the resolved shadow above. */
-.hearth-view.hearth-low-power .hearth-card {
+.hearth-view.hearth-no-motion .hearth-card {
 	--hearth-card-lift: none;
+}
+
+/* ---- Reduced motion ---------------------------------------------------
+ *
+ * A reader who has asked the OS for less motion gets the same treatment as the
+ * `reduced` tier, board-wide. Individual features already honour the preference
+ * in their own sections (the painted sky keeps its shapes, the pet keeps its
+ * posture, the slideshow keeps crossfading) and those rules are the nicer
+ * answer where they exist; this is the catch-all underneath them, so anything
+ * without a bespoke rule — the obscured-tile pulse, hover lifts, card
+ * transitions, a card added next year — stops moving too.
+ *
+ * Spinners are deliberately exempt: an indeterminate spinner that does not spin
+ * reads as a hung card, and the preference is about motion that decorates,
+ * not motion that reports. */
+@media (prefers-reduced-motion: reduce) {
+	.hearth-view *,
+	.hearth-view *::before,
+	.hearth-view *::after {
+		transition: none !important;
+		animation: none !important;
+	}
+
+	.hearth-view .is-loading {
+		animation: hearth-rss-spin 0.9s linear infinite !important;
+	}
+
+	.hearth-view .hearth-card:hover,
+	.hearth-view .hearth-link-tile:hover {
+		transform: none;
+	}
 }
 
 .hearth-scroll {
@@ -334,6 +402,19 @@
 	height: 100%;
 }
 
+/* The bar draws its own hover and focus state; the field inside it is only
+   text. Obsidian paints every text input on hover —
+
+     input[type='text']:not(:disabled):hover { background-color: … }
+
+   at specificity (0,3,1), which outranks the (0,3,0) rule above and lights a
+   grey slab across the bar's interior, carrying the input's own --input-radius
+   rather than the bar's 14px. Adding :hover here is (0,4,0): it wins on class
+   count, so the field stays transparent without an !important. */
+.hearth-view .hearth-search-bar .hearth-search-input:hover {
+	background: transparent;
+}
+
 .hearth-newnote {
 	display: flex;
 	align-items: center;
@@ -530,11 +611,13 @@
 	flex-wrap: wrap;
 	justify-content: flex-start;
 	--n: 1;
-	/* max(…, 1) keeps the single-chip case from dividing by zero. */
-	column-gap: clamp(8px, calc((100% - var(--n) * 38px) / max(var(--n) - 1, 1)), 48px);
-	/* A percentage row-gap would resolve against the container's indefinite
-	 * height and can collapse to 0, so wrapped rows get a fixed gap. */
-	row-gap: 8px;
+	/* Row gap first, then column gap. A percentage row-gap would resolve against
+	 * the container's indefinite height and can collapse to 0, so wrapped rows
+	 * get a fixed one; max(…, 1) keeps the single-chip case from dividing by
+	 * zero. Written as the `gap` shorthand rather than a `column-gap` longhand:
+	 * the two are equivalent on a flex container, but `column-gap` reads to
+	 * linters as the multi-column property of the same name. */
+	gap: 8px clamp(8px, calc((100% - var(--n) * 38px) / max(var(--n) - 1, 1)), 48px);
 	width: 100%;
 }
 
@@ -549,7 +632,14 @@
 	background: var(--background-primary);
 	color: var(--text-muted);
 	cursor: pointer;
-	transition: all 120ms ease;
+	/* Named rather than `all`: these are the only properties any of this
+	 * control's states change, and `all` makes the browser watch every animatable
+	 * property for a transition nobody asked for. */
+	transition:
+		color 120ms ease,
+		border-color 120ms ease,
+		background-color 120ms ease,
+		opacity 120ms ease;
 }
 
 .hearth-filter:hover {
@@ -582,15 +672,22 @@
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	/* "safe" keeps a card too short for its contents overflowing downwards only,
-	 * instead of centring the overflow and pushing the bar up out of the card.
-	 * Ignored by engines that don't know it, which leaves plain centring. */
-	justify-content: safe center;
 	gap: 8px;
 	width: 100%;
 	height: 100%;
 	flex: 1 1 auto;
 	min-width: 0;
+}
+
+/* "safe" keeps a card too short for its contents overflowing downwards only,
+   instead of centring the overflow and pushing the bar up out of the card.
+   Behind @supports rather than a second justify-content declaration in the rule
+   above, so engines that don't know the keyword keep plain centring without the
+   two declarations reading as a duplicate. */
+@supports (justify-content: safe center) {
+	.hearth-searchbar-card {
+		justify-content: safe center;
+	}
 }
 
 .hearth-card.is-searchbar-card .hearth-card-body {
@@ -693,7 +790,14 @@
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	cursor: pointer;
-	transition: all 120ms ease;
+	/* Named rather than `all`: these are the only properties any of this
+	 * control's states change, and `all` makes the browser watch every animatable
+	 * property for a transition nobody asked for. */
+	transition:
+		color 120ms ease,
+		border-color 120ms ease,
+		background-color 120ms ease,
+		opacity 120ms ease;
 }
 
 .hearth-type-filter-chip:hover {
@@ -823,9 +927,13 @@
 	inset: 0;
 	pointer-events: none;
 }
+/* Position and size are set inline per layer by updateFrostLayers(), to the
+ * bounding box of that layer's own cards — NOT `inset: 0`. A backdrop-filter is
+ * priced by its element's box rather than by how much of it the mask reveals, so
+ * a board-sized layer blurs the whole board's backdrop and then masks the result
+ * away. */
 .hearth-frost {
 	position: absolute;
-	inset: 0;
 	pointer-events: none;
 	-webkit-mask-repeat: no-repeat;
 	mask-repeat: no-repeat;
@@ -923,9 +1031,9 @@
 	padding-inline: 0;
 }
 
-/* Read-only embed and jot hosts. `.hearth-embed-live` (canvas/Excalidraw) is
- * excluded — it's deliberately edge-to-edge and its body already zeroes all
- * padding.
+/* Read-only embed and jot hosts. `.hearth-embed-live` (canvas/Excalidraw) and
+ * `.hearth-embed-image` (a picture given a fit mode) are excluded — both are
+ * deliberately edge-to-edge and their bodies already zero all padding.
  *
  * The start gutter is sized from the hang itself rather than being a flat
  * number, because the hang has no upper bound. Obsidian computes
@@ -940,7 +1048,8 @@
  * hang only widens it once it would otherwise eat in. The gutter is added on
  * top of the hang, not compared against it, so the checkbox keeps a full
  * gutter's clearance instead of landing flush against the clip edge. */
-.hearth-card-body.is-embed-host > .hearth-embed:not(.hearth-embed-live),
+.hearth-card-body.is-embed-host
+	> .hearth-embed:not(.hearth-embed-live):not(.hearth-embed-image),
 .hearth-card-body.is-jot-host .hearth-jot-preview {
 	padding-inline-start: max(
 		var(--hearth-card-pad-x),
@@ -1014,6 +1123,73 @@
  * desktop runtime) and modern WebKit (mobile) both support `zoom`. */
 .hearth-embed.is-scaled {
 	zoom: var(--hearth-embed-scale, 1);
+}
+
+/* ---- Formatted picture embeds --------------------------------------- */
+
+/* An image embed given a fit mode is drawn by Hearth as a bare <img> (see
+ * renderFormattedImage) and takes the whole card body, so the body drops its
+ * padding and its scrollbar the way a canvas embed's does — a gutter around a
+ * picture that says "fill the card" would be a visible lie, and the picture's
+ * own corners are clipped by the card's radius. */
+.hearth-card > .hearth-card-body.hearth-card-body-image {
+	overflow: hidden;
+	padding: 0;
+}
+
+/* The custom properties come from `embedImageStyle`: the anchor point, once as
+ * an `object-position` (which doubles as the zoom's transform origin) and once
+ * as flex alignment, plus the zoom factor. The flex alignment only bites in
+ * "fit the width", the one mode where the picture doesn't span both axes. */
+.hearth-embed.hearth-embed-image {
+	display: flex;
+	justify-content: var(--hearth-embed-img-justify, center);
+	align-items: var(--hearth-embed-img-align, center);
+	overflow: hidden;
+	padding: 0;
+}
+
+.hearth-embed-image .hearth-embed-img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	max-width: none;
+	/* The card's own radius clips the picture; a second radius on a picture that
+	 * reaches the card's edge just cuts a notch out of the corner. */
+	border-radius: 0;
+	object-position: var(--hearth-embed-img-pos, center center);
+	/* Zoom scales the fitted picture about its anchor point, so zooming into a
+	 * cropped picture keeps looking at the same part of it. The host clips. */
+	transform: scale(var(--hearth-embed-img-scale, 1));
+	transform-origin: var(--hearth-embed-img-pos, center center);
+}
+
+.hearth-embed-image.is-fit-contain .hearth-embed-img {
+	object-fit: contain;
+}
+
+.hearth-embed-image.is-fit-cover .hearth-embed-img {
+	object-fit: cover;
+}
+
+.hearth-embed-image.is-fit-stretch .hearth-embed-img {
+	object-fit: fill;
+}
+
+/* "Fit the width": the picture spans the card and keeps its ratio, so its
+ * height is whatever that comes to and the card scrolls. Zoom widens the
+ * picture instead of transforming it — a transform wouldn't reflow the height
+ * derived from the width, leaving a gap under a shrunk picture. */
+.hearth-embed-image.is-fit-width {
+	overflow: auto;
+}
+
+.hearth-embed-image.is-fit-width .hearth-embed-img {
+	width: calc(100% * var(--hearth-embed-img-scale, 1));
+	height: auto;
+	flex: none;
+	object-fit: contain;
+	transform: none;
 }
 
 /* Editable embed: a plain textarea bound to the note's file. Uses a monospace
@@ -1126,7 +1302,7 @@
 	height: var(--icon-s);
 }
 
-/* A bulleted "what this does" list inside a note (low power mode's effects). */
+/* A bulleted "what this does" list inside a note (the performance tier's effects). */
 .hearth-setting-note-list {
 	margin: 4px 0 0;
 	padding-left: 1.1em;
@@ -1230,7 +1406,7 @@
 	font-size: var(--font-ui-smaller);
 }
 
-/* Settings whose value low power mode is currently overriding. Still live and
+/* Settings whose value the performance tier is currently overriding. Still live and
  * editable — they simply aren't what's on screen right now — so this dims them
  * rather than disabling them. */
 .hearth-settings-overridden .setting-item:not(.hearth-setting-note) {
@@ -1798,6 +1974,14 @@
 	padding: 7px 8px;
 	border-radius: 7px;
 	cursor: pointer;
+}
+
+/* A Recent files card set to "fit to card height" renders every file it
+   remembers and then clips the rows past the card's edge, so the visible count
+   follows the card's size (#228). display:none rather than visibility so the
+   hidden rows take no space and the flex column doesn't scroll. */
+.hearth-list-item-clipped {
+	display: none;
 }
 
 .hearth-list-item:hover {
@@ -2431,6 +2615,53 @@
 	display: none;
 }
 
+/* ---- Lucide icon fields --------------------------------------------- */
+
+/* The live preview beside a Lucide icon field (settings, dashboard settings).
+   It keeps its box when empty so the row doesn't jump as icons come and go —
+   an unrecognised id simply leaves a dim, empty slot. */
+.hearth-icon-preview {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	flex: none;
+	border-radius: var(--radius-s, 4px);
+	color: var(--text-normal);
+	background: var(--background-modifier-form-field);
+}
+
+.hearth-icon-preview.is-empty {
+	background: transparent;
+	box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+}
+
+.hearth-icon-preview svg {
+	width: 18px;
+	height: 18px;
+}
+
+/* A row in the Lucide icon picker: the icon itself, then its id. */
+.hearth-icon-suggestion {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.hearth-icon-suggestion-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-muted);
+	flex: none;
+}
+
+.hearth-icon-suggestion-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
 /* The small "?" help badge beside an icon field in the card editors (#119). */
 .hearth-icon-help {
 	display: inline-flex;
@@ -2531,27 +2762,49 @@
 	transform: translateY(-1px);
 }
 
+/* A tile whose action is still running — the Templater card creating a note,
+   which may involve a prompt of Templater's own. The tile stays in place and
+   keeps its label; it just stops accepting a second click, so an impatient
+   double-click can't make two notes. */
+.hearth-link-tile.is-busy {
+	opacity: 0.6;
+	pointer-events: none;
+	cursor: progress;
+}
+
 /* A tile fully/partially hidden behind another tile — an undesirable overlap.
  * Glow it with the accent (and a warning tint) so the user notices and fixes
  * it. Only applied in arrange mode. */
 .hearth-link-tile.is-obscured {
+	position: relative;
 	outline: 2px solid var(--color-red, #f55);
 	outline-offset: 2px;
-	box-shadow: 0 0 12px 2px
-		color-mix(in srgb, var(--color-red, #f55) 55%, transparent);
 	border-color: var(--color-red, #f55);
+}
+
+/* The glow pulses on a pseudo-element's opacity rather than on the tile's own
+ * box-shadow. A box-shadow animation is a paint-property animation: it can never
+ * be composited, so it repaints the tile on every frame for as long as the board
+ * is being arranged. Fading a fixed shadow in and out is compositable and looks
+ * the same. */
+.hearth-link-tile.is-obscured::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: inherit;
+	pointer-events: none;
+	box-shadow: 0 0 16px 3px
+		color-mix(in srgb, var(--color-red, #f55) 65%, transparent);
 	animation: hearth-tile-obscured-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes hearth-tile-obscured-pulse {
 	0%,
 	100% {
-		box-shadow: 0 0 8px 1px
-			color-mix(in srgb, var(--color-red, #f55) 40%, transparent);
+		opacity: 0.5;
 	}
 	50% {
-		box-shadow: 0 0 16px 3px
-			color-mix(in srgb, var(--color-red, #f55) 65%, transparent);
+		opacity: 1;
 	}
 }
 
@@ -5049,7 +5302,14 @@
 	color: var(--text-muted);
 	cursor: pointer;
 	font-size: 0.85rem;
-	transition: all 120ms ease;
+	/* Named rather than `all`: these are the only properties any of this
+	 * control's states change, and `all` makes the browser watch every animatable
+	 * property for a transition nobody asked for. */
+	transition:
+		color 120ms ease,
+		border-color 120ms ease,
+		background-color 120ms ease,
+		opacity 120ms ease;
 }
 
 .hearth-tool-btn:hover {
@@ -5159,7 +5419,14 @@
 	cursor: pointer;
 	font-size: 0.85rem;
 	line-height: 1;
-	transition: all 120ms ease;
+	/* Named rather than `all`: these are the only properties any of this
+	 * control's states change, and `all` makes the browser watch every animatable
+	 * property for a transition nobody asked for. */
+	transition:
+		color 120ms ease,
+		border-color 120ms ease,
+		background-color 120ms ease,
+		opacity 120ms ease;
 }
 
 .hearth-dash-btn:hover {
@@ -6408,13 +6675,19 @@ body.hearth-dv-resizing {
 }
 
 .hearth-taskfilter-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	padding: 3px 10px;
 	border-radius: 999px;
 	border: 1px solid var(--background-modifier-border);
 	background: var(--background-secondary);
 	color: var(--text-normal);
 	font-size: 0.78rem;
+	line-height: 1.2;
 	cursor: pointer;
+	user-select: none;
+	box-shadow: none;
 	transition:
 		background 140ms ease,
 		color 140ms ease,
@@ -6425,10 +6698,20 @@ body.hearth-dv-resizing {
 	background: var(--background-modifier-hover);
 }
 
+.hearth-taskfilter-chip:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/* Selected fill. Prism remaps --interactive-accent to a faint tint and forces
+ * `.modal button` backgrounds transparent, so chips are non-button elements
+ * and the fill uses the stronger accent-base / accent-text tokens when present. */
 .hearth-taskfilter-chip.is-on {
-	background: var(--interactive-accent);
-	border-color: var(--interactive-accent);
-	color: var(--text-on-accent);
+	background-color: var(--interactive-accent-base, var(--interactive-accent)) !important;
+	background: var(--interactive-accent-base, var(--interactive-accent)) !important;
+	border-color: var(--interactive-accent-base, var(--interactive-accent)) !important;
+	color: var(--interactive-accent-text, var(--text-on-accent, var(--highlight-text-normal))) !important;
+	box-shadow: none !important;
 }
 
 /* ---- Task custom-sort modal ----------------------------------------- */
@@ -7746,23 +8029,74 @@ body.hearth-dv-resizing {
 
 /* ── "What's new" release-notes dialog ─────────────────────────────────── */
 .hearth-whatsnew-modal {
-	max-width: 680px;
-	width: min(680px, 92vw);
+	max-width: 720px;
+	width: min(720px, 94vw);
 }
 
-/* Intro and footer stay put; only the release list scrolls, so the close
- * button is reachable however long the log is. */
+/* Intro, toolbar and footer stay put; only the release list scrolls, so the
+ * close button is reachable however long the log is. */
 .hearth-whatsnew-modal .modal-content {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	max-height: min(70vh, 720px);
+	max-height: min(74vh, 760px);
 }
 
 .hearth-whatsnew-modal .hearth-whatsnew-intro {
 	flex: none;
-	margin: 0 0 14px;
+	margin: 0 0 12px;
 	color: var(--text-muted);
+}
+
+/* Filter box and the expand/collapse-all control. */
+.hearth-whatsnew-toolbar {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.hearth-whatsnew-search {
+	position: relative;
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	min-width: 0;
+}
+
+.hearth-whatsnew-search-icon {
+	position: absolute;
+	left: 9px;
+	display: flex;
+	color: var(--text-faint);
+	pointer-events: none;
+}
+
+.hearth-whatsnew-search-icon svg {
+	width: 15px;
+	height: 15px;
+}
+
+.hearth-whatsnew-filter {
+	width: 100%;
+	padding-left: 30px;
+}
+
+.hearth-whatsnew-expand-all {
+	flex: none;
+	padding: 5px 10px;
+	border-radius: var(--radius-s);
+	font-size: 0.8rem;
+	color: var(--text-muted);
+	background: var(--background-modifier-form-field);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.hearth-whatsnew-expand-all:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover);
 }
 
 .hearth-whatsnew-body {
@@ -7776,16 +8110,39 @@ body.hearth-dv-resizing {
 /* One release. A hairline rule above every section after the first stacks the
  * log as dated entries rather than one run-on list. */
 .hearth-whatsnew-release + .hearth-whatsnew-release {
-	margin-top: 24px;
-	padding-top: 20px;
+	margin-top: 18px;
+	padding-top: 14px;
 	border-top: 1px solid var(--background-modifier-border);
 }
 
+/* The header folds its release away, so a long log reads as a list of
+ * versions until one is opened. */
 .hearth-whatsnew-release-header {
 	display: flex;
-	align-items: baseline;
-	gap: 10px;
-	margin-bottom: 10px;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 4px 4px 0;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.hearth-whatsnew-release-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-whatsnew-release-chevron {
+	display: flex;
+	color: var(--text-faint);
+	transition: transform 120ms ease;
+}
+
+.hearth-whatsnew-release-chevron svg {
+	width: 16px;
+	height: 16px;
+}
+
+.hearth-whatsnew-release.is-collapsed .hearth-whatsnew-release-chevron {
+	transform: rotate(-90deg);
 }
 
 .hearth-whatsnew-version {
@@ -7811,9 +8168,75 @@ body.hearth-dv-resizing {
 	white-space: nowrap;
 }
 
-/* The Added / Changed / Fixed section labels within a release. */
-.hearth-whatsnew-release-body h3 {
-	margin: 18px 0 8px;
+/* One pill per kind of change ("10 New", "7 Fixed"), so a folded release still
+ * says what it holds. */
+.hearth-whatsnew-counts {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 5px;
+	margin-left: auto;
+}
+
+.hearth-whatsnew-count {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	background: var(--background-secondary-alt);
+	white-space: nowrap;
+}
+
+.hearth-whatsnew-count-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--text-faint);
+}
+
+/* Added / Changed / Fixed each get their own colour: the group label wears it
+ * as text, the count pill's dot as a swatch. */
+.hearth-whatsnew-group.is-added .hearth-whatsnew-group-label {
+	color: var(--color-green);
+}
+
+.hearth-whatsnew-count.is-added .hearth-whatsnew-count-dot {
+	background: var(--color-green);
+}
+
+.hearth-whatsnew-group.is-changed .hearth-whatsnew-group-label {
+	color: var(--color-yellow);
+}
+
+.hearth-whatsnew-count.is-changed .hearth-whatsnew-count-dot {
+	background: var(--color-yellow);
+}
+
+.hearth-whatsnew-group.is-fixed .hearth-whatsnew-group-label {
+	color: var(--color-blue);
+}
+
+.hearth-whatsnew-count.is-fixed .hearth-whatsnew-count-dot {
+	background: var(--color-blue);
+}
+
+.hearth-whatsnew-group.is-removed .hearth-whatsnew-group-label,
+.hearth-whatsnew-group.is-security .hearth-whatsnew-group-label {
+	color: var(--color-red);
+}
+
+.hearth-whatsnew-count.is-removed .hearth-whatsnew-count-dot,
+.hearth-whatsnew-count.is-security .hearth-whatsnew-count-dot {
+	background: var(--color-red);
+}
+
+.hearth-whatsnew-group-label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	margin: 16px 0 6px;
 	font-size: 0.72rem;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -7821,46 +8244,177 @@ body.hearth-dv-resizing {
 	color: var(--text-muted);
 }
 
-.hearth-whatsnew-release-body h3:first-child {
-	margin-top: 0;
+.hearth-whatsnew-group:first-child .hearth-whatsnew-group-label {
+	margin-top: 8px;
 }
 
-.hearth-whatsnew-release-body p {
+.hearth-whatsnew-group-icon {
+	display: flex;
+}
+
+.hearth-whatsnew-group-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Prose that isn't a bullet — a section intro, if a release ever carries one. */
+.hearth-whatsnew-prose {
 	margin: 0 0 8px;
+	color: var(--text-muted);
 	line-height: 1.55;
 }
 
-.hearth-whatsnew-release-body ul,
-.hearth-whatsnew-release-body ol {
-	margin: 0;
-	padding-left: 1.25em;
-}
-
-.hearth-whatsnew-release-body li {
-	margin: 0 0 10px;
-	line-height: 1.55;
-}
-
-.hearth-whatsnew-release-body li:last-child {
-	margin-bottom: 0;
-}
-
-/* A bullet's follow-on paragraphs sit tight under its first line. */
-.hearth-whatsnew-release-body li > p {
+.hearth-whatsnew-prose p {
 	margin: 0 0 6px;
 }
 
-.hearth-whatsnew-release-body li > p:last-child {
+/* One change: a headline that is always visible, and its explanation folded
+ * away underneath. */
+.hearth-whatsnew-items {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.hearth-whatsnew-item {
+	border-radius: var(--radius-s);
+}
+
+.hearth-whatsnew-item.is-expanded {
+	background: var(--background-primary-alt);
+}
+
+.hearth-whatsnew-item-summary {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.hearth-whatsnew-item-summary:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-whatsnew-item-summary.is-static {
+	cursor: default;
+}
+
+.hearth-whatsnew-item-summary.is-static:hover {
+	background: none;
+}
+
+.hearth-whatsnew-item-chevron {
+	flex: none;
+	display: flex;
+	margin-top: 2px;
+	color: var(--text-faint);
+}
+
+.hearth-whatsnew-item-chevron svg {
+	width: 15px;
+	height: 15px;
+}
+
+/* The chevron's column is held even when there is nothing to open, so every
+ * headline in a group starts at the same place. */
+.hearth-whatsnew-item-summary.is-static .hearth-whatsnew-item-chevron {
+	width: 15px;
+}
+
+.hearth-whatsnew-headline {
+	flex: 1 1 auto;
+	min-width: 0;
+	font-weight: 550;
+	line-height: 1.45;
+}
+
+/* MarkdownRenderer wraps the headline in a paragraph; keep it on its line. */
+.hearth-whatsnew-headline p {
+	display: inline;
+	margin: 0;
+}
+
+.hearth-whatsnew-headline code {
+	font-size: 0.85em;
+}
+
+.hearth-whatsnew-issues {
+	flex: none;
+	display: flex;
+	gap: 4px;
+	margin-top: 1px;
+}
+
+.hearth-whatsnew-issue {
+	padding: 1px 6px;
+	border-radius: var(--radius-s);
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	background: var(--background-secondary-alt);
+	text-decoration: none;
+}
+
+.hearth-whatsnew-issue:hover {
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+}
+
+.hearth-whatsnew-detail {
+	padding: 0 10px 10px 31px;
+	font-size: 0.92rem;
+	line-height: 1.6;
+	color: var(--text-muted);
+}
+
+.hearth-whatsnew-detail p {
+	margin: 0 0 8px;
+}
+
+.hearth-whatsnew-detail > :last-child {
 	margin-bottom: 0;
 }
 
-.hearth-whatsnew-release-body code {
+.hearth-whatsnew-detail ul,
+.hearth-whatsnew-detail ol {
+	margin: 0 0 8px;
+	padding-left: 1.25em;
+}
+
+.hearth-whatsnew-detail li {
+	margin: 0 0 4px;
+}
+
+.hearth-whatsnew-detail code {
 	font-size: 0.85em;
+}
+
+/* Keyboard focus: both rows are clickable divs, so they draw their own ring. */
+.hearth-whatsnew-item-summary:focus-visible,
+.hearth-whatsnew-release-header:focus-visible,
+.hearth-whatsnew-expand-all:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* Filtered away by the search box — rows, and any group or release left with
+ * nothing in it. */
+.hearth-whatsnew-item.is-filtered-out,
+.hearth-whatsnew-group.is-filtered-out,
+.hearth-whatsnew-release.is-filtered-out {
+	display: none;
+}
+
+.hearth-whatsnew-empty {
+	margin: 24px 0;
+	text-align: center;
+	color: var(--text-muted);
 }
 
 .hearth-whatsnew-footer {
 	flex: none;
-	margin: 16px 0 0;
+	margin: 14px 0 0;
 	font-size: 0.82rem;
 	color: var(--text-muted);
 }
@@ -7870,6 +8424,12 @@ body.hearth-dv-resizing {
 	flex: none;
 	border-top: none;
 	padding-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hearth-whatsnew-release-chevron {
+		transition: none;
+	}
 }
 
 /* Jira saved-filter card */
@@ -8544,7 +9104,7 @@ body.hearth-dv-resizing {
  * two CSS variables the card sets from its config. Everything that moves is
  * a CSS animation on the stage — the card itself repaints only on vault
  * events and a five-minute tick — and every one of them is dropped for a
- * reader who asked for less motion, or by low power mode (`is-still`).
+ * reader who asked for less motion, or by a still performance tier (`is-still`).
  * ===================================================================== */
 
 .hearth-pet {
@@ -8589,14 +9149,36 @@ body.hearth-dv-resizing {
 	outline-offset: 3px;
 }
 
+/* The sprite comes in two elements, and the split is load-bearing rather than
+ * cosmetic. `.hearth-pet-sprite` is a plain <div> and carries every mood
+ * animation; `.hearth-pet-art` is the <svg> inside it and carries none.
+ *
+ * Chromium will not run a CSS transform animation on an SVG element on the
+ * compositor — not on an SVG child, and not on the <svg> root either. With the
+ * hop/bob/breathe on the <svg> it fell to the main thread and recalculated
+ * style on every single frame: measured at 299 style recalcs per 5 seconds for
+ * four pets, against 0 for the same motion on a <div>. Moving the animation one
+ * element out is the whole fix, and nothing about the drawing changes — the
+ * wrapper is exactly the same box, so the percentage translates and the
+ * transform-origin below resolve identically.
+ *
+ * See docs/performance/macos-power-investigation.md. If you ever move an
+ * animation back onto the <svg>, you are paying 60 style recalcs a second for
+ * it. */
 .hearth-pet-sprite {
 	width: 100%;
 	height: 100%;
 	display: block;
-	overflow: visible;
 	/* One transform origin for every mood animation: the pet's feet, so it
 	 * squashes and hops off the ground rather than about its middle. */
 	transform-origin: 50% 100%;
+}
+
+.hearth-pet-art {
+	width: 100%;
+	height: 100%;
+	display: block;
+	overflow: visible;
 }
 
 .hearth-pet-name {
@@ -8893,7 +9475,7 @@ body.hearth-dv-resizing {
 	100% { transform: translate(calc(-50% + (var(--i) - 1) * 16px), -34px) scale(1.1); opacity: 0; }
 }
 
-/* Low power mode and a reduced-motion preference both leave a perfectly
+/* A still performance tier and a reduced-motion preference both leave a perfectly
  * readable pet — the mood is in its face, not in the movement. */
 .hearth-pet-stage.is-still .hearth-pet-sprite,
 .hearth-pet-stage.is-still .hearth-pet-frame {
@@ -9190,6 +9772,77 @@ body.hearth-dv-resizing {
 	height: 12px;
 }
 
+/* ---- Operon cards ----------------------------------------------------
+   Operon rows reuse the task-card markup (.hearth-list-item.hearth-task and
+   the Kanban column layout), so almost everything here is either a colour
+   hook fed from Operon's own taxonomy or one of the few pieces the shared
+   classes don't cover: the loading line, the freshness marker, the
+   truncation footer and the agenda day headers. */
+.hearth-operon {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-height: 0;
+	height: 100%;
+	overflow: auto;
+}
+
+.hearth-operon-loading {
+	padding: 8px 2px;
+	font-size: 0.8rem;
+	color: var(--text-faint);
+}
+
+/* Operon reported its own view as settling rather than verified: say so
+   quietly instead of letting the card look simply wrong. */
+.hearth-operon-stale {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
+.hearth-operon-stale-icon {
+	display: inline-flex;
+}
+
+.hearth-operon-stale-icon .svg-icon {
+	width: 11px;
+	height: 11px;
+}
+
+/* "Showing 10 of 42" — Operon's own count of what it left out. */
+.hearth-operon-truncated {
+	padding-top: 2px;
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
+/* Status and priority colours come from Operon's taxonomy, set per element as
+   --hearth-operon-color; each falls back to the theme when a status carries
+   no colour of its own. */
+.hearth-operon-task .hearth-task-statuschip {
+	color: var(--hearth-operon-color, var(--text-muted));
+}
+
+.hearth-operon-priority .hearth-task-priority-dot {
+	background: var(--hearth-operon-color, var(--text-faint));
+}
+
+.hearth-operon-meta {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
+	color: var(--text-faint);
+}
+
+.hearth-operon-meta .svg-icon {
+	width: 12px;
+	height: 12px;
+}
+
 .hearth-card-tile.is-unmet .hearth-card-tile-icon {
 	color: var(--text-muted);
 }
@@ -9263,6 +9916,103 @@ body.hearth-dv-resizing {
 }
 
 .hearth-picker-request-icon .svg-icon {
+	width: 20px;
+	height: 20px;
+}
+
+.hearth-operon-flag.is-active {
+	color: var(--interactive-accent);
+}
+
+.hearth-operon-flag.is-blocked {
+	color: var(--text-error, var(--color-red));
+}
+
+.hearth-operon-file {
+	flex: 0 0 auto;
+	max-width: 40%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
+/* Today's work carries the accent; overdue already turns red via the shared
+   .hearth-task-due.is-overdue rule. */
+.hearth-operon-task .hearth-task-due.is-today {
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+/* A date the task only has because it is scheduled, not due — dashed so it
+   isn't read as a deadline Operon never set. */
+.hearth-operon-task .hearth-task-due.is-scheduled {
+	border-bottom: 1px dashed currentColor;
+}
+
+/* Operon's own refusal, under the empty state. Small and muted: it is
+   diagnostic detail, not the headline. */
+.hearth-operon-errordetail {
+	padding: 0 12px 8px;
+	text-align: center;
+	font-size: 0.72rem;
+	color: var(--text-faint);
+	word-break: break-word;
+}
+
+/* ---- Operon agenda view ---- */
+.hearth-operon-day {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.hearth-operon-day-head {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	padding: 2px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-operon-day-label {
+	font-size: 0.76rem;
+	font-weight: 600;
+	color: var(--text-muted);
+}
+
+.hearth-operon-day-count {
+	font-size: 0.7rem;
+	font-variant-numeric: tabular-nums;
+	color: var(--text-faint);
+}
+
+/* ---- Operon board view ---- */
+.hearth-operon-board .hearth-kanban-col-title {
+	color: var(--hearth-operon-color, var(--text-normal));
+}
+
+/* ---- Operon timer view ---- */
+.hearth-operon-timer {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 4px;
+	height: 100%;
+	text-align: center;
+}
+
+.hearth-operon-timer-icon {
+	color: var(--text-faint);
+}
+
+.hearth-operon-timer-icon.is-running {
+	color: var(--interactive-accent);
+}
+
+.hearth-operon-timer-icon .svg-icon {
 	width: 20px;
 	height: 20px;
 }
@@ -9816,4 +10566,129 @@ body.hearth-dv-resizing {
 	.hearth-setup-preview {
 		height: 140px;
 	}
+}
+
+.hearth-operon-timer-clock {
+	font-size: 1.6rem;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.1;
+}
+
+.hearth-operon-timer-label {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 0.78rem;
+	color: var(--text-muted);
+}
+
+.hearth-operon-timer-note {
+	font-size: 0.72rem;
+	color: var(--text-faint);
+}
+
+.hearth-operon-timer-idle {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+/* ---- Operon settings section ---- */
+.hearth-operon-caps {
+	font-family: var(--font-monospace);
+	font-size: 0.72rem;
+	color: var(--text-faint);
+	word-break: break-word;
+}
+
+.hearth-operon-caps-missing {
+	margin-top: 4px;
+	color: var(--text-warning, var(--color-orange));
+}
+
+.hearth-operon-install {
+	display: inline-block;
+	margin-top: 4px;
+	font-size: 0.8rem;
+}
+
+.hearth-operon-hint {
+	font-size: 0.76rem;
+	color: var(--text-faint);
+}
+
+/* ---- Operon overlay on the calendar card ----------------------------
+   A square rather than another dot, so an Operon task due that day is never
+   mistaken for one of the round external-calendar event dots beside it. */
+.hearth-calendar-taskdot {
+	width: 4px;
+	height: 4px;
+	border-radius: 1px;
+	background: var(--ev-color, var(--interactive-accent));
+}
+
+.hearth-calendar-day.is-today .hearth-calendar-taskdot {
+	box-shadow: 0 0 0 1px var(--background-primary);
+}
+
+.hearth-agenda-taskbullet {
+	border-radius: 1px;
+}
+
+.hearth-agenda-task.is-done .hearth-agenda-evtitle {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+/* ---- Operon writes ----------------------------------------------------
+   Dragging a task between board columns, and the quick-add at the foot of a
+   column. The drop target, the add button and the add field are the Kanban
+   card's own classes — an Operon board that highlighted differently from the
+   board beside it would read as a different control. Only the states those
+   classes don't have are defined here. */
+
+.hearth-operon-task[draggable="true"] {
+	cursor: grab;
+}
+
+.hearth-operon-task.is-dragging {
+	opacity: 0.45;
+	cursor: grabbing;
+}
+
+/* The whole board dims while a transition is in flight: the drop has been
+   accepted, the write hasn't come back, and a second drag in that window would
+   be building on a status that is already changing. */
+.hearth-operon-board.is-writing {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+.hearth-operon-add-form.is-busy {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* What Operon is configured to do with a new task, under the card's "New
+   tasks" setting. Quiet, but present — it is the only place the daily-note /
+   folder / active-file choice is visible from Hearth. */
+.hearth-operon-target {
+	margin-top: 4px;
+	color: var(--text-muted);
+	font-size: 0.8rem;
+}
+
+/* The due field sits under the description, quiet enough that a one-line add
+   still reads as one line. */
+.hearth-operon-add-due {
+	width: 100%;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	padding: 4px 8px;
+	font-size: 0.8rem;
+	color: var(--text-muted);
 }

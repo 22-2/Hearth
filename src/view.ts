@@ -6,16 +6,19 @@ import { renderDashboardSwitcher } from "./dashboards";
 import { renderMobileActionBar } from "./mobileactions";
 import { applyBackground, renderBanner } from "./background";
 import { deferRedrawWhileTyping } from "./cardfocus";
+import { gateMotionOnWindow } from "./motion";
 import {
 	bannerActive,
+	effectiveCompact,
 	effectiveFitToPage,
 	effectiveMaxWidth,
 	effectiveShowSearch,
 	effectiveShowTitle,
-	lowPowerActive,
+	frostAllowed,
+	motionAllowed,
 	renderCards,
 } from "./types";
-import { hearthIconIdFor } from "./icon";
+import { tabIconIdFor } from "./icon";
 import { hearthLeafIsNavigable } from "./opener";
 import { t } from "./i18n";
 
@@ -63,7 +66,8 @@ export class HomeView extends ItemView {
 	}
 
 	getIcon(): string {
-		return hearthIconIdFor(this.plugin.settings.themeColorTarget);
+		const s = this.plugin.settings;
+		return tabIconIdFor(s.themeColorTarget, s.tabIcon);
 	}
 
 	async onOpen(): Promise<void> {
@@ -159,12 +163,16 @@ export class HomeView extends ItemView {
 		const root = this.contentEl;
 		root.empty();
 		root.addClass("hearth-view");
-		root.toggleClass("hearth-compact", this.plugin.settings.compact);
-		// Low power mode: the flag CSS keys off to drop transitions, animations,
-		// shadows and hover transforms across the whole view. The background and
-		// card-surface side of the mode is handled by the effective* resolvers, so
-		// this class only covers what has no setting behind it.
-		root.toggleClass("hearth-low-power", lowPowerActive(this.plugin.settings));
+		root.toggleClass("hearth-compact", effectiveCompact(this.plugin.settings));
+		// The two performance-tier flags CSS keys off. They are separate because
+		// the tiers drop motion and frost at the same rung but for different
+		// reasons, and because `hearth-no-motion` is also what the focus/visibility
+		// gate toggles at runtime (see motion.ts) without touching the tier.
+		// Everything with a setting behind it — the background, card opacity, the
+		// blur radius, the refresh timers — is handled by the effective* resolvers
+		// instead, so these classes only cover what has no setting to override.
+		root.toggleClass("hearth-no-motion", !motionAllowed(this.plugin.settings));
+		root.toggleClass("hearth-no-frost", !frostAllowed(this.plugin.settings));
 		// In arrange mode the user can hide the per-card headers to see each
 		// card's full body. The class is only applied while arranging so the
 		// headers come back automatically when arranging ends.
@@ -212,6 +220,11 @@ export class HomeView extends ItemView {
 			const header = inner.createDiv("hearth-header");
 			renderHeader(this, header, child);
 		}
+
+		// Hold every animation on this board while its window isn't the one being
+		// used. Registered on the render component, so it re-reads the setting on
+		// the next render and tears its listeners down with this one.
+		gateMotionOnWindow(this, child);
 
 		if (!mobileOnly) {
 			const dashboard = inner.createDiv("hearth-dashboard");

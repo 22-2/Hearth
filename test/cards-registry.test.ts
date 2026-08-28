@@ -76,6 +76,13 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 			{ id: "web", icon: "globe", category: "tools", requires: null, build: { kind: "web", title: "Web", url: "", w: 6, h: 4 } },
 
 			// ---- Integrations ----
+			{
+				id: "templater",
+				icon: "file-plus-2",
+				category: "integrations",
+				requires: "Templater",
+				build: { kind: "templater", title: "New note", templater: { items: [] }, w: 6, h: 2 },
+			},
 			{ id: "dataview", icon: "database", category: "integrations", requires: "Dataview", build: { kind: "dataview", title: "Dataview", dataview: {}, w: 6, h: 4 } },
 			{ id: "datacore", icon: "database-zap", category: "integrations", requires: "Datacore", build: { kind: "datacore", title: "Datacore", datacore: {}, w: 6, h: 4 } },
 			{
@@ -113,6 +120,34 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 				build: { kind: "weather", title: "Weather", weather: {}, w: 4, h: 3 },
 			},
 			{
+				id: "operon-tasks",
+				icon: "list-checks",
+				category: "integrations",
+				requires: "Operon",
+				build: { kind: "operon", title: "Operon tasks", operon: { view: "list" }, w: 4, h: 4 },
+			},
+			{
+				id: "operon-board",
+				icon: "columns-3",
+				category: "integrations",
+				requires: "Operon",
+				build: { kind: "operon", title: "Operon board", operon: { view: "board" }, w: 8, h: 5 },
+			},
+			{
+				id: "operon-agenda",
+				icon: "calendar-clock",
+				category: "integrations",
+				requires: "Operon",
+				build: { kind: "operon", title: "Operon agenda", operon: { view: "agenda" }, w: 4, h: 5 },
+			},
+			{
+				id: "operon-timer",
+				icon: "timer",
+				category: "integrations",
+				requires: "Operon",
+				build: { kind: "operon", title: "Operon timer", operon: { view: "timer" }, w: 3, h: 2 },
+			},
+			{
 				id: "leaf",
 				icon: "layout-panel-left",
 				category: "integrations",
@@ -143,7 +178,7 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 	// only how to badge it.
 	it("offers plugin-backed cards even when the plugin is missing", () => {
 		const app = { plugins: { enabledPlugins: new Set<string>(), plugins: {} } } as unknown as App;
-		for (const id of ["dataview", "datacore", "git"]) {
+		for (const id of ["dataview", "datacore", "git", "templater"]) {
 			const template = CARD_TEMPLATES.find((tpl) => tpl.id === id);
 			expect(template, id).toBeDefined();
 			expect(unmetRequirement(app, template!)?.name, id).toBeTruthy();
@@ -183,6 +218,9 @@ function maximalCard(): DashboardCard {
 		title: "Everything",
 		links: [{ label: "A", href: "a" } as never],
 		commands: [{ id: "c", name: "C" }],
+		templater: {
+			items: [{ id: "t1", label: "Meeting", icon: "file-plus-2", template: "Templates/Meeting.md" }],
+		},
 		secondView: { target: "sv" },
 		slideshow: { slides: [{ id: "s1", path: "Photos/a.png", caption: "A" }] },
 		tasks: {
@@ -223,6 +261,14 @@ function maximalCard(): DashboardCard {
 		weather: { place: { name: "Prague", lat: 50.08, lon: 14.44 } },
 		git: { sections: ["status", "actions"], actions: ["commit", "push"] },
 		pet: { species: "fox", name: "Vulpes" },
+		operon: {
+			pipelineIds: ["p1"],
+			statusIds: ["s1"],
+			priorityIds: ["pr1"],
+			checkbox: ["open"],
+			boardOrder: ["s1"],
+			boardHidden: ["s2"],
+		},
 	};
 }
 
@@ -235,6 +281,8 @@ describe("cloneCard deep-clone independence", () => {
 		// Mutate every nested structure on the copy...
 		copy.links![0].label = "B";
 		copy.commands![0].name = "D";
+		copy.templater!.items![0].label = "Standup";
+		copy.templater!.items!.push({ id: "t2", label: "Book", icon: "book", template: "Templates/Book.md" });
 		(copy.secondView as { target: string }).target = "sv2";
 		copy.slideshow!.slides![0].caption = "B";
 		copy.slideshow!.slides!.push({ id: "s2", path: "Photos/b.png" });
@@ -267,11 +315,18 @@ describe("cloneCard deep-clone independence", () => {
 		copy.git!.sections!.push("log");
 		copy.git!.actions!.push("pull");
 		copy.pet!.name = "Renard";
+		copy.operon!.pipelineIds!.push("p2");
+		copy.operon!.statusIds!.push("s3");
+		copy.operon!.priorityIds!.push("pr2");
+		copy.operon!.checkbox!.push("done");
+		copy.operon!.boardOrder!.push("s3");
+		copy.operon!.boardHidden!.push("s4");
 
 		// ...and confirm none of it reached the original.
 		const pristine = maximalCard();
 		expect(orig.links).toEqual(pristine.links);
 		expect(orig.commands).toEqual(pristine.commands);
+		expect(orig.templater).toEqual(pristine.templater);
 		expect(orig.secondView).toEqual(pristine.secondView);
 		expect(orig.slideshow).toEqual(pristine.slideshow);
 		expect(orig.tasks).toEqual(pristine.tasks);
@@ -289,6 +344,7 @@ describe("cloneCard deep-clone independence", () => {
 		expect(orig.weather).toEqual(pristine.weather);
 		expect(orig.git).toEqual(pristine.git);
 		expect(orig.pet).toEqual(pristine.pet);
+		expect(orig.operon).toEqual(pristine.operon);
 	});
 });
 
@@ -312,6 +368,7 @@ describe("liveness classification", () => {
 			recent: "static",
 			links: "static",
 			commands: "static",
+			templater: "static",
 			clock: "static",
 			tasks: "vault",
 			calendar: "vault",
@@ -327,6 +384,7 @@ describe("liveness classification", () => {
 			jira: "static",
 			weather: "static",
 			git: "static",
+			operon: "vault",
 			leaf: "static",
 			pet: "vault",
 		});

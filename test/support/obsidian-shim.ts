@@ -72,9 +72,10 @@ export class TextComponent {}
 
 export function setIcon(): void {}
 export function addIcon(): void {}
-// fileicons.ts imports this for its icon-registry lookup. The pure helpers
-// under test take the "is this icon registered?" check as a parameter, so the
-// real registry is never consulted.
+// lucide.ts imports this for its icon-registry lookup (fileicons.ts and the
+// icon pickers go through it). The pure helpers under test take the "is this
+// icon registered?" check as a parameter, so the real registry is never
+// consulted; the throw is caught and read as "no registry available".
 export function getIconIds(): string[] {
 	throw new Error("getIconIds is not implemented in tests (Obsidian API)");
 }
@@ -93,4 +94,21 @@ export const Platform = {
 	isMobileApp: false,
 	isDesktopApp: true,
 };
-export const apiVersion = "1.8.7";
+// Set to the newest version any Hearth feature gates on (Operon's Developer
+// API needs 1.12.2), so a `requireApiVersion` check is satisfied by default and
+// a test that wants the *unsupported* answer says so explicitly — flipping
+// `Platform.isDesktopApp` is the readable way to do it.
+export const apiVersion = "1.12.2";
+
+// Real signature compares against the running Obsidian build; this answers from
+// the `apiVersion` above rather than pretending every version requirement is
+// met, so a feature gated on a version behaves the same way here as it would in
+// Obsidian.
+export function requireApiVersion(version: string): boolean {
+	const parse = (v: string): number[] => v.split(".").map((n) => Number(n) || 0);
+	const [wantMajor = 0, wantMinor = 0, wantPatch = 0] = parse(version);
+	const [haveMajor = 0, haveMinor = 0, havePatch = 0] = parse(apiVersion);
+	if (haveMajor !== wantMajor) return haveMajor > wantMajor;
+	if (haveMinor !== wantMinor) return haveMinor > wantMinor;
+	return havePatch >= wantPatch;
+}
