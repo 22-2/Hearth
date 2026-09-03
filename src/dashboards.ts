@@ -6,6 +6,7 @@ import {
 	type BackgroundLayout,
 	type Dashboard,
 	type DashboardHeaderConfig,
+	type DashboardMode,
 	type HeaderAlign,
 	type HomeSettings,
 	BANNER_HEIGHT_MAX,
@@ -13,17 +14,30 @@ import {
 	CARD_RADIUS_MAX,
 	clampBannerHeight,
 	CARD_BORDER_WIDTH_MAX,
+	CONTENT_WIDTH_MAX,
+	CONTENT_WIDTH_MIN,
+	CONTENT_WIDTH_STEP,
 	HEADER_MARGIN_TOP_MAX,
 	HEADER_MARGIN_TOP_MIN,
 	HEADER_SCALE_MAX,
 	HEADER_SCALE_MIN,
 	HEADER_SPACING_BELOW_MAX,
 	HEADER_SPACING_BELOW_MIN,
+	DASHBOARD_MODES,
 	DEFAULT_SETTINGS,
+	isPluginBoard,
 	newDashboardId,
 } from "./types";
 import { cloneCard } from "./cards";
+import {
+	FULL_VIEW_SCOPE,
+	isDocumentViewType,
+	isViewTypeHostable,
+	listLeafViewTypes,
+} from "./leafview";
+import { FilePickerModal } from "./pickers";
 import { addIconPicker, renderIcon } from "./lucide";
+import { addTitleIconPicker } from "./titleicon";
 import { configuredPlaces, renderSkySource } from "./placepicker";
 import { formatSkyValue, parseSkyValue } from "./sky";
 import { confirmAction } from "./ui";
@@ -48,7 +62,7 @@ const DEFAULT_HEADER_SPACING_BELOW = 28;
 export function renderDashboardSwitcher(
 	view: HomeView,
 	container: HTMLElement,
-): void {
+): HTMLElement {
 	const s = view.plugin.settings;
 	const zone = container.createDiv("hearth-dash-switcher-zone");
 	zone.toggleClass("is-auto-hide", s.dashboardSwitcherVisibility === "hover");
@@ -119,6 +133,11 @@ export function renderDashboardSwitcher(
 		void view.plugin.saveData(s);
 		view.render();
 	});
+
+	// Returned so a board with no toolbar of its own — a plugin board, which is
+	// edge-to-edge below this row — can put its one action on the same row
+	// instead of spending a second one on it.
+	return zone;
 }
 
 /** Open the per-dashboard settings editor for `dash`. Shared by the switcher's
@@ -156,10 +175,17 @@ function showDashboardMenu(
 				};
 				if (dash.icon) copy.icon = dash.icon;
 				if (dash.iconLucide) copy.iconLucide = dash.iconLucide;
+				if (dash.mode) copy.mode = dash.mode;
+				// A copied plugin board hosts its own view rather than sharing one:
+				// the hosted-view cache is keyed by board id, so the two boards keep
+				// separate state (scroll position, open item) as you'd expect of two
+				// boards.
+				if (dash.pluginView) copy.pluginView = { ...dash.pluginView };
 				if (dash.gridColumns != null) copy.gridColumns = dash.gridColumns;
 				if (dash.rowHeight != null) copy.rowHeight = dash.rowHeight;
 				if (dash.fitToPage != null) copy.fitToPage = dash.fitToPage;
 				if (dash.maxWidth != null) copy.maxWidth = dash.maxWidth;
+				if (dash.fullWidth != null) copy.fullWidth = dash.fullWidth;
 				if (dash.showSearch != null) copy.showSearch = dash.showSearch;
 				if (dash.compact != null) copy.compact = dash.compact;
 				if (dash.cardOpacity != null) copy.cardOpacity = dash.cardOpacity;
@@ -256,10 +282,18 @@ class DashboardSettingsModal extends HearthTabbedModal {
 
 	protected hearthTabs(): HearthModalTab[] {
 		const tabs = t().dashboards.modal.tabs;
+		const plugin = isPluginBoard(this.dash);
 		return [
 			{ id: "general", label: tabs.general, icon: "settings-2" },
+			// Which view the board hosts, right after the board's identity: on a
+			// plugin board it is the single most important thing about it.
+			...(plugin
+				? [{ id: "plugin", label: tabs.plugin, icon: "layout-panel-left" }]
+				: []),
 			{ id: "header", label: tabs.header, icon: "heading" },
 			{ id: "layout", label: tabs.layout, icon: "layout-dashboard" },
+			// Kept on a plugin board: the hosted view sits on one big card surface,
+			// so opacity, blur, radius and border all still land somewhere.
 			{ id: "style", label: tabs.style, icon: "palette" },
 			{ id: "background", label: tabs.background, icon: "image" },
 		];
@@ -269,6 +303,9 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		switch (tabId) {
 			case "general":
 				this.generalSection(body);
+				break;
+			case "plugin":
+				this.pluginSection(body);
 				break;
 			case "header":
 				this.headerSection(body);
@@ -305,6 +342,31 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				this.commit();
 			}),
 		);
+
+		// What the board *is*. Changing it swaps which tabs the modal offers, so
+		// the whole shell is rebuilt — and the cards of a board turned into a
+		// plugin board are kept, not deleted, so turning it back brings them back.
+		new Setting(containerEl)
+			.setName(t().dashboards.modal.mode)
+			.setDesc(t().dashboards.modal.modeDesc)
+			.addDropdown((dd) => {
+				const labels = t().dashboards.modal.modeOptions;
+				for (const mode of DASHBOARD_MODES) dd.addOption(mode, labels[mode]);
+				dd.setValue(dash.mode ?? "cards").onChange((v) => {
+					const mode = v as DashboardMode;
+					dash.mode = mode === "cards" ? undefined : mode;
+					if (mode === "plugin") dash.pluginView ??= {};
+					this.commit();
+					this.render();
+				});
+			});
+
+		if (isPluginBoard(dash) && !dash.pluginView?.viewType?.trim()) {
+			const hint = new Setting(containerEl).setDesc(
+				t().dashboards.modal.modePickViewHint,
+			);
+			hint.settingEl.addClass("hearth-setting-note");
+		}
 
 		new Setting(containerEl)
 			.setName(t().dashboards.modal.switcherIcon)
@@ -367,6 +429,164 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			});
 	}
 
+	/**
+	 * Which view a plugin board hosts, and how it behaves while it is not the
+	 * board on screen.
+	 *
+	 * The type list is everything the app has registered right now — core panes
+	 * plus whatever community plugins have added — so the choices follow which
+	 * plugins are enabled. Unlike the leaf card's list it includes Obsidian's own
+	 * document surfaces (Markdown, PDF, image, audio, video), which only work
+	 * pointed at a file; the file picker below is right there, and the board says
+	 * so when one is needed but missing.
+	 */
+	private pluginSection(containerEl: HTMLElement): void {
+		const dash = this.dash;
+		const strings = t().dashboards.modal;
+		const cfg = (dash.pluginView ??= {});
+		const types = listLeafViewTypes(this.view.app, FULL_VIEW_SCOPE);
+
+		const picker = new Setting(containerEl)
+			.setName(strings.pluginViewType)
+			.setDesc(strings.pluginViewTypeDesc);
+		if (types.length === 0) {
+			// No registry to read — the same condition that hides the leaf card's
+			// template. Nothing below it would do anything, so stop here.
+			picker.setDesc(t().editors.leaf.none);
+			return;
+		}
+		picker.addDropdown((dd) => {
+			dd.addOption("", strings.pluginViewTypeNone);
+			for (const vt of types) dd.addOption(vt.type, vt.name);
+			// A view whose plugin is currently off stays listed and selected, so
+			// switching that plugin back on restores the board untouched.
+			const current = cfg.viewType?.trim();
+			if (current && !types.some((vt) => vt.type === current)) {
+				dd.addOption(current, current);
+			}
+			dd.setValue(current ?? "").onChange((v) => {
+				cfg.viewType = v || undefined;
+				// A file chosen for the old view can't be shown by the new one, and
+				// makes file-backed views throw — so it goes with the view.
+				cfg.file = undefined;
+				this.commit();
+				this.render();
+			});
+		});
+
+		const type = cfg.viewType?.trim() ?? "";
+		if (type && !isViewTypeHostable(this.view.app, type, FULL_VIEW_SCOPE)) {
+			const missing = new Setting(containerEl).setDesc(
+				t().cards.empty.leafViewMissing,
+			);
+			missing.settingEl.addClass("hearth-setting-note");
+			missing.settingEl.addClass("hearth-setting-warning");
+		}
+
+		const fileSetting = new Setting(containerEl)
+			.setName(strings.pluginViewFile)
+			.setDesc(
+				// A document surface has nothing to show without one, so the same
+				// control is described as required rather than optional there.
+				isDocumentViewType(type)
+					? strings.pluginViewFileRequiredDesc
+					: strings.pluginViewFileDesc,
+			);
+		fileSetting.addText((tx) =>
+			tx
+				.setPlaceholder(t().editors.leaf.filePlaceholder)
+				.setValue(cfg.file ?? "")
+				.onChange((v) => {
+					cfg.file = v.trim() || undefined;
+					this.commit();
+				}),
+		);
+		fileSetting.addExtraButton((b) =>
+			b
+				.setIcon("file-symlink")
+				.setTooltip(t().editors.leaf.pickFile)
+				.onClick(() => {
+					new FilePickerModal(this.view.app, (file) => {
+						cfg.file = file.path;
+						this.commit();
+						this.render();
+					}).open();
+				}),
+		);
+		if (cfg.file) {
+			fileSetting.addExtraButton((b) =>
+				b
+					.setIcon("x")
+					.setTooltip(t().editors.leaf.clearFile)
+					.onClick(() => {
+						cfg.file = undefined;
+						this.commit();
+						this.render();
+					}),
+			);
+		}
+
+		new Setting(containerEl)
+			.setName(strings.pluginViewHideHeader)
+			.setDesc(strings.pluginViewHideHeaderDesc)
+			.addToggle((tg) =>
+				tg.setValue(cfg.hideHeader ?? false).onChange((v) => {
+					cfg.hideHeader = v || undefined;
+					this.commit();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName(strings.pluginViewKeepMounted)
+			.setDesc(strings.pluginViewKeepMountedDesc)
+			.addToggle((tg) =>
+				// Undefined is on (see PluginBoardConfig.keepMounted), so only the
+				// off case is written back.
+				tg.setValue(cfg.keepMounted ?? true).onChange((v) => {
+					cfg.keepMounted = v ? undefined : false;
+					this.commit();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName(strings.pluginViewFocusable)
+			.setDesc(strings.pluginViewFocusableDesc)
+			.addToggle((tg) =>
+				tg.setValue(cfg.focusable ?? false).onChange((v) => {
+					cfg.focusable = v || undefined;
+					this.commit();
+				}),
+			);
+
+		const note = new Setting(containerEl)
+			.setName(t().editors.leaf.perfLabel)
+			.setDesc(strings.pluginViewPerfNote);
+		note.settingEl.addClass("hearth-setting-note");
+		note.settingEl.addClass("hearth-setting-warning");
+		const icon = createSpan("hearth-setting-note-icon");
+		setIcon(icon, "alert-triangle");
+		note.nameEl.prepend(icon);
+	}
+
+	/**
+	 * The label for the "no override" option of a header-visibility dropdown.
+	 *
+	 * Normally that is the global setting. On a plugin board it isn't: the board
+	 * is given over to the hosted view, so the title and search default to
+	 * hidden there whatever the global says (see `effectiveShowTitle`). Saying
+	 * "use global default (shown)" over a board that hides it anyway would be a
+	 * plain lie, so the plugin board gets its own wording.
+	 */
+	private visibilityDefaultLabel(globalOn: boolean): string {
+		const strings = t().dashboards.modal;
+		if (isPluginBoard(this.dash)) {
+			return strings.visibilityDefaultPlugin(strings.visibilityHidden);
+		}
+		return strings.titleVisibilityDefault(
+			globalOn ? strings.visibilityShown : strings.visibilityHidden,
+		);
+	}
+
 	private ensureHeader(): DashboardHeaderConfig {
 		return (this.dash.header ??= {});
 	}
@@ -391,7 +611,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		this.ensureHeader()[key] = value;
 	}
 
-	/** Per-dashboard overrides for the header: the title/logo block, and whether
+	/** Per-dashboard overrides for the header: the title block, and whether
 	 * the search section below it is drawn. */
 	private headerSection(containerEl: HTMLElement): void {
 		const dash = this.dash;
@@ -402,14 +622,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			.setName(t().dashboards.modal.titleVisibility)
 			.setDesc(t().dashboards.modal.titleVisibilityDesc)
 			.addDropdown((d) => {
-				d.addOption(
-					"default",
-					t().dashboards.modal.titleVisibilityDefault(
-						s.showTitle
-							? t().dashboards.modal.visibilityShown
-							: t().dashboards.modal.visibilityHidden,
-					),
-				);
+				d.addOption("default", this.visibilityDefaultLabel(s.showTitle));
 				d.addOption("show", t().dashboards.modal.visibilityShow);
 				d.addOption("hide", t().dashboards.modal.visibilityHide);
 				d.setValue(
@@ -436,14 +649,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			.setName(t().dashboards.modal.searchVisibility)
 			.setDesc(t().dashboards.modal.searchVisibilityDesc)
 			.addDropdown((d) => {
-				d.addOption(
-					"default",
-					t().dashboards.modal.searchVisibilityDefault(
-						s.showSearch
-							? t().dashboards.modal.visibilityShown
-							: t().dashboards.modal.visibilityHidden,
-					),
-				);
+				d.addOption("default", this.visibilityDefaultLabel(s.showSearch));
 				d.addOption("show", t().dashboards.modal.searchVisibilityShow);
 				d.addOption("hide", t().dashboards.modal.searchVisibilityHide);
 				d.setValue(
@@ -467,26 +673,14 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			},
 		);
 
-		this.overrideHeaderText(
-			containerEl,
-			t().dashboards.modal.logoText,
-			t().dashboards.modal.logoTextDesc,
-			header?.logo,
-			s.logo,
-			(v) => {
-				this.setHeaderOverride("logo", v);
-				this.commit();
-			},
-		);
-
 		this.overrideHeaderIcon(
 			containerEl,
-			t().dashboards.modal.logoIcon,
-			t().dashboards.modal.logoIconDesc,
-			header?.logoIcon,
-			s.logoIcon,
+			t().dashboards.modal.titleIcon,
+			t().dashboards.modal.titleIconDesc,
+			header?.titleIcon,
+			s.titleIcon,
 			(v) => {
-				this.setHeaderOverride("logoIcon", v);
+				this.setHeaderOverride("titleIcon", v);
 				this.commit();
 			},
 		);
@@ -551,7 +745,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 
 		this.overrideHeaderSlider(
 			containerEl,
-			t().dashboards.modal.logoSize,
+			t().dashboards.modal.titleIconSize,
 			header?.logoScale,
 			DEFAULT_HEADER_SCALE,
 			HEADER_SCALE_MIN,
@@ -625,12 +819,14 @@ class DashboardSettingsModal extends HearthTabbedModal {
 
 	/**
 	 * The icon counterpart of {@link overrideHeaderText}: a toggle that takes the
-	 * board off the global icon, and — once it has — a full Lucide picker.
+	 * board off the vault-wide title icon, and — once it has — the same
+	 * title-icon field the settings tab offers (icon, emoji/text, vault picture
+	 * or URL).
 	 *
-	 * Turning the toggle on seeds the override with whatever the global icon is,
-	 * so the board starts from the look it already had; clearing the picker
-	 * leaves an empty override, which is a board that deliberately shows no
-	 * Lucide icon while the global setting has one.
+	 * Turning the toggle on seeds the override with whatever the global mark is,
+	 * so the board starts from the look it already had; clearing the field
+	 * leaves an empty override, which is a board that deliberately wears the
+	 * Hearth crystal while the vault-wide setting has something else.
 	 */
 	private overrideHeaderIcon(
 		containerEl: HTMLElement,
@@ -655,7 +851,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				}),
 			);
 		if (overriding) {
-			addIconPicker(row, this.view.app, current, (v) => set(v));
+			addTitleIconPicker(row, this.view.app, current, (v) => set(v));
 		}
 	}
 
@@ -698,19 +894,59 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		const dash = this.dash;
 		const s = this.view.plugin.settings;
 
-		this.overrideSlider(
-			containerEl,
-			t().dashboards.modal.contentWidth,
-			dash.maxWidth,
-			s.maxWidth,
-			700,
-			1600,
-			20,
-			(v) => {
-				dash.maxWidth = v;
-				this.commit();
-			},
-		);
+		new Setting(containerEl)
+			.setName(t().dashboards.modal.fullWidth)
+			.setDesc(t().dashboards.modal.fullWidthDesc)
+			.addDropdown((d) => {
+				d.addOption(
+					"default",
+					t().dashboards.modal.fullWidthDefault(
+						s.fullWidth
+							? t().dashboards.modal.fullWidthStateOn
+							: t().dashboards.modal.fullWidthStateOff,
+					),
+				);
+				d.addOption("on", t().dashboards.modal.fullWidthOptionOn);
+				d.addOption("off", t().dashboards.modal.fullWidthOptionOff);
+				d.setValue(
+					dash.fullWidth === undefined ? "default" : dash.fullWidth ? "on" : "off",
+				);
+				d.onChange((v) => {
+					dash.fullWidth = v === "default" ? undefined : v === "on";
+					this.commit();
+					// The width slider below is the ceiling this drops, so it appears
+					// and disappears with the choice rather than sitting there inert.
+					this.render();
+				});
+			});
+
+		// Only offered while this board actually has a ceiling to set.
+		if (!(dash.fullWidth ?? s.fullWidth)) {
+			this.overrideSlider(
+				containerEl,
+				t().dashboards.modal.contentWidth,
+				dash.maxWidth,
+				s.maxWidth,
+				CONTENT_WIDTH_MIN,
+				CONTENT_WIDTH_MAX,
+				CONTENT_WIDTH_STEP,
+				(v) => {
+					dash.maxWidth = v;
+					this.commit();
+				},
+			);
+		}
+
+		// A plugin board is always fitted — the hosted view needs a definite
+		// height to fill and scrolls itself inside it — so the choice isn't
+		// offered there. The width controls above still apply.
+		if (isPluginBoard(dash)) {
+			const note = new Setting(containerEl)
+				.setName(t().dashboards.modal.fitToPage)
+				.setDesc(t().dashboards.modal.fitToPagePluginNote);
+			note.settingEl.addClass("hearth-setting-note");
+			return;
+		}
 
 		new Setting(containerEl)
 			.setName(t().dashboards.modal.fitToPage)

@@ -2,19 +2,18 @@ import { type Component, Platform, setIcon } from "obsidian";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { hearthIconIdFor } from "./icon";
-import { resolveIconId } from "./lucide";
+import { renderTitleIcon } from "./titleicon";
 import {
 	effectiveHeaderAlign,
 	effectiveHeaderLogoScale,
 	effectiveHeaderMarginTop,
 	effectiveHeaderSpacingBelow,
 	effectiveHeaderTitleScale,
-	effectiveLogo,
-	effectiveLogoIcon,
 	effectiveShowSearch,
 	effectiveShowTitle,
 	effectiveThemeColorTarget,
 	effectiveTitle,
+	effectiveTitleIcon,
 } from "./types";
 import { t } from "./i18n";
 import { newNoteButtonLabel } from "./newnote";
@@ -23,8 +22,8 @@ import { newNoteButtonLabel } from "./newnote";
  * DuckDuckGo's GET endpoint works without an API key and is privacy-friendly. */
 const WEB_SEARCH_URL = "https://duckduckgo.com/?q=";
 
-/** Renders the title/logo, the search bar with the New-note button, and the
- * auto-detected filter row. In Mobile mode, the New-note button is left out
+/** Renders the title and its icon, the search bar with the New-note button,
+ * and the auto-detected filter row. In Mobile mode, the New-note button is left out
  * here — it moves into the mobile action bar rendered below (see
  * mobileactions.ts), along with the rest of that customizable button row.
  *
@@ -57,21 +56,10 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 			titleRow.style.setProperty("--hearth-title-margin-top", `${marginTop}px`);
 		}
 
-		// Three ways to mark the title, in order: a Lucide icon (global, or this
-		// board's override), a custom emoji/text logo shown verbatim, or the
-		// Hearth crystal as the fallback brand mark. An unknown Lucide id draws
-		// nothing, so it falls through rather than leaving an empty slot.
-		const logo = effectiveLogo(s).trim();
-		const lucideId = resolveIconId(effectiveLogoIcon(s));
-		if (lucideId) {
-			const logoEl = titleRow.createSpan({ cls: "hearth-logo hearth-logo-icon" });
-			setIcon(logoEl, lucideId);
-		} else if (logo === "") {
-			const logoEl = titleRow.createSpan({ cls: "hearth-logo hearth-logo-icon" });
-			setIcon(logoEl, hearthIconIdFor(target));
-		} else {
-			titleRow.createSpan({ cls: "hearth-logo", text: logo });
-		}
+		// One setting decides the mark: a Lucide icon, an emoji or short text, a
+		// picture from the vault or the web, or — when it is empty, and when a
+		// picture it names has gone missing — the Hearth crystal (#252).
+		renderTitleIcon(view.app, titleRow, effectiveTitleIcon(s), hearthIconIdFor(target));
 		titleRow.createSpan({ cls: "hearth-title-text", text: effectiveTitle(s) });
 	}
 
@@ -88,7 +76,19 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 	// The button is a sibling of the column (not inside the bar's row) so the
 	// filters span only the bar's width; the button sits flush beside the bar,
 	// not pushed down among the filter chips.
+	//
+	// A narrow board hangs the chips and the results off the WRAP instead, so
+	// they span the whole width rather than the bar's share of it. On a phone
+	// the button takes a real bite out of a ~390px row, and everything below
+	// inherited that bite: a half-width chip row and a half-width results list,
+	// with the other half sitting empty next to them. The wrap is `position:
+	// relative` exactly as the column is, so the overlay still anchors correctly
+	// — it just anchors to the full width, below the chip row rather than beside
+	// it. The button loses its label to a tooltip at that width (see styles.css)
+	// so the field keeps the rest of the row.
+	const narrow = view.isNarrow();
 	const searchWrap = container.createDiv("hearth-search-wrap");
+	searchWrap.toggleClass("is-narrow", narrow);
 	const searchCol = searchWrap.createDiv("hearth-search-col");
 	const searchRow = searchCol.createDiv("hearth-search");
 	const bar = search.renderBar(searchRow);
@@ -97,7 +97,8 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 		searchWrap.append(createSearchBarButton(view, bar, s.newNoteButtonMode));
 	}
 
-	search.renderResultsAndFilters(searchCol, searchCol, component);
+	const below = narrow ? searchWrap : searchCol;
+	search.renderResultsAndFilters(below, below, component);
 }
 
 /** The button that sits beside a search bar, in either of its two modes. Shared

@@ -22,7 +22,8 @@ Think of it as a new-tab dashboard, start page and command launcher in one.
 - 🎛️ **Free-form layout** — drag, resize and snap cards anywhere
 - 🪟 **Frosted glass** — per-card opacity, blur, color and corner radius
 - 🗂️ **Multiple dashboards** — switch with a click or a hotkey
-- 📱 **Mobile mode** — collapses to a search-only launcher
+- 🪄 **Plugin view dashboards** — give a whole board to one plugin's view
+- 📱 **Works on a phone** — the board stacks into one readable column
 
 ## Screenshots
 
@@ -81,7 +82,7 @@ plugin and copies them onto the card it builds. A vault that renamed `due` to
 The wizard offers the integrations above; everything else in
 [Integrations](#integrations) is added by hand from the **Add card** picker.
 
-**The wizard only ever writes to the dashboard it builds.** The title, the logo,
+**The wizard only ever writes to the dashboard it builds.** The title, its icon,
 the accent, the card surface, the spacing and the background all land as
 *per-board overrides* on that one dashboard, and the TaskNotes field mapping
 lands on the Tasks card itself — so your vault-wide settings, and every other
@@ -140,8 +141,9 @@ the bottom of the rail opens a pre-filled GitHub issue or email.
 | --- | --- | --- |
 | **Embedded note** | Any note, rendered live by Obsidian, with per-card zoom, optional in-place editing (raw or Live Preview) and a second view you can flip to | — |
 | **Daily note** | Always today's note, created on first click | Daily notes (core) |
+| **Periodic note** | Always the current week's, month's, quarter's or year's note, created on first click from your own template | [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) |
 | **Embedded image** | A picture from the vault — fill and crop, fit, stretch or scroll, anchored to any of nine points | — |
-| **Slideshow** | Pictures from a list or a folder, rotated on a timer: captions, sort order, transition and length, slow zoom, hover controls | — |
+| **Slideshow** | Pictures from a list or a folder: on a timer, one a day (or every few days, worked out from the date) or only by hand, with captions, sort order, transition and length, slow zoom and hover controls | — |
 | **Embedded canvas** | A canvas you can pan around in place | Canvas (core) |
 | **Excalidraw drawing** | A drawing with native pan and zoom | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) |
 | **Embedded base** | A `.base` file, rendered by Obsidian's Bases | Bases (core) |
@@ -188,14 +190,14 @@ feeds, reads **TaskNotes** (scheduled, due, recurrences, timeblocks) and
 | **Query** | A saved search, kept live | — |
 | **Search bar** | A search field on the board, framed or bare | — |
 | **Vault statistics** | Notes, attachments, folders, tags and daily-note streak | — |
-| **Activity heatmap** | A year of vault activity, day by day | — |
+| **Activity heatmap** | A year of vault activity, day by day — or, in advanced mode, any metric you define: a frontmatter date, a summed property, your own rules | — |
 
 ### Tools
 
 | Card | What it shows | Needs |
 | --- | --- | --- |
-| **Links / launchpad** | A grid of tiles opening notes, URLs or commands, each with its own column and row span | — |
-| **Commands** | Tiles that run any command-palette command | — |
+| **Links / launchpad** | A grid of buttons opening notes, URLs or commands, each with its own column and row span, filling the card or fixed in pixels | — |
+| **Commands** | Buttons that run any command-palette command | — |
 | **Text / jot-down** | A quick Markdown scratchpad saved with the card | — |
 | **Calculator** | Math, unit conversions, number bases (`FF hex to decimal`), live currency and plain-language queries (`20% of 150`), with an optional keypad | Network for rates |
 | **Web page** | Any `http(s)` URL in a sandboxed iframe, optionally auto-refreshed | Network |
@@ -212,7 +214,7 @@ Categorized as **Integrations** in the picker.
 | **Git** | Branch, staged and changed files, unpushed commits and recent log, with commit / sync / push / pull / stage / discard buttons and per-file diffs | [Git](https://github.com/Vinzent03/obsidian-git) |
 | **Jira filter** | Issues from a saved Jira filter or JQL search, filtered by status, assignee, priority, type, sprint and version | Jira over HTTPS |
 | **RSS feed** | Headlines from any RSS 2.0 or Atom feed you follow | Network |
-| **Weather** | Current conditions and forecast from [Open-Meteo](https://open-meteo.com) in five styles, up to an edge-to-edge painted sky that follows real conditions and time of day | Network |
+| **Weather** | Current conditions and forecast from [Open-Meteo](https://open-meteo.com) in five styles, up to an edge-to-edge painted sky that follows real conditions and time of day — click a card for the full forecast, hour by hour | Network |
 | **Operon tasks / board / agenda / timer** | Four cards on [Operon](https://github.com/hasanyilmaz/operon)'s own API — a task list, a pipeline board, a few days' agenda, and the running time tracker | Operon (desktop) |
 | **Plugin view** *(beta)* | Another plugin's side-panel view (calendar, outline, tag pane, Kanban…) hosted in a card, optionally pinned to one file | A plugin with a view |
 
@@ -254,6 +256,7 @@ full list, with live status and where each one's settings live, is under
 | [Dataview](https://github.com/blacksmithgu/obsidian-dataview) | The Dataview card: DQL and DataviewJS, rendered live | The card |
 | [Datacore](https://github.com/blacksmithgu/datacore) | The Datacore card: queries and JS/JSX/TS/TSX scripts | The card |
 | [Templater](https://github.com/SilentVoid13/Templater) | The "New note from template" launchpad | The card |
+| [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes) | The Periodic note card: this week's, month's, quarter's or year's note, resolved and created by the plugin itself | The card |
 | [Git](https://github.com/Vinzent03/obsidian-git) | The Git card, acting through the plugin's own task queue | The card |
 | [Operon](https://github.com/hasanyilmaz/operon) | Four cards on Operon's Developer API — [details below](#operon) | Integrations tab |
 | [Iconic](https://obsidian.md/plugins?id=iconic) / [Iconize](https://obsidian.md/plugins?id=obsidian-icon-folder) | Your per-file icons show wherever Hearth lists a file | Integrations tab |
@@ -272,7 +275,7 @@ full list, with live status and where each one's settings live, is under
 | **File explorer** | Powers "Reveal in file explorer" on search results |
 | **Workspaces** | A dashboard can switch to a saved workspace when you open it |
 | **Audio recorder** | The mobile "Record voice" action button |
-| **Any plugin with a side panel** | The Plugin view card hosts whatever views are registered |
+| **Any plugin with a side panel** | The Plugin view card hosts whatever views are registered, or a whole dashboard can be one |
 
 **External services** — all silenced at once by **Behaviour → Privacy &
 network → Disable external calls**.
@@ -325,6 +328,32 @@ Before you add one:
   the global width, columns, row height, background and title icon per board.
   Open a board's settings from **Dashboard settings** in the **Arrange**
   toolbar or by right-clicking its switcher button.
+- **Plugin view dashboards** — set a board's **Dashboard type** to **Plugin
+  view** and it stops being a grid of cards: the whole board becomes one
+  plugin's view — your RSS reader, a Kanban board, a Canvas, the outline — at
+  full size and fully working, with the switcher, header and background still
+  around it. So the reader you check twenty times a day is one click from your
+  task board rather than a tab you have to find your way back from.
+
+  Pick the view on the board's **Plugin view** tab. The list is every view the
+  app has registered right now, Obsidian's own document surfaces included
+  (Markdown, PDF, image, audio, video) — a full board has the room and a file
+  picker beside the type picker, so a specific note, drawing or PDF can *be* a
+  dashboard. You can also hide the hosted view's breadcrumb header, and let it
+  take focus so the plugin's own commands and hotkeys find it (experimental —
+  Obsidian may then open a clicked note into it).
+
+  **Edge to edge.** The hosted view gets the whole pane — no page gutter, no
+  card frame, no toolbar row — and the only chrome left is the switcher strip
+  across the top with the board's settings gear at the end of it. The title and
+  search start hidden for the same reason; all of it is an ordinary per-board
+  override you can switch back on.
+
+  **Switching is instant.** A plugin board stays loaded while another board is
+  showing instead of reloading from cold; up to three are kept warm at a time,
+  and a heavy plugin can opt out per board under **Keep running in the
+  background**. The board keeps its cards, so turning it back into a **Cards**
+  board brings them back untouched.
 - **Pinned cards** — pin a card to appear on every dashboard, sharing one
   definition and position.
 - **Fit to page** — lock the board to one screen or let it scroll.
@@ -350,16 +379,47 @@ Before you add one:
   per-dashboard → per-card). Merged cards blur as one seamless sheet.
 - **Card corner radius** — from the default 14 px down to sharp 0 px.
 - **Per-card colors** — an accent and a background tint for any card.
-- **Title, logo and compact spacing** for the dashboard header.
-- **Lucide icons** — pick any icon for Hearth's **tab and ribbon** button and
-  for the **title** beside the board's heading, searched from a picker rather
-  than typed from memory. Each dashboard can override the title icon; leave a
-  field empty and the Hearth crystal (or your emoji logo) stays as it was.
+- **Title, title icon and compact spacing** for the dashboard header.
+- **One title icon, four ways to set it** — the mark beside the board's heading
+  takes a **Lucide icon** (searched from a picker rather than typed from
+  memory), an **emoji or a couple of characters**, the **vault path of an
+  image**, or the **URL of an image on the web**. Each dashboard can override
+  it; leave it empty and the Hearth crystal stays as it was. Hearth's **tab and
+  ribbon** button takes a Lucide icon of its own.
 
 ## Mobile
 
-- **Mobile mode** — an optional search-only launcher on phones and tablets;
-  desktop is unaffected.
+Hearth's board is laid out freely — cards sit where you drop them, at a
+fraction of the board's width. Below about **600px** that stops meaning
+anything, so the board **reflows into a single full-width column**, top to
+bottom, in the order the desktop board reads in. Your layout is never
+rewritten: the same board is a launcher on your phone and a wall of cards on
+your monitor.
+
+The threshold is the **measured width of the board**, not the platform — so a
+narrow desktop pane gets the same treatment, and you can see the phone layout
+by dragging a pane narrow.
+
+- **Stacked column** — cards full width, one per row. Turn it off in
+  **Settings → Hearth → Mobile** to keep the free-form layout.
+- **Per-card overrides** — in a card's settings (Layout → *On a narrow board*):
+  **hide** it, give it a **position** in the column, set its **height**, or
+  **start it collapsed** as a title row that builds the card only when tapped —
+  so an expensive card costs one row until you open it.
+- **Phone preview** — hit **Arrange → Preview at phone width** to build and
+  check your phone board without a phone, inside a drawn phone so the
+  proportions read properly. While stacked, drag a card's bottom edge to set
+  its height, and use the move up / move down buttons in its header to reorder.
+- **Edge to edge** — the side gutters go, the safe-area insets stay; filter
+  chips and search results grow to 44px tap targets.
+- **Full-width search** — the chips and results span the screen instead of the
+  search bar's share of it, and the button beside the field drops to an icon.
+- **Its own performance tier** — defaults to *Balanced* on mobile; your desktop
+  tier is stored separately and untouched.
+- **Its own settings category** — everything above lives under
+  **Settings → Hearth → Mobile**.
+- **Mobile mode** — still there: an optional search-only launcher, if that is
+  all you want on a phone.
 - **Action bar** — a row of buttons under the search field (New note, New
   drawing, Record voice, Open daily note by default), each swappable for any
   command.

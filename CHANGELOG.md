@@ -11,9 +11,427 @@ preceding beta series.
 History begins at 1.5.0. For releases before 1.5.0, see the
 [GitHub Releases](https://github.com/ondreu/Hearth/releases) page.
 
+## [3.1.0]
+
+### Added
+
+- **Plugin view dashboards.** A dashboard no longer has to be a grid of cards.
+  Set one to **Plugin view** (Dashboard settings → General → **Dashboard type**)
+  and the whole board becomes a single plugin's view — your RSS reader, a Kanban
+  board, a Canvas, the outline — at full size, running for real rather than
+  previewed in a card.
+
+  The point is what stays around it: the **dashboard switcher, the header and
+  the background are still there**, so the reader you check twenty times a day is
+  one click from your task board instead of a tab you have to find your way back
+  from. Switching is instant, because a plugin board **stays loaded while another
+  board is showing** rather than reloading from cold each visit. Up to three
+  boards are kept warm at once, least-recently-used first out; a heavy plugin you
+  would rather not leave running can opt out per board.
+
+  Pick the view on the board's new **Plugin view** tab. Unlike the Plugin view
+  *card*, the list includes Obsidian's own document surfaces — Markdown, PDF,
+  image, audio, video — because a full board has room for them and a file picker
+  right beside the type picker, so a specific note, drawing or PDF can *be* a
+  dashboard. Also there: hiding the hosted view's own breadcrumb header, the
+  keep-loaded toggle, and an experimental **Let the view take focus**, which
+  makes the plugin's own commands and hotkeys target the board (at the cost of
+  Obsidian sometimes opening a clicked note into it).
+
+  **The board spends no space on itself.** The hosted view runs edge to edge —
+  no page gutter, no card frame, no toolbar row — and the only chrome left is
+  the switcher strip along the top, with the board's settings gear on the
+  right-hand end of it. The title and search start hidden for the same reason,
+  and each is still an ordinary per-board override you can switch back on. Its
+  cards are kept, not deleted: turn the board back into a **Cards** board and
+  they return exactly as they were.
+
+- **The heatmap can count whatever you actually track.** The activity heatmap
+  only ever knew two things: notes edited, notes created. That is a fine picture
+  of a vault and a poor picture of a habit — the run you logged on Sunday and
+  wrote up on Wednesday landed on Wednesday. The card's settings gained an
+  **Advanced** switch (off by default, and off changes nothing) that turns the
+  grid into a metric you define (#268).
+
+  **Where a day comes from.** *Day comes from* can now be **a frontmatter
+  date** instead of the file's own: name the property — `date`, `due`,
+  `published` — and each note lands on the day it says, not the day you touched
+  it. It reads a date, a date and time, or a `[[daily note]]` link, and a list
+  property counts once per entry, so `done: [2026-08-30, 2026-08-31]` marks both
+  squares. Notes without the property simply don't appear.
+
+  **What a square counts.** *Each note adds* is normally 1 — the note count.
+  Point it at a number in frontmatter instead and the day is a **sum**: minutes
+  read, pages written, kilometres run. A note whose value isn't a number is
+  skipped rather than quietly counted as one, so the two metrics never mix. The
+  **Unit** field names what you are counting, so a day reads "5 workouts"
+  instead of "5 notes edited".
+
+  **Which notes count.** Under **Which notes count** you can stack rules — a
+  property, a tag, a folder or a path, tested with *is*, *is not*, *contains*,
+  *does not contain*, *is more than*, *is less than*, *is set* or *is not set* —
+  and choose whether a note has to match **all** of them or **any** of them.
+  Numbers compare as numbers and dates as dates, tags match with or without
+  their `#` and cover their nested tags, and a rule you are still typing counts
+  as no rule rather than blanking the card. So: every note tagged `#health`
+  whose `type` is `run`, summed by `minutes`, on the day in `date` — one grid,
+  one year of running.
+
+- **The Ko-fi tip button, where you actually meet it.** The tip button used to
+  live only in Settings → About, which is the one place nobody visits after the
+  first day. It now also sits at the foot of the **"What's new" dialog**, to the
+  left of *Got it*, and at the bottom of the **add-card picker's** rail, right
+  under *Request a card*.
+
+  Same button in all three, on purpose: white, with the Ko-fi red cup, opening
+  <https://ko-fi.com/ondru>. Entirely optional, as it has always been — nothing
+  in Hearth is behind it.
+
+- **The board keeps your place.** Hearth rebuilds the whole board whenever you
+  come back to its tab, and that rebuild used to drop you at the top: follow a
+  link out of a card, switch back, and a board you had scrolled halfway down
+  started again from the beginning (#276). Each tab now remembers where it was
+  scrolled to and puts itself back there.
+
+  Per tab and per dashboard: two Hearth tabs keep their own places, and each
+  board comes back where you left it rather than at the depth of the board you
+  were on before. The memory rides along with the tab, so it survives a reload
+  of Obsidian — and a Hearth tab you *replace* by opening a note in it takes its
+  place with it, so opening Hearth fresh afterwards still starts at the top.
+
+- **Sync arrives without a restart.** Edit a dashboard on the desktop, walk over
+  to the laptop, and the board you get is the one that machine read when
+  Obsidian started — the synced version only appeared after quitting and
+  reopening the app. Hearth now watches its own settings file and adopts another
+  device's changes as they land, boards, cards and card contents alike.
+
+  It also closes the worse half of that problem. The window holding the stale
+  copy used to write it straight back on its next save, so the edit you made on
+  the other machine could be *undone* by moving a card here. That copy is now
+  brought up to date instead, in place, so what gets saved is the synced state.
+
+  Deliberately careful about it: a file caught half-written by a sync client is
+  ignored rather than acted on, settings identical to the ones already loaded
+  re-render nothing, and a board you are in the middle of arranging is left
+  alone until you are done. Off is available — Settings → Behaviour → **Pick up
+  synced changes** — but on is the honest default.
+
+### Fixed
+
+- **Frosted glass no longer smears across the gaps between cards.** With the
+  card blur turned on, two cards sitting apart on a board could show a single
+  frosted sheet stretched between them — the wallpaper in the empty space
+  blurred as if a pane of glass were floating there, with the cards resting on
+  it. On a board whose cards touch it looked right; the further apart they were,
+  the more obviously wrong it got.
+
+  The blur behind cards is drawn on a shared layer rather than on each card,
+  because one continuous surface is what lets a run of touching cards read as a
+  single frosted tile instead of showing a bright seam where they meet. But that
+  layer was sized to hold *every* blurred card on the board at once, so it had to
+  span the gaps between them, and only a mask cut to the card silhouettes kept
+  the blur out of those gaps. Where that mask wasn't honoured, the whole
+  rectangle came through frosted.
+
+  Each run of touching cards now gets its own layer, sized to just those cards.
+  A card standing on its own gets a layer no bigger than itself, so there is
+  nothing stretched over a gap to go wrong in the first place — and touching
+  cards still share one surface, so they stay seamless. Boards with cards spread
+  out also do a little less compositing work than before, since each blur pass
+  now covers a card instead of the whole board.
+
+- **No more blurred frame around a frosted card.** A card with the blur on could
+  wear a band of blurred wallpaper around its outside, a couple of dozen pixels
+  wide, as though the glass were larger than the card sitting on it. The blur
+  layer was deliberately drawn bigger than its cards — the theory being that a
+  blurred layer goes soft at its own edges, so it should reach past the card and
+  let the mask trim the overhang back. Wherever that mask wasn't honoured, the
+  overhang was simply visible.
+
+  The layer is now exactly the size of its cards and rounds its corners the way
+  they do, so there is no overhang for a mask to have to hide. Measured side by
+  side at 2×, the old padding bought nothing you could see against a photographic
+  wallpaper anyway — it only ever showed up against hard, contrived patterns.
+
+- **A board with a single card gets its frosted glass.** The blur behind cards
+  is rebuilt by the same pass that decides which cards touch, and that pass bailed
+  out early when there was nothing that *could* touch — so a board holding exactly
+  one card came out with no frosted glass at all, however high its blur was set.
+
+## [3.0.0]
+
+### Added
+
+- **Hearth works on a phone.** Mobile used to have exactly two settings: the
+  full desktop board, laid out for a screen ten times wider, or **Mobile mode**
+  — the search field and nothing else. That was not a gap in the features, it
+  was a gap in the *layout*. Cards are placed as fractions of the board's width,
+  so a quarter-width card on a 390px phone is 90px across, and their heights are
+  fixed pixels that never compress. There was no width at which the board became
+  readable, so the only honest answer was to hide it.
+
+  A board narrower than **600px** now reflows into **a single full-width
+  column**, top to bottom, in the order the desktop board reads in. Your layout
+  is untouched — the stacked view is worked out fresh on every render and never
+  written back — so the same board is a launcher in your pocket and a wall of
+  cards on your monitor, and neither reshapes the other. It can be turned off
+  under **Settings → Hearth → Mobile** (#205).
+
+  The threshold is the **measured width of the board**, not the platform. A
+  narrow desktop pane had exactly the same problem and gets exactly the same
+  fix; an iPad in landscape has neither and keeps the real board. It also means
+  the phone layout can be seen without a phone, by dragging a pane narrow.
+
+  **Tuning a card for the column.** Every card's settings (Layout tab) gained an
+  **On a narrow board** section, for where stacking the desktop layout guesses
+  wrong. Each is an override that defaults to absent — a board you never touch
+  carries nothing new — and all four travel with an exported layout.
+
+  - **Hide** — leave the card out of the column entirely. For a wide table or a
+    board view, hiding beats squeezing.
+  - **Start collapsed** — show only the card's title row, and build the card
+    when it is tapped open. A collapsed card that nobody opens costs one row and
+    runs *nothing*: no query, no iframe, no timer.
+  - **Height** — a height for the stacked column. Left empty, the card keeps its
+    own, capped so one tall card can't take the whole screen.
+  - **Position** — where the card comes in the stack. Left empty, it follows the
+    board's reading order.
+
+  **Building it from your desk.** Arrange mode has a new **Preview at phone
+  width** button, which clamps the board to a phone's width and draws a phone
+  around it. It is not a simulation — the narrow layout is chosen by width, so
+  the preview *is* the phone layout, at the width that triggers it; the shell is
+  there because "is this card a comfortable third of a screen or most of one" is
+  a question about the device, and you answer it by seeing the board sit in one.
+  Arranging a stacked board then works the two things a stacked card owns: drag
+  its bottom edge to set its height, and use the **move up** / **move down**
+  buttons in its header to reorder. Card contents are shielded while arranging,
+  as they are on the free-form board, but the column still scrolls under your
+  finger.
+
+  **Room to work in.** A narrow board goes edge to edge — the 24px gutter down
+  each side is 12% of a phone's width spent on nothing — while keeping the
+  safe-area insets, which are the rounded corner and the camera cut-out rather
+  than decoration. **Filter chips** and **search results** grow to 44px tap
+  targets. The search row uses the whole screen: with a button beside it the bar
+  took about half a phone's width, and the chips and results list, which hang
+  off the bar's column, inherited that half and left the rest empty — they now
+  span the full width on their own line, and the button keeps its icon and drops
+  its label to a tooltip.
+
+  **Its own category, and its own performance tier.** The mobile settings moved
+  out of **Behaviour** into a **Mobile** category of their own: Hearth runs on a
+  phone as a first-class board now rather than as a reduced mode of the desktop
+  one, and the settings pane is where that is either stated or quietly
+  contradicted. It carries a performance tier of its own, defaulting to
+  **Balanced** — the animated sky is the most expensive thing Hearth draws, and
+  on a phone it is drawn on the smallest screen there is and paid for out of a
+  battery. Your desktop tier is stored separately and is not touched; set the
+  mobile one to **Match desktop** for the previous behaviour.
+
+- **A card for your weekly, monthly, quarterly or yearly note.** The new
+  **Periodic note** card shows whichever periodic note covers *right now* —
+  this week's by default, or the month, quarter or year, picked in the card's
+  settings — and rolls over to the next one on its own when the period ends.
+  Like the Daily note card it can be read-only, edited in place (raw or Live
+  Preview), and carry a button that opens the note in the editor. Where the
+  note lives, what it is called and what a new one contains stays entirely
+  [Periodic Notes](https://github.com/liamcain/obsidian-periodic-notes)'
+  business: the card asks the plugin where the note is, and a note that doesn't
+  exist yet is created by Periodic Notes from your own template — so it is the
+  same note its own command would open. Both generations of the plugin are
+  supported, the released 0.x and the 1.0 beta. The Daily note card is
+  untouched (#116).
+
+- **The board can be as wide as your monitor.** **Content width** used to stop
+  at 1600px, which on a large display left the board marooned in the middle of
+  an empty pane. The slider now runs to **3840px** — the full width of a 4K
+  panel — and above it sits **Full width**, which drops the ceiling altogether
+  and lets the content follow the pane at whatever size it is. The column was
+  always fluid *downwards*; this is the same behaviour going up. Both settings
+  are overridable per dashboard under a board's own settings, so one board can
+  fill an ultrawide while the rest stay comfortable to read, and both travel
+  with an exported layout. Nothing changes for a board you leave alone: the
+  ceiling stays where it was (#251).
+
+- **Launchpad buttons can fill their card.** A launchpad used to size its
+  buttons in pixels, so a card too small for them all simply scrolled — the
+  buttons past the edge weren't there until you scrolled to them. The Links /
+  launchpad, Commands and "New note from template" cards now have a **Button
+  sizing** setting, under **Buttons** in the card's own **Layout** settings, with
+  a new **Fill the card** style: the card is divided into as many columns as
+  **Buttons across** says (six by default) and as many rows as the buttons come
+  to, and the rows share the card's height between them. So a button is a
+  fraction of the card in both directions — it grows and shrinks with the card
+  the way a card grows with the dashboard, every button stays visible whatever
+  size the card is, and the card needs no scrollbar. Buttons stop shrinking at
+  **Minimum button size** — in either direction — rather than dwindling to
+  something you can't read or hit; a card too small for them all at that size
+  scrolls, as the old style always did. It sits at 28px, low enough that buttons
+  usually fit rather than a scrollbar appearing, and each card can raise it (to
+  96px) to keep its buttons comfortable and take the scrollbar instead.
+  Each button's icon and label scale to the button — up to the size Obsidian uses
+  for small UI text, so a big button carries more air rather than a headline —
+  and a button too small to carry its label shows just its icon. Buttons stay
+  tied to the grid, sized in whole cells rather than freely in pixels, so a
+  launchpad still reads as a launchpad rather than a second free-form board — a
+  button can still be dragged to a spot, and dragged two or three cells wide (or
+  tall) by its bottom-right corner in arrange mode.
+
+  Every launchpad you already have keeps the **Fixed size (legacy)** style, down
+  to the pixel: buttons that stay the size they are, so a wider card fits more of
+  them rather than bigger ones, and a card too small for them scrolls as before.
+  Cards added from now on start on the filled style, and either card can be
+  switched at any time. The two styles keep their sizes and their arrangements
+  separately, so switching over to look and switching back leaves a card exactly
+  as it was.
+
+- **A weather card opens the whole forecast when you click it.** The card is a
+  glance, and every style is a choice about how much of the reading reaches the
+  surface — which left the rest of the response, already fetched and sitting in
+  memory, with nowhere to be read. **Clicking a weather card** now opens the
+  forecast in full: the current conditions with **every** reading the API
+  returned — feels like, humidity, wind and gusts, chance of rain and the rain
+  so far, cloud cover, pressure, UV, sunrise and sunset — then **the whole week**
+  as a list of days you can pick from, and the picked day **hour by hour**, with
+  its condition, temperature, feels like, rain, wind, humidity and UV. Today
+  starts at the hour you are in.
+
+  It ignores the card's **What to display** toggles on purpose: those decide what
+  the *card* is for, not what you are allowed to look up. Units and the 12/24-hour
+  clock stay the card's, because that is how you read a forecast. The dialog also
+  says when the reading was fetched and has a **Refresh** button that updates the
+  card behind it — left out when external calls are disabled, since there would
+  be nothing to fetch. A card still loading, or one that never loaded, isn't
+  clickable: there is nothing to open yet.
+
+### Fixed
+
+- **The dashboard switcher wraps instead of running off the side of the board.**
+  A row of boards is unbounded — you can keep adding them — but the switcher was
+  a non-wrapping flex row, and a flex row that outgrows its container does not
+  get clipped by it, it grows straight through the side. Past about a dozen
+  boards (far fewer on a phone) the buttons ran off the edge, which made the
+  whole board horizontally scrollable and dragged the cards sideways with it.
+  The button row now wraps onto a second line: the row gets taller, the board
+  stays the width of the pane.
+
+- **Fit-to-page no longer piles cards on top of each other on a short screen.**
+  A fitted board scales every card's top and bottom by one shared factor, which
+  is what guarantees that cards which didn't overlap still don't. The final
+  height was then floored at 56px with a `Math.max` — and since that can only
+  make a card *taller* than the scale placed it, any card squeezed below 56px
+  grew past its neighbour's top edge. Squeeze hard enough that ordinary cards
+  fall under the floor and every one of them clamps to the same height and the
+  board collapses into a heap. That is the ordinary case on a phone-shaped
+  viewport, not an extreme one. The floor is now scaled along with everything
+  else, which makes it inert for any card that was at least 56px to begin with
+  and puts it back to being what it was for: a guard against a nonsense stored
+  height, not a second placement rule fighting the first.
+
+- **A card that redraws itself is properly reset first.** Cards redraw
+  constantly — when a file they show is edited, when the vault changes at all,
+  when an embed card's view switcher is clicked — and each redraw emptied the
+  card's body without undoing two things the previous one had left outside it.
+  The floating **open button** (Daily note, Embed, Slideshow) lives on the card
+  rather than in its body, so it survived, and a fresh one was stacked on top
+  every time; being 70% opaque and pixel-aligned, the pile read as a single
+  button quietly darkening as you worked. And the marks a render leaves on the
+  body — which say whether it drew a picture, a Live Preview editor or plain
+  text, and control the card's padding — stayed behind too, so an embed card
+  switched from its picture view to a note kept the picture's edge-to-edge
+  padding and drew the note flush against the card's sides. A redraw now starts
+  from exactly the state the first one did.
+
+- **No more pale slab behind the tabs in a card's or a board's settings.** The
+  tab strip was pinned to the top of the dialog so the tabs stay reachable while
+  a long tab scrolls past, and a pinned strip has to paint over whatever passes
+  underneath it. It painted with the *note* background — a colour plenty of
+  themes reserve for notes alone — so on those themes the tabs sat on a
+  rectangle in the wrong shade. Hearth now measures the colour the dialog is
+  actually painted with as it opens, however the theme sets it, and pins the
+  strip only when there is a colour it can match exactly. A dialog wearing no
+  such colour — a glass or translucent theme, where painting even the dialog's
+  own colour a second time would double the tint — keeps a strip that simply
+  scrolls with the rest of the dialog. The tabs go by as you scroll on those
+  themes; nothing is ever painted in the wrong shade on any of them.
+
+- **Half buttons are back on a launchpad that fills its card.** Sizing a
+  launchpad's buttons in pixels (2.2.0's "Fixed size (legacy)") laid them on a
+  *fine* grid — a 44px cell, half a default button — so a half-width or
+  half-height button was a size you could simply drag to, and plenty of boards
+  used one: a wall of full buttons with a couple of small ones tucked beside
+  them. **Fill the card** put its buttons on a grid of whole cells only, and a
+  gesture that could no longer land between two of them rounded a half button up
+  to a whole one. Filling the card cost you a size you had.
+
+  The filled grid is now drawn at *half*-cell resolution, so a button can be
+  half a cell wide, half a cell tall, or both, and the resize handle snaps to
+  each half step — the fine grid's granularity, on a grid that still scales with
+  the card. A button already on the grid is untouched: a whole cell is two of
+  the new tracks plus the gap they give up between them, so it comes out at
+  exactly the pixel it did before, and **Minimum button size** still floors a
+  whole button at what it says (a half one at half of that). Sizes and positions
+  are stored in cells as they always were, now in steps of a half, so a board
+  saved by 2.2.0 reads back unchanged — and a card switched over from the fixed
+  style now keeps its buttons' proportions to the half rather than rounding them
+  (#261).
+
+### Changed
+
+- **One "Title icon" setting, and it takes a picture.** The mark beside a
+  board's heading was split across two fields — **Logo**, holding an emoji or a
+  couple of characters, and **Title icon**, holding a Lucide id that silently
+  won whenever both were set — in the vault-wide settings and again in every
+  board's own. They are now a single **Title icon**, in both places, that reads
+  whatever you give it:
+
+  - a **Lucide icon** id (`flame`), browsable from the 🔍 button as before;
+  - an **emoji or short text**, shown verbatim;
+  - the **vault path of an image** (`Assets/logo.png`), pickable from a new 📷
+    button — so a board can wear your own mark rather than a stock icon;
+  - the **URL of an image on the web**;
+  - or nothing at all, for the Hearth crystal.
+
+  A picture is sized off the same **Title icon size** slider (renamed from
+  "Logo size") that a Lucide icon uses, so it lines up with the title at any
+  scale, and a vault image that has been moved or deleted falls back to the
+  crystal rather than leaving a gap. The setup wizard asks once instead of
+  twice, and its field takes all of the above too.
+
+  **On upgrade, every board keeps the mark it was already showing.** The old
+  pair is folded into the new field by what it *drew*, not by which field held
+  it — so a board whose own logo text was being hidden by a vault-wide Lucide
+  icon keeps the icon, and one that had opted out of that icon keeps its text.
+  A board whose merged value matches the vault-wide one drops its override
+  entirely, so a later change to the global icon still reaches it. The fold is
+  one-way: downgrading below 3.0.0 afterwards shows the Hearth crystal again
+  until the old fields are set anew. A settings export taken before 3.0.0
+  imports through the same fold (#252).
+
 ## [2.2.0]
 
 ### Added
+
+- **A slideshow can change once a day, and it stays where you left it.** The
+  slideshow card's **Change picture** setting now offers three ways to move on:
+  **on a timer** (what it always did), **once a day**, or **only by hand**. A
+  daily card works its picture out from today's date rather than from a clock,
+  so redrawing the board, switching dashboards, editing the card or restarting
+  Obsidian all land on the same picture — it changes at midnight and not before.
+  **Days per picture** stretches that to any number of days up to a year, for a
+  picture of the week or of the month, and a board left open overnight turns its
+  picture over on its own. A "random" daily card deals its order once and keeps
+  it, so random still means a different picture each day rather than a different
+  one every time the board blinks.
+
+  Both the daily and the by-hand cards **remember where they were left** and
+  come back to it after a restart — stepping a daily card forward simply
+  re-anchors it, so tomorrow continues from the picture you chose. The position
+  is kept per vault on this machine, not in the layout, so it never travels
+  through sync. Cards saved before this that had their interval set to 0 — the
+  old way of saying "don't rotate" — now read as by-hand cards, and so gain the
+  remembered position too (#249).
 
 - **The "New note" button is yours to configure.** Settings → Appearance →
   **The "New note" button** now decides what that button makes: give it a

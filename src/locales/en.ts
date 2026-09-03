@@ -57,6 +57,7 @@ export const en = {
 		couldNotRecordVoice: "Hearth: couldn't start voice recording.",
 		enableDailyNotes: "Hearth: enable the core Daily notes plugin.",
 		couldNotOpenDaily: "Hearth: couldn't open today's daily note.",
+		couldNotOpenPeriodic: "Hearth: Periodic Notes couldn't make that note.",
 		commandNotFound: (id: string) => `Hearth: command not found: ${id}`,
 		couldNotCreateNoteForDay: (day: string) =>
 			`Hearth: couldn't create a note for ${day}.`,
@@ -170,7 +171,7 @@ export const en = {
 		/** The line under each heading. */
 		stepDescs: {
 			welcome: "A few questions, then Hearth builds your first dashboard.",
-			vault: "The title and logo across the top of this board.",
+			vault: "The title and its icon across the top of this board.",
 			look:
 				"This applies to the board being built — every other board keeps its " +
 				"own look. You can change any of it later from the board's own settings.",
@@ -221,10 +222,10 @@ export const en = {
 			titleDesc: "Shown large across the top of the dashboard.",
 			showTitle: "Show the title",
 			showTitleDesc: "Turn off for a board with no heading at all.",
-			logo: "Logo",
-			logoDesc:
-				"An emoji or a couple of characters shown beside the title. Leave empty for " +
-				"the Hearth crystal.",
+			titleIcon: "Title icon",
+			titleIconDesc:
+				"An emoji, a couple of characters, a Lucide icon id, a vault image path or " +
+				"an image URL, shown beside the title. Leave empty for the Hearth crystal.",
 			themeColor: "Follow the theme's accent colour",
 			themeColorDesc: "Which parts of the brand mark take your theme's colour.",
 			themeColorOptions: {
@@ -458,6 +459,8 @@ export const en = {
 		iconPlaceholder: "Lucide icon id",
 		iconBrowse: "Browse Lucide icons",
 		iconClear: "Clear icon",
+		titleIconPlaceholder: "Icon id, emoji, image path or URL",
+		titleIconBrowseImage: "Pick an image from the vault",
 	},
 
 	// ---- Dashboard toolbar & card controls -----------------------------
@@ -479,6 +482,12 @@ export const en = {
 		removeCardMessage: (name: string) => `Remove "${name}" from the dashboard?`,
 		removeCardConfirm: "Remove",
 		thisCard: "this card",
+		expandCard: "Expand card",
+		collapseCard: "Collapse card",
+		phonePreview: "Preview at phone width",
+		phonePreviewOff: "Leave phone preview",
+		moveCardUp: "Move card up",
+		moveCardDown: "Move card down",
 	},
 
 	// ---- Dashboard switcher & per-dashboard settings -------------------
@@ -501,12 +510,42 @@ export const en = {
 			/** Tabs across the top of the dashboard settings modal. */
 			tabs: {
 				general: "General",
+				plugin: "Plugin view",
 				header: "Header",
 				layout: "Layout",
 				style: "Style",
 				background: "Background",
 			},
 			name: "Name",
+			mode: "Dashboard type",
+			modeDesc:
+				"A board of Hearth cards, or the whole board given over to one plugin's view. Switching to a plugin view keeps this board's cards — switch back and they return.",
+			modeOptions: {
+				cards: "Cards",
+				plugin: "Plugin view",
+			},
+			modePickViewHint:
+				"This board has no view yet — choose one on the Plugin view tab.",
+			pluginViewType: "View",
+			pluginViewTypeDesc:
+				"Which registered view fills this board. The list is every view the app has right now, so it follows which plugins are enabled.",
+			pluginViewTypeNone: "Choose a view…",
+			pluginViewFile: "File",
+			pluginViewFileDesc:
+				"Open the view on a specific file — a Canvas, an Excalidraw drawing. Leave empty to host the view on its own.",
+			pluginViewFileRequiredDesc:
+				"This view needs a file to show. Pick the note, PDF or image this board opens.",
+			pluginViewHideHeader: "Hide the view's own header",
+			pluginViewHideHeaderDesc:
+				"Drop the hosted view's breadcrumbs, back/forward arrows and kebab menu. Its own toolbars and tabs are untouched.",
+			pluginViewKeepMounted: "Keep running in the background",
+			pluginViewKeepMountedDesc:
+				"Stay loaded while another dashboard is showing, so coming back is instant instead of a reload. Turn off for a heavy plugin you'd rather not leave running. Only a few boards are ever kept loaded at once.",
+			pluginViewFocusable: "Let the view take focus (experimental)",
+			pluginViewFocusableDesc:
+				"Make this the active pane while you're working in it, so the plugin's own commands and hotkeys find it. Obsidian also opens notes into the active pane, so a link you click may replace the view until you switch boards.",
+			pluginViewPerfNote:
+				"A hosted view is the plugin doing its full job, not a preview of it — it costs what opening that plugin costs. Views that are slow in their own tab are slow here too.",
 			switcherIcon: "Switcher icon",
 			switcherIconDesc:
 				"An emoji or short text shown on the switcher button. Empty = number.",
@@ -522,38 +561,43 @@ export const en = {
 				"Open this dashboard when Hearth loads on a phone or tablet. Only one board can be the mobile default; enabling this clears it on the others.",
 			titleVisibility: "Title visibility",
 			titleVisibilityDesc:
-				"Show or hide only the title/logo block for this dashboard. Overrides the global setting.",
+				"Show or hide only the title block for this dashboard. Overrides the global setting.",
 			titleVisibilityDefault: (state: string) => `Use global default (${state})`,
 			searchVisibility: "Search visibility",
 			searchVisibilityDesc:
 				"Show or hide the search and command bar with its results and filter buttons on this dashboard. Overrides the global setting.",
-			searchVisibilityDefault: (state: string) => `Use global default (${state})`,
 			searchVisibilityShow: "Show search",
 			searchVisibilityHide: "Hide search",
+			visibilityDefaultPlugin: (state: string) =>
+				`Default on a plugin board (${state})`,
 			visibilityShown: "shown",
 			visibilityHidden: "hidden",
 			visibilityShow: "Show title",
 			visibilityHide: "Hide title",
 			titleText: "Title text",
 			titleTextDesc: "Override the global title text for this dashboard.",
-			logoText: "Logo text",
-			logoTextDesc:
-				"Override the global logo for this dashboard. Empty uses the Hearth crystal icon.",
-			logoIcon: "Title icon",
-			logoIconDesc:
-				"A Lucide icon drawn beside this dashboard's title instead of the logo text. Clear it to show the logo text (or the Hearth crystal) on this board alone.",
+			titleIcon: "Title icon",
+			titleIconDesc:
+				"The mark beside this dashboard's title: a Lucide icon id, an emoji or short text, a vault image path, or an image URL. Clear it to wear the Hearth crystal on this board alone.",
 			titleAlign: "Title alignment",
 			titleAlignDesc:
-				"Align only the title/logo block. The search bar keeps its own layout.",
+				"Align only the title block. The search bar keeps its own layout.",
 			alignDefault: "Default (center)",
 			alignLeft: "Left",
 			alignCenter: "Center",
 			alignRight: "Right",
 			titleSize: "Title size",
-			logoSize: "Logo size",
+			titleIconSize: "Title icon size",
 			titleTopMargin: "Title top margin",
 			headerSpacingBelow: "Spacing below title/header",
 			contentWidth: "Content width",
+			fullWidth: "Full width",
+			fullWidthDesc: "Override the width limit for this board.",
+			fullWidthDefault: (state: string) => `Use global default (${state})`,
+			fullWidthOptionOn: "Fill the pane",
+			fullWidthOptionOff: "Limit the width",
+			fullWidthStateOn: "fill the pane",
+			fullWidthStateOff: "limited",
 			fitToPage: "Fit to page",
 			fitToPageDesc: "Override scrolling for this board.",
 			fitDefault: (state: string) => `Use global default (${state})`,
@@ -561,6 +605,8 @@ export const en = {
 			fitStateScroll: "scroll",
 			fitOptionFit: "Fit to one page",
 			fitOptionScroll: "Allow scrolling",
+			fitToPagePluginNote:
+				"A plugin board always fits the pane — the hosted view fills it and scrolls itself.",
 			themeColorTarget: "Accent colour on the title",
 			themeColorTargetDesc:
 				"Which parts of this board's brand mark follow the theme's icon colour. Overrides the global setting for this board; Hearth's tab and ribbon icons keep following the global one.",
@@ -646,10 +692,11 @@ export const en = {
 		/** One line per category, shown on its index row and again at the top of
 		 * its page: what a reader will find if they open it. */
 		tabDescs: {
-			appearance: "Title, logo, background, and low power mode.",
+			appearance: "Title, title icon, background, and low power mode.",
 			search: "The search bar and which results it offers.",
 			dashboard: "Grid, card surface, and the controls around the board.",
-			behaviour: "Startup, how notes open, mobile, and privacy.",
+			behaviour: "Startup, how notes open, and privacy.",
+			mobile: "The stacked layout on a phone, and the action bar.",
 			integrations: "TaskNotes, file icons, and every plugin Hearth reads.",
 			backup: "Export and import your layout and settings.",
 			about: "Version, what's new, and where to report things.",
@@ -665,6 +712,7 @@ export const en = {
 			search: "Search",
 			dashboard: "Dashboard",
 			behaviour: "Behaviour",
+			mobile: "Mobile",
 			integrations: "Integrations",
 			backup: "Backup",
 			about: "About",
@@ -676,7 +724,7 @@ export const en = {
 				"How much of the decoration to pay for. Trade visual effects for battery life and smoothness on slower hardware.",
 			home: "Home",
 			homeDesc:
-				"Title, logo, title and tab icons, search visibility and overall content width.",
+				"Title, title and tab icons, search visibility and overall content width.",
 			searchBar: "Search bar",
 			searchBarDesc: "How the search field looks and what it does.",
 			grid: "Grid & spacing",
@@ -690,8 +738,9 @@ export const en = {
 			startupDesc: "When and where the home view opens.",
 			opening: "Opening notes",
 			openingDesc: "Where a note opens when you click it in Hearth.",
-			mobileMode: "Mobile mode",
-			mobileModeDesc: "How Hearth behaves on phones and tablets.",
+			mobileMode: "Layout",
+			mobileModeDesc:
+				"How the board is laid out when the screen is too narrow for its own layout.",
 			privacy: "Privacy & network",
 			privacyDesc: "Control the outbound requests Hearth is allowed to make.",
 		},
@@ -724,29 +773,30 @@ export const en = {
 			kofiDesc:
 				"Hearth is free and always will be. If it's earned a spot on your home " +
 				"screen, you can leave a tip — completely optional, no features are locked.",
+			/** Shared by every surface that shows the tip button: this row, the
+			 * "What's new" dialog and the card picker's request page. */
 			kofiButton: "Tip me on Ko-fi",
 			version: (v: string) => `Version ${v}`,
 			versionDesc: "The Hearth build you're running.",
 		},
 		appearance: {
 			heading: "Appearance",
-			headingDesc: "Title, logo, search bar and overall content width.",
+			headingDesc: "Title, title icon, search bar and overall content width.",
 			showTitle: "Show title",
-			showTitleDesc: "Display the big title/logo at the top.",
+			showTitleDesc: "Display the big title and its icon at the top.",
 			showSearch: "Show search section",
 			showSearchDesc:
 				"Display the search and command bar with its results and filter buttons. " +
 				"Individual dashboards can override this in their settings.",
 			title: "Title",
 			titleDesc: "The heading text shown at the top of the home view.",
-			logo: "Logo",
-			logoDesc:
-				"An emoji or short text shown next to the title. Leave empty for the Hearth crystal icon.",
-			logoIcon: "Title icon",
-			logoIconDesc:
-				"A Lucide icon drawn next to the title instead of the logo text. " +
-				"Browse the set or type an id; leave empty to keep the logo text. " +
-				"Each dashboard can override it in its own settings.",
+			titleIcon: "Title icon",
+			titleIconDesc:
+				"The mark drawn next to the title. It takes any of: a Lucide icon id " +
+				"(browse the set with the 🔍 button), an emoji or a couple of " +
+				"characters, the vault path of an image (📷 button), or the URL of an " +
+				"image on the web. Leave it empty for the Hearth crystal. Each " +
+				"dashboard can override it in its own settings.",
 			tabIcon: "Tab icon",
 			tabIconDesc:
 				"A Lucide icon for Hearth's tab header and ribbon button, in place of " +
@@ -816,7 +866,14 @@ export const en = {
 			newNoteFilenamePlaceholder: "Untitled",
 			newNoteDestination: (destination: string) => `Creates ${destination}`,
 			contentWidth: "Content width",
-			contentWidthDesc: "Maximum width of the home content, in pixels.",
+			contentWidthDesc:
+				"The widest the home content may grow, in pixels. It is a ceiling, " +
+				"not a width — the content still shrinks to fit a narrower pane.",
+			fullWidth: "Full width",
+			fullWidthDesc:
+				"Let the content fill the pane instead of stopping at the width " +
+				"below. Cards keep their proportions as the pane widens, but text " +
+				"does not grow with them, so a very wide board reads sparser.",
 		},
 		performance: {
 			tier: "Performance tier",
@@ -956,10 +1013,28 @@ export const en = {
 				"Keep an open home view current as the vault changes — Recent, Bookmarks " +
 				"and saved-query cards update without reopening the tab. Switching back to " +
 				"the Hearth tab always refreshes it regardless of this setting.",
+			liveSettingsSync: "Pick up synced changes",
+			liveSettingsSyncDesc:
+				"Apply dashboard changes made on another device as soon as sync brings " +
+				"them in, instead of at the next Obsidian restart. Leave this on unless " +
+				"a board reloading mid-session gets in your way.",
 			mobileSearchOnly: "Mobile mode (search only)",
 			mobileSearchOnlyDesc:
 				"On phones and tablets, hide the dashboard and show only the search " +
 				"field. No effect on desktop.",
+			stackOnNarrow: "Stack cards on narrow screens",
+			stackOnNarrowDesc:
+				"When the board is too narrow for its layout — a phone, or a narrow " +
+				"pane on the desktop — show the cards as one full-width column " +
+				"instead. Your layout is untouched and comes back at full width. " +
+				"Each card can be hidden, reordered, resized or collapsed for this " +
+				"column from its own settings.",
+			mobilePerformanceTier: "Performance tier on mobile",
+			mobilePerformanceTierDesc:
+				"The tier to use on phones and tablets, where the animated sky and " +
+				"frosted glass are drawn on the smallest screen and paid for out of a " +
+				"battery. Your desktop tier is kept separately and is not changed.",
+			mobileTierMatch: "Match desktop",
 			disableExternalCalls: "Disable external calls",
 			disableExternalCallsDesc:
 				"Block all outbound network requests Hearth makes, including Jira, " +
@@ -1105,6 +1180,13 @@ export const en = {
 						"filename pattern, and one click makes the note. Templater does the " +
 						"templating — your user scripts, tp.system.prompt() dialogs and cursor " +
 						"placement all behave as they do from its own command.",
+				},
+				periodicNotes: {
+					name: "Periodic Notes",
+					desc:
+						"The Periodic note card shows this week's, month's, quarter's or " +
+						"year's note, resolved — and created, from your own template — by " +
+						"Periodic Notes itself.",
 				},
 				git: {
 					name: "Git",
@@ -1418,6 +1500,22 @@ export const en = {
 		cardTitleDesc:
 			"Shown in the card's header. Leave empty for a headerless card.",
 		cardTitlePlaceholder: "Title",
+		mobile: {
+			heading: "On a narrow board",
+			hidden: "Hide",
+			hiddenDesc:
+				"Leave this card out when the board stacks into one column. For cards that need width to make sense — a wide table, a board view — hiding beats squeezing.",
+			collapsed: "Start collapsed",
+			collapsedDesc:
+				"Show only the card's title row, and build the card when it is tapped open. A card nobody opens costs one row and runs nothing.",
+			height: "Height",
+			heightDesc:
+				"Height in pixels when stacked. Left empty, the card keeps its own height, capped so a tall card can't fill the screen on its own.",
+			order: "Position",
+			orderDesc:
+				"Where this card comes in the stack, counting from 0. Left empty, it follows the order the board reads in — top to bottom, left to right.",
+			autoPlaceholder: "Auto",
+		},
 		resetSize: "Reset to default size",
 		removeCard: "Remove card",
 		removeCardTitle: "Remove card?",
@@ -1429,6 +1527,7 @@ export const en = {
 			embed: "Embed (note / image / base)",
 			slideshow: "Slideshow",
 			daily: "Daily note (today)",
+			periodic: "Periodic note (week / month / year)",
 			web: "Web page (iframe)",
 			bookmarks: "Bookmarks",
 			favorites: "Favorites",
@@ -1562,11 +1661,27 @@ export const en = {
 				modifiedDesc: "Date modified (newest first)",
 				random: "Random",
 			},
+			advance: "Change picture",
+			advanceDesc:
+				"What moves the card on: a timer, the calendar, or nothing but the " +
+				"controls. A daily card works its picture out from today's date, so it " +
+				"stays put all day however often the board is redrawn — and both it and " +
+				"a manual card remember where they were left.",
+			advances: {
+				timer: "On a timer",
+				daily: "Once a day",
+				manual: "Only by hand",
+			},
 			interval: "Seconds per picture",
 			intervalDesc:
 				"How long each picture is shown. 0 holds the first picture and turns the " +
 				"rotation off; low power mode pauses it too.",
 			intervalAria: "Seconds each picture is shown",
+			days: "Days per picture",
+			daysDesc:
+				"How many days each picture is kept before the next one takes over. " +
+				"1 changes at midnight; 7 gives you a picture of the week.",
+			daysAria: "Days each picture is shown",
 			transition: "Transition",
 			transitionDesc: "How one picture gives way to the next.",
 			transitions: {
@@ -1608,6 +1723,32 @@ export const en = {
 			info: "Daily notes",
 			infoDesc:
 				"Today's note is resolved from the core Daily notes plugin's date format and folder. The card updates live as you edit.",
+		},
+		periodic: {
+			granularity: "Period",
+			granularityDesc:
+				"Which periodic note this card shows. It is always the current one, so " +
+				"the card moves on by itself when the period ends.",
+			granularities: {
+				day: "Daily",
+				week: "Weekly",
+				month: "Monthly",
+				quarter: "Quarterly",
+				year: "Yearly",
+			},
+			editable: "Editable",
+			editableDesc:
+				"Edit the note in place instead of read-only. Saves to the vault.",
+			openButton: "Open button",
+			openButtonDesc: "Show a button to open the note in the editor.",
+			info: "Periodic Notes",
+			infoDesc:
+				"The note is resolved from the Periodic Notes plugin's own folder, date " +
+				"format and template, and a missing one is created by Periodic Notes " +
+				"itself. The card updates live as you edit.",
+			missingDesc:
+				"This card needs the Periodic Notes community plugin. Install and enable " +
+				"it, then turn on the note type you want here.",
 		},
 		web: {
 			url: "URL",
@@ -1828,6 +1969,67 @@ export const en = {
 			metric: "Metric",
 			weeks: "Weeks",
 			weeksDesc: "How many weeks of history to show.",
+			advanced: "Advanced",
+			advancedDesc:
+				"Build your own metric: take the day from a frontmatter date, add up a " +
+				"number instead of counting notes, and pick which notes count at all. " +
+				"Off counts every note by its file date.",
+			metricHeading: "What to count",
+			rangeHeading: "Range",
+			source: "Day comes from",
+			sourceDesc: "Which date decides the square a note lands on.",
+			sourceOptions: {
+				modified: "Date modified",
+				created: "Date created",
+				property: "A frontmatter date",
+			},
+			dateProperty: "Date property",
+			datePropertyDesc:
+				"The frontmatter key holding the date — date, due, published. Accepts a " +
+				"date, a date and time, or a [[daily note]] link; a list counts once per " +
+				"entry. Notes without it are skipped.",
+			datePropertyPlaceholder: "date",
+			value: "Each note adds",
+			valueDesc: "One per note, or the number in a property — minutes read, pages written, kilometres run.",
+			valueOptions: {
+				count: "1 (count the notes)",
+				sum: "A number from a property",
+			},
+			valueProperty: "Value property",
+			valuePropertyDesc:
+				"The frontmatter key holding the number to add. Notes whose value isn't a " +
+				"number are skipped rather than counted as one.",
+			valuePropertyPlaceholder: "minutes",
+			unit: "Unit",
+			unitDesc: 'What one unit is called when a day is described — "5 workouts". Blank follows the metric.',
+			unitPlaceholder: "notes edited",
+			rules: "Which notes count",
+			rulesDesc: "Conditions a note has to meet to be counted. With no rules, every note counts.",
+			match: "Match",
+			matchOptions: {
+				all: "All rules (AND)",
+				any: "Any rule (OR)",
+			},
+			fieldOptions: {
+				property: "Property",
+				tag: "Tag",
+				folder: "Folder",
+				path: "Path",
+			},
+			opOptions: {
+				is: "is",
+				isNot: "is not",
+				contains: "contains",
+				notContains: "does not contain",
+				gt: "is more than",
+				lt: "is less than",
+				exists: "is set",
+				missing: "is not set",
+			},
+			keyPlaceholder: "property",
+			valuePlaceholder: "value",
+			addRule: "Add rule",
+			removeRule: "Remove rule",
 		},
 		stats: {
 			advanced: "Advanced",
@@ -1893,6 +2095,37 @@ export const en = {
 			sizeNote:
 				"The field is as thick as the card is tall — drag the card's edge in " +
 				"Arrange to make the bar chunkier or slimmer.",
+		},
+		tiles: {
+			heading: "Buttons",
+			sizing: "Button sizing",
+			sizingDesc:
+				"Whether the buttons fill the card — every one of them visible however " +
+				"big the card is, growing and shrinking with it — or keep a fixed pixel " +
+				"size, so a card too small for them all scrolls. Filled buttons stop " +
+				"shrinking once they'd be too small to use, in either direction, and a " +
+				"card too small for them at that size scrolls too. Cards made before " +
+				"this setting existed stay on the fixed style until you switch them; " +
+				"each style keeps its own sizes, so switching back restores what you " +
+				"had.",
+			sizingScale: "Fill the card",
+			sizingFixed: "Fixed size (legacy)",
+			across: "Buttons across",
+			acrossDesc:
+				"How many buttons wide the card is, and so how wide one button is: a " +
+				"fraction of the card, down to the minimum size a button keeps. Their " +
+				"height works the same way — the rows share whatever height the card " +
+				"has between them — so a shorter card means shorter buttons rather " +
+				"than hidden ones. A button can still be made two or three cells wide " +
+				"(or tall) by dragging its bottom-right corner in arrange mode — or " +
+				"half a cell, since the grid takes half steps in both directions.",
+			minSize: "Minimum button size",
+			minSizeDesc:
+				"How small a whole button may get, in pixels, before the card scrolls " +
+				"instead of shrinking them any further — a half-cell button stops at " +
+				"half of it. Low by default, so that buttons fit rather than a " +
+				"scrollbar appearing; raise it to keep them comfortable on a card you " +
+				"often make small, and the card scrolls when they no longer fit.",
 		},
 		links: {
 			heading: "Links",
@@ -2670,6 +2903,7 @@ export const en = {
 			embedEnableCanvas: "Enable the core Canvas plugin to embed canvases",
 			embedInstallExcalidraw: "Install the Excalidraw plugin to embed drawings",
 			dailyEnable: "Enable the core Daily notes plugin",
+			periodicInstall: "Install the Periodic Notes plugin",
 			scheduleNoSources:
 				"Enable the core Daily notes plugin, or subscribe to a calendar in this card's settings",
 			webNoUrl: "Set a web URL in settings",
@@ -2701,6 +2935,8 @@ export const en = {
 			weatherNoLocation: "Pick a location in card settings",
 			renderFailed: "This card couldn't be drawn — see the console for details",
 			leafPickView: "Pick a plugin view in card settings",
+			boardPickView: "Pick a view for this board in dashboard settings",
+			boardNeedsFile: "Pick a file for this board in dashboard settings",
 			leafViewMissing:
 				"This view isn't available — enable the plugin that provides it",
 			operonEnable: "Enable the Operon plugin to show its tasks",
@@ -2836,6 +3072,35 @@ export const en = {
 			/** Compass points, clockwise from north. Indexed by the bearing's
 			 * eighth — keep all eight, in this order. */
 			compass: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+			/** The full-forecast dialog a weather card opens when it is clicked:
+			 * every reading the response carries, whatever the card shows. */
+			detail: {
+				title: "Forecast",
+				open: "Open the full forecast",
+				now: "Right now",
+				days: "The week ahead",
+				hoursFor: (day: string) => `Hour by hour · ${day}`,
+				selectDay: (day: string) => `Show ${day} hour by hour`,
+				noHours: "No hours left in this day",
+				refresh: "Refresh",
+				source: "Open-Meteo",
+				feelsLikeLabel: "Feels like",
+				gust: "Gusts",
+				cloudCover: "Cloud cover",
+				precipChance: "Chance of rain",
+				precipHour: "Rain this hour",
+				precipTotal: "Total rain",
+				windMax: "Strongest wind",
+				uvMax: "UV max",
+				columnTime: "Time",
+				columnCondition: "Condition",
+				columnTemp: "Temp",
+				columnFeels: "Feels",
+				columnPrecip: "Rain",
+				columnWind: "Wind",
+				columnHumidity: "Humidity",
+				columnUv: "UV",
+			},
 			/** One per WMO weather code group; see `weatherLabelKey`. */
 			conditions: {
 				clear: "Clear",
@@ -2932,9 +3197,28 @@ export const en = {
 			openToday: "Open today's note",
 			noNoteYet: "No note for today yet",
 		},
+		periodic: {
+			/** The current period, as it reads inside the sentences below. */
+			period: {
+				day: "today",
+				week: "this week",
+				month: "this month",
+				quarter: "this quarter",
+				year: "this year",
+			},
+			noNoteYet: (period: string) => `No note for ${period} yet`,
+			create: (period: string) => `Create ${period}'s note`,
+			open: (period: string) => `Open ${period}'s note`,
+			notEnabled: (granularity: string) =>
+				`Turn on ${granularity} notes in Periodic Notes`,
+		},
 		heatmap: {
 			less: "Less",
 			more: "More",
+			unitModified: "notes edited",
+			unitCreated: "notes created",
+			unitNotes: "notes",
+			dayValue: (date: string, value: string, unit: string) => `${date}: ${value} ${unit}`,
 		},
 		calendar: {
 			previousMonth: "Previous month",
@@ -3199,6 +3483,7 @@ export const en = {
 		excalidraw: "Excalidraw drawing",
 		canvas: "Embedded canvas",
 		daily: "Daily note (today)",
+		periodic: "Periodic note",
 		web: "Web page (iframe)",
 		bookmarks: "Bookmarks",
 		favorites: "Favorites",
@@ -3241,6 +3526,7 @@ export const en = {
 		excalidraw: "An Excalidraw drawing with native pan and zoom",
 		canvas: "A canvas you can pan around in place",
 		daily: "Always today's note, created on first click",
+		periodic: "This week's, month's or year's note, from Periodic Notes",
 		web: "A web page in an iframe, refreshed on a timer",
 		bookmarks: "Your Obsidian bookmarks, one click away",
 		favorites: "The notes you starred in Hearth",

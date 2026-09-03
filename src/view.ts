@@ -1,16 +1,41 @@
-import { Component, ItemView, Platform, type WorkspaceLeaf } from "obsidian";
+import {
+	Component,
+	ItemView,
+	Platform,
+	type ViewStateResult,
+	type WorkspaceLeaf,
+} from "obsidian";
 import type HearthPlugin from "./main";
 import { renderHeader } from "./header";
 import { renderDashboard } from "./dashboard";
+import {
+	prunePluginBoards,
+	releasePluginBoards,
+	renderPluginBoard,
+	renderPluginBoardActions,
+} from "./pluginboard";
 import { renderDashboardSwitcher } from "./dashboards";
 import { renderMobileActionBar } from "./mobileactions";
+import { isNarrowWidth, observeNarrowWidth, PHONE_PREVIEW_WIDTH } from "./narrow";
 import { applyBackground, renderBanner } from "./background";
 import { deferRedrawWhileTyping } from "./cardfocus";
 import { gateMotionOnWindow } from "./motion";
 import {
+	createScrollRestore,
+	driveScrollRestore,
+	pruneScrollMemory,
+	readScrollMemory,
+	SCROLL_STATE_KEY,
+	type ScrollMemory,
+	type ScrollRestore,
+	writeScrollMemory,
+} from "./scrollmemory";
+import {
+	activeIsPluginBoard,
 	bannerActive,
 	effectiveCompact,
 	effectiveFitToPage,
+	effectiveFullWidth,
 	effectiveMaxWidth,
 	effectiveShowSearch,
 	effectiveShowTitle,
@@ -46,11 +71,35 @@ export class HomeView extends ItemView {
 	 * actions) so each card's full body is visible. Toggled from the Arrange
 	 * toolbar; resets when the view reopens. */
 	hideHeaderInArrange = false;
+	/**
+	 * In arrange mode, constrain the board to phone width so the narrow layout
+	 * can be built and checked without a phone in hand. Forces the narrow
+	 * layout on regardless of the real pane width — the point is to see what a
+	 * phone sees. Toggled from the Arrange toolbar; resets when the view
+	 * reopens, since it is a way of looking at a board, not a property of one.
+	 */
+	phonePreview = false;
+	/** The narrow state the current render was built for, so the width observer
+	 * can tell a real crossing from a resize that changes nothing. */
+	private narrowAtRender = false;
 	/** Per-render child component so embeds/markdown get cleaned up on re-render. */
 	private renderChild: Component | null = null;
 	/** {@link liveRender}'s focus-held re-render, built on first use (the
 	 * listener it registers lives on `contentEl`, which outlives every render). */
 	private heldLiveRender: (() => void) | null = null;
+	/**
+	 * Where this tab is scrolled to, per dashboard — the memory behind #276.
+	 * Held on the view (and persisted with the leaf, see {@link getState}) rather
+	 * than in settings, because it describes one tab and not the vault. See
+	 * src/scrollmemory.ts for why it is keyed and stored the way it is.
+	 */
+	private scrollMemory: ScrollMemory = {};
+	/** The current render's scroll area, so state arriving after the render has
+	 * something to act on. */
+	private scrollEl: HTMLElement | null = null;
+	/** The restore chasing the remembered offset while this render's content
+	 * fills in, if one is still running. */
+	private scrollRestore: ScrollRestore | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: HearthPlugin) {
 		super(leaf);
@@ -70,10 +119,75 @@ export class HomeView extends ItemView {
 		return tabIconIdFor(s.themeColorTarget, s.tabIcon);
 	}
 
+	/**
+	 * The state Obsidian persists with this tab: the remembered scroll offsets,
+	 * so a scrolled board comes back scrolled after a reload — per tab, because
+	 * this is the tab's own state.
+	 *
+	 * Pruned on the way out so offsets for deleted dashboards don't accumulate
+	 * in `workspace.json`, and omitted entirely when there is nothing to
+	 * remember, so a board sitting at the top adds no state at all.
+	 */
+	getState(): Record<string, unknown> {
+		const base = super.getState();
+		const memory = pruneScrollMemory(
+			this.scrollMemory,
+			this.plugin.settings.dashboards.map((d) => d.id),
+		);
+		if (Object.keys(memory).length === 0) return base;
+		return { ...base, [SCROLL_STATE_KEY]: memory };
+	}
+
+	/**
+	 * Take the offsets back from persisted state — a reloaded workspace, or a
+	 * step back through this tab's history.
+	 *
+	 * A `setViewState` that carries no offsets (Hearth taking over an empty tab,
+	 * the ribbon opening a new one) correctly clears the memory: that is a board
+	 * this tab has never scrolled, and it should open at the top.
+	 */
+	async setState(state: unknown, result: ViewStateResult): Promise<void> {
+		await super.setState(state, result);
+		this.scrollMemory = readScrollMemory(state);
+		// State can land either side of the first render, depending on how the
+		// leaf was created. If the board is already built, move it now; if it
+		// isn't, the render coming up will read the memory itself.
+		if (this.scrollEl?.isConnected) this.restoreScroll(this.scrollEl);
+	}
+
 	async onOpen(): Promise<void> {
 		this.render();
 		this.trackViewport();
+		this.trackWidth();
 		this.maybeFocusSearch();
+	}
+
+	/**
+	 * Rebuild the view when the board crosses the narrow threshold, in either
+	 * direction — the stacked and free-form layouts are different renders, not
+	 * a stylesheet apart. Only a crossing rebuilds: this observes an element
+	 * inside the view it rebuilds, so reacting to every resize would be a loop.
+	 */
+	private trackWidth(): void {
+		this.register(observeNarrowWidth(this.contentEl, (narrow) => {
+			// The phone preview pins the layout narrow, so a pane resize behind
+			// it changes nothing until it is switched off.
+			if (this.phonePreview || narrow === this.narrowAtRender) return;
+			this.render();
+		}));
+	}
+
+	/** Whether this render uses the narrow layout: the measured board width, or
+	 * the Arrange phone preview forcing it on. */
+	isNarrow(): boolean {
+		return this.phonePreview || isNarrowWidth(this.contentEl.clientWidth);
+	}
+
+	/** Whether the board reflows into a single stacked column — narrow, and the
+	 * setting left on. Narrow without stacking keeps the free-form layout,
+	 * scaled down as it always was. */
+	isStacked(): boolean {
+		return this.isNarrow() && this.plugin.settings.stackOnNarrow;
 	}
 
 	/**
@@ -123,7 +237,82 @@ export class HomeView extends ItemView {
 		update();
 	}
 
+	/**
+	 * Keep this render's scroll area in step with the tab's remembered offset:
+	 * record where the user scrolls to, and put the board back where it was.
+	 *
+	 * The listeners hang off the per-render component, so they go away with the
+	 * element they watch.
+	 */
+	private trackScroll(scroll: HTMLElement, child: Component): void {
+		this.scrollEl = scroll;
+
+		child.registerDomEvent(scroll, "scroll", () => {
+			// A restore is itself scrolling the board, and the offsets it moves
+			// through are not places the user chose — recording them would
+			// overwrite the very position being restored to. Its final write
+			// counts as its own too: the `scroll` event for it can arrive after
+			// the restore has finished, and a restore that had to settle short of
+			// its offset (content still loading) would otherwise erase the deeper
+			// position it was reaching for.
+			const restore = this.scrollRestore;
+			if (restore && (!restore.done() || restore.applied() === scroll.scrollTop)) return;
+			this.rememberScroll(scroll.scrollTop);
+		}, { passive: true });
+
+		// A restore reaches for its offset over a second or two while content
+		// arrives, so the user has to be able to win: any deliberate scroll ends
+		// it, and from then on their position is the one that gets remembered —
+		// dropping the restore entirely, so nothing filters their scrolling.
+		for (const event of ["wheel", "touchstart", "pointerdown", "keydown"] as const) {
+			child.registerDomEvent(scroll, event, () => this.dropScrollRestore(), {
+				passive: true,
+			});
+		}
+
+		this.restoreScroll(scroll);
+	}
+
+	/** Record an offset for the board on screen, and ask Obsidian to persist the
+	 * layout when it actually changed. `requestSaveLayout` is itself debounced,
+	 * so a scroll gesture costs one write after the user stops. */
+	private rememberScroll(top: number): void {
+		const next = writeScrollMemory(
+			this.scrollMemory,
+			this.plugin.settings.activeDashboardId,
+			top,
+		);
+		if (next === this.scrollMemory) return;
+		this.scrollMemory = next;
+		void this.app.workspace.requestSaveLayout();
+	}
+
+	/** Stop and forget any restore in flight — the scroller is the user's now. */
+	private dropScrollRestore(): void {
+		this.scrollRestore?.cancel();
+		this.scrollRestore = null;
+	}
+
+	/** Start a restore towards the offset remembered for the board on screen,
+	 * replacing any restore still running from an earlier render. */
+	private restoreScroll(scroll: HTMLElement): void {
+		this.dropScrollRestore();
+
+		const target = this.scrollMemory[this.plugin.settings.activeDashboardId] ?? 0;
+		if (target <= 0) return;
+
+		const restore = createScrollRestore(target);
+		this.scrollRestore = restore;
+		driveScrollRestore(scroll, restore);
+	}
+
 	async onClose(): Promise<void> {
+		// Hosted plugin-board views deliberately outlive the render component, so
+		// they are released here rather than with it — this is the point at which
+		// a board kept alive for a fast switch back has nothing left to switch
+		// back to. See src/pluginboard.ts.
+		releasePluginBoards(this);
+		this.dropScrollRestore();
 		this.cleanupChild();
 	}
 
@@ -155,6 +344,15 @@ export class HomeView extends ItemView {
 		// is the one that counts.
 		this.navigation = hearthLeafIsNavigable(this.plugin.settings);
 
+		// A plugin board has no cards to arrange and no reflow to preview, so both
+		// of those modes are dropped on the way in rather than hidden: switching to
+		// one while arranging must not leave the view in a mode with no controls.
+		const pluginBoard = activeIsPluginBoard(this.plugin.settings);
+		if (pluginBoard) {
+			this.arrangeMode = false;
+			this.phonePreview = false;
+		}
+
 		this.cleanupChild();
 		const child = new Component();
 		this.addChild(child);
@@ -185,10 +383,25 @@ export class HomeView extends ItemView {
 		const mobileOnly = Platform.isMobile && this.plugin.settings.mobileSearchOnly;
 		root.toggleClass("hearth-mobile-only", mobileOnly);
 
+		// The narrow layout, from the measured board width rather than the
+		// platform — see src/narrow.ts for why. Recorded on the view so the width
+		// observer can tell a threshold crossing (which needs a rebuild) from an
+		// ordinary resize (which the fractional layout already handles).
+		const narrow = this.isNarrow();
+		this.narrowAtRender = narrow;
+		root.toggleClass("hearth-narrow", narrow);
+		root.toggleClass("hearth-phone-preview", this.phonePreview);
+		// The whole board is one hosted view: it fills the pane and scrolls itself,
+		// on a single card surface instead of a grid of them.
+		root.toggleClass("hearth-plugin-view", pluginBoard);
+
 		// With no cards to show (and not arranging), centre the search field
 		// vertically so the page reads as a clean launcher.
+		// `renderCards` is empty on a plugin board by definition, which is not the
+		// "clean launcher" this centres the search for — that board is full.
 		const emptyBoard =
 			!mobileOnly &&
+			!pluginBoard &&
 			!this.arrangeMode &&
 			renderCards(this.plugin.settings).length === 0;
 		root.toggleClass("hearth-empty-board", emptyBoard);
@@ -207,14 +420,51 @@ export class HomeView extends ItemView {
 		if (!banner) applyBackground(this, root, child);
 
 		const scroll = root.createDiv("hearth-scroll");
-		scroll.toggleClass("hearth-fit", effectiveFitToPage(this.plugin.settings));
+		// A stacked board is a list that runs off the bottom of the screen by
+		// design, so fit-to-page — which locks the board to exactly one screen and
+		// clips the rest — is not applied to it. The setting is untouched and
+		// comes back with the free-form layout.
+		const stacked = narrow && this.plugin.settings.stackOnNarrow;
+		// A plugin board is always fitted, whatever the setting says and however
+		// narrow the pane is: the hosted view has to be given a definite height to
+		// fill and does its own scrolling inside it. Letting the page scroll
+		// instead would give the board no height at all to hand over.
+		scroll.toggleClass(
+			"hearth-fit",
+			pluginBoard || (effectiveFitToPage(this.plugin.settings) && !stacked),
+		);
 
 		if (banner) renderBanner(this, scroll, child);
 
-		const inner = scroll.createDiv("hearth-inner");
-		inner.style.maxWidth = `${effectiveMaxWidth(this.plugin.settings)}px`;
+		// The phone preview draws a device shell around the board. It is a wrapper
+		// rather than styling on `.hearth-inner` itself, because the bezel has to
+		// paint a surface and the screen has to keep showing the board's own
+		// background through it — one element cannot do both. The screen width is
+		// published as a variable so the shell can size itself around it and the
+		// preview's width stays the one number that decides the layout.
+		const frame = this.phonePreview ? scroll.createDiv("hearth-phone-frame") : null;
+		frame?.style.setProperty("--hearth-phone-screen", `${PHONE_PREVIEW_WIDTH}px`);
 
-		if (!mobileOnly) renderDashboardSwitcher(this, inner);
+		const inner = (frame ?? scroll).createDiv("hearth-inner");
+		// The column is fluid either way — it is `width: 100%` centred in the
+		// scroll area, so it already follows a narrow pane down. The setting only
+		// decides how far it may grow: to a pixel ceiling, or to the pane itself.
+		//
+		// A narrow board skips the ceiling entirely: it is already narrower than
+		// the smallest value the setting can hold (CONTENT_WIDTH_MIN is 700px),
+		// so the only thing a max-width could do there is nothing.
+		// The phone preview needs no clause of its own: it forces `narrow`, and its
+		// ceiling is the device shell's width, not the board's.
+		if (!narrow && !effectiveFullWidth(this.plugin.settings)) {
+			inner.style.maxWidth = `${effectiveMaxWidth(this.plugin.settings)}px`;
+		}
+
+		if (!mobileOnly) {
+			const switcher = renderDashboardSwitcher(this, inner);
+			// A plugin board has no toolbar of its own — its one action rides on
+			// the switcher row, so the board below it starts at the next pixel.
+			if (pluginBoard) renderPluginBoardActions(this, switcher);
+		}
 
 		if (effectiveShowTitle(this.plugin.settings) || effectiveShowSearch(this.plugin.settings)) {
 			const header = inner.createDiv("hearth-header");
@@ -228,12 +478,26 @@ export class HomeView extends ItemView {
 
 		if (!mobileOnly) {
 			const dashboard = inner.createDiv("hearth-dashboard");
-			renderDashboard(this, dashboard, child);
-		} else if (this.plugin.settings.showMobileActionBar) {
+			if (pluginBoard) renderPluginBoard(this, dashboard, child);
+			else renderDashboard(this, dashboard, child);
+		}
+
+		// Nothing on this render claimed a hosted view — a cards board, or
+		// mobile-only mode, which draws no board at all — so everything still
+		// alive is off screen, and only what a board asked to keep survives.
+		// (A plugin board prunes with its own view held; see pluginboard.ts.)
+		if (!pluginBoard || mobileOnly) prunePluginBoards(this, null);
+
+		if (mobileOnly && this.plugin.settings.showMobileActionBar) {
 			// Pinned to the scroll area (not the flex flow shared with `inner`) so
 			// it sits in the bottom quarter of the screen regardless of how the
 			// centred header above it is sized.
 			renderMobileActionBar(this, scroll);
 		}
+
+		// Last, once the board is built: hand this render's scroll area to the
+		// tab's scroll memory, which records where the user scrolls to and puts
+		// the board back where it was before this rebuild (#276).
+		this.trackScroll(scroll, child);
 	}
 }

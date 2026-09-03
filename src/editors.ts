@@ -4,11 +4,24 @@ import { type CardEditorContext } from "./cards/definition";
 import { t } from "./i18n";
 import { HearthTabbedModal, type HearthModalTab } from "./tabbedmodal";
 import {
+	TILE_COLS_DEFAULT,
+	TILE_COLS_MAX,
+	TILE_COLS_MIN,
+	TILE_MIN_DEFAULT,
+	TILE_MIN_MAX,
+	TILE_MIN_MIN,
+	TILE_MIN_STEP,
+	tileCols,
+	tileMinSize,
+	tileSizing,
+} from "./tiles";
+import {
 	CARD_BORDER_WIDTH_MAX,
 	effectiveCardBorderWidth,
 	type CardKind,
 	type DashboardCard,
 	type HomeSettings,
+	type MobileCardOptions,
 } from "./types";
 import { confirmAction } from "./ui";
 
@@ -110,6 +123,8 @@ export class CardSettingsModal extends HearthTabbedModal {
 				break;
 			case "layout":
 				this.sizeSection(body);
+				this.mobileSection(body);
+				this.buttonsSection(body);
 				this.pinSection(body);
 				this.copySection(body);
 				break;
@@ -336,6 +351,183 @@ export class CardSettingsModal extends HearthTabbedModal {
 			card.fw = undefined;
 			card.fh = undefined;
 		});
+	}
+
+	/**
+	 * Write one of the card's mobile options, pruning the block back to nothing
+	 * once every option is at its default.
+	 *
+	 * Absent means "derive it", so an option at its default must be *absent*
+	 * rather than present-and-falsy: otherwise every card ever opened in this
+	 * tab would carry a `mobile: {}` into data.json, and a later change to how
+	 * an option is derived would have to tell a stored default apart from a
+	 * chosen one.
+	 */
+	private setMobile(patch: Partial<MobileCardOptions>): void {
+		const next: MobileCardOptions = { ...this.card.mobile, ...patch };
+		for (const key of Object.keys(next) as (keyof MobileCardOptions)[]) {
+			if (next[key] === undefined || next[key] === false) delete next[key];
+		}
+		this.card.mobile = Object.keys(next).length > 0 ? next : undefined;
+		this.opts.save();
+	}
+
+	/**
+	 * What this card does on a narrow board, where the free-form layout is
+	 * replaced by a single stacked column (see src/narrow.ts).
+	 *
+	 * It sits under the card's size because it answers the same question for
+	 * the other layout: how big this card is, and where it comes, when the board
+	 * is a column. Every field here is an override — left alone, the card is
+	 * shown at its stored height in the order the desktop board reads in — so
+	 * the section is a set of exceptions rather than a second layout to keep up
+	 * to date.
+	 */
+	private mobileSection(containerEl: HTMLElement): void {
+		const strings = t().editors.mobile;
+		const card = this.card;
+		new Setting(containerEl).setName(strings.heading).setHeading();
+
+		new Setting(containerEl)
+			.setName(strings.hidden)
+			.setDesc(strings.hiddenDesc)
+			.addToggle((tg) => {
+				tg.setValue(card.mobile?.hidden ?? false).onChange((v) => {
+					this.setMobile({ hidden: v });
+					this.opts.rerender();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(strings.collapsed)
+			.setDesc(strings.collapsedDesc)
+			.addToggle((tg) => {
+				tg.setValue(card.mobile?.collapsed ?? false).onChange((v) => {
+					this.setMobile({ collapsed: v });
+					this.opts.rerender();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName(strings.height)
+			.setDesc(strings.heightDesc)
+			.addText((txt) => {
+				txt
+					.setPlaceholder(strings.autoPlaceholder)
+					.setValue(card.mobile?.height != null ? String(card.mobile.height) : "")
+					.onChange((v) => {
+						const raw = v.trim();
+						// An emptied field is "derive it again", not "zero pixels".
+						const n = raw === "" ? undefined : parseInt(raw, 10);
+						if (n !== undefined && Number.isNaN(n)) return;
+						this.setMobile({ height: n === undefined ? undefined : Math.max(56, n) });
+						this.opts.rerender();
+					});
+				txt.inputEl.type = "number";
+				txt.inputEl.addClass("hearth-count-input");
+			});
+
+		new Setting(containerEl)
+			.setName(strings.order)
+			.setDesc(strings.orderDesc)
+			.addText((txt) => {
+				txt
+					.setPlaceholder(strings.autoPlaceholder)
+					.setValue(card.mobile?.order != null ? String(card.mobile.order) : "")
+					.onChange((v) => {
+						const raw = v.trim();
+						const n = raw === "" ? undefined : parseInt(raw, 10);
+						if (n !== undefined && Number.isNaN(n)) return;
+						this.setMobile({ order: n });
+						this.opts.rerender();
+					});
+				txt.inputEl.type = "number";
+				txt.inputEl.addClass("hearth-count-input");
+			});
+	}
+
+	/**
+	 * How big the buttons are on a launchpad-like card (links, commands,
+	 * templater): which of the two sizing styles the card is on and, when they
+	 * fill the card, how many buttons wide it is — which is what decides how big
+	 * a button is, since a filled button is a fraction of the card.
+	 *
+	 * It sits in the Layout tab, under the card's own size, because that is the
+	 * question it answers: how the card's buttons are laid out, not what is on
+	 * them. The three cards share it — they draw the same grid.
+	 */
+	private buttonsSection(containerEl: HTMLElement): void {
+		if (!cardDefinition(this.card).tileButtons) return;
+		const strings = t().editors.tiles;
+		const card = this.card;
+		new Setting(containerEl).setName(strings.heading).setHeading();
+		new Setting(containerEl)
+			.setName(strings.sizing)
+			.setDesc(strings.sizingDesc)
+			.addDropdown((d) => {
+				d.addOption("scale", strings.sizingScale);
+				d.addOption("fixed", strings.sizingFixed);
+				d.setValue(tileSizing(card)).onChange((v) => {
+					card.tileSizing = v === "scale" ? "scale" : "fixed";
+					this.opts.save();
+					this.opts.rerender();
+					// The column count below belongs to the filled style alone, and
+					// the fixed style's pixel size (in the Content tab) to the other,
+					// so rebuild the modal around the choice.
+					this.render();
+				});
+			});
+		if (tileSizing(card) !== "scale") return;
+		const across = new Setting(containerEl)
+			.setName(strings.across)
+			.setDesc(strings.acrossDesc);
+		across.addSlider((s) => {
+			s.setLimits(TILE_COLS_MIN, TILE_COLS_MAX, 1)
+				.setValue(tileCols(card.tileCols))
+				.onChange((v) => {
+					card.tileCols = v === TILE_COLS_DEFAULT ? undefined : v;
+					this.opts.save();
+					this.opts.rerender();
+				});
+		});
+		across.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetSlider)
+				.onClick(() => {
+					card.tileCols = undefined;
+					this.opts.save();
+					this.opts.rerender();
+					this.render();
+				}),
+		);
+
+		// The floor: how small a button may get before the card gives up and
+		// scrolls instead. Sixteen small buttons and four big ones want different
+		// answers, so it is the card's to set rather than the stylesheet's.
+		const minSize = new Setting(containerEl)
+			.setName(strings.minSize)
+			.setDesc(strings.minSizeDesc);
+		minSize.addSlider((s) => {
+			s.setLimits(TILE_MIN_MIN, TILE_MIN_MAX, TILE_MIN_STEP)
+				.setValue(tileMinSize(card.tileMinSize))
+				.onChange((v) => {
+					card.tileMinSize = v === TILE_MIN_DEFAULT ? undefined : v;
+					this.opts.save();
+					this.opts.rerender();
+				});
+		});
+		minSize.addExtraButton((b) =>
+			b
+				.setIcon("rotate-ccw")
+				.setTooltip(t().settings.resetSlider)
+				.onClick(() => {
+					card.tileMinSize = undefined;
+					this.opts.save();
+					this.opts.rerender();
+					this.render();
+				}),
+		);
 	}
 
 	/** Pin/unpin this card so it appears on every dashboard. */

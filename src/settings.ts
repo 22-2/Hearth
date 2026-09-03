@@ -3,10 +3,12 @@ import type HearthPlugin from "./main";
 import { TaskFieldsModal } from "./cards/tasks";
 import { hasFileIconPlugin } from "./fileicons";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
+import { kofiTipButton } from "./kofi";
 import { addIconPicker } from "./lucide";
 import { CommandPickerModal, FilePickerModal, FolderPickerModal } from "./pickers";
+import { addTitleIconPicker } from "./titleicon";
 import { configuredPlaces, renderSkySource } from "./placepicker";
-import { BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, DEFAULT_SETTINGS, defaultMobileActionButtons, frostAllowed, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, skyDensity, timersAllowed } from "./types";
+import { BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN, CONTENT_WIDTH_STEP, DEFAULT_SETTINGS, defaultMobileActionButtons, frostAllowed, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, skyDensity, timersAllowed } from "./types";
 import { exportLayout, exportSettings, importLayout, importSettings } from "./layout";
 import { confirmAction, downloadTextFile, makeClickable, pickTextFile } from "./ui";
 import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
@@ -54,7 +56,6 @@ type NumericSettingKey =
  * value. */
 type StringSettingKey =
 	| "title"
-	| "logo"
 	| "searchPlaceholder"
 	| "backgroundValue"
 	| "lowPowerBackgroundColor"
@@ -64,10 +65,23 @@ type StringSettingKey =
 	| "taskNotesDoneValue"
 	| "iconizeIconProperty";
 
-/** The GitHub repository and support links surfaced in the About tab. */
+/** The performance ladder's names, in the reader's language. Shared by the
+ * desktop tier dropdown and the mobile one so the two can never drift into
+ * describing the same ladder differently. */
+function tierLabels(): Record<PerformanceTier, string> {
+	const strings = t().settings.performance;
+	return {
+		full: strings.tierFull,
+		balanced: strings.tierBalanced,
+		reduced: strings.tierReduced,
+		minimal: strings.tierMinimal,
+	};
+}
+
+/** The GitHub links surfaced in the About tab. (The Ko-fi URL lives in
+ * `kofi.ts` — the tip button is shown in three places now.) */
 const GITHUB_URL = "https://github.com/ondreu/hearth";
 const GITHUB_ISSUES_URL = "https://github.com/ondreu/hearth/issues/new";
-const KOFI_URL = "https://ko-fi.com/ondru";
 
 /** Download filenames for the JSON exports. */
 const LAYOUT_FILE = "hearth-layout.json";
@@ -81,6 +95,7 @@ const SETTINGS_TABS: { id: SettingsTabId; icon: string }[] = [
 	{ id: "search", icon: "search" },
 	{ id: "dashboard", icon: "layout-dashboard" },
 	{ id: "behaviour", icon: "settings-2" },
+	{ id: "mobile", icon: "smartphone" },
 	{ id: "integrations", icon: "plug" },
 	{ id: "backup", icon: "archive" },
 	{ id: "about", icon: "info" },
@@ -98,7 +113,7 @@ type SettingsRoute = "index" | SettingsTabId;
  * cluster when you say out loud what each is for. */
 const SETTINGS_INDEX: { id: "lookFeel" | "howItWorks" | "data" | "etc"; tabs: SettingsTabId[] }[] = [
 	{ id: "lookFeel", tabs: ["appearance", "dashboard"] },
-	{ id: "howItWorks", tabs: ["search", "behaviour"] },
+	{ id: "howItWorks", tabs: ["search", "behaviour", "mobile"] },
 	{ id: "data", tabs: ["integrations", "backup"] },
 	{ id: "etc", tabs: ["about"] },
 ];
@@ -448,14 +463,20 @@ export class HomeSettingTab extends PluginSettingTab {
 				this.section(body, s.sections.opening, s.sections.openingDesc, (b) =>
 					this.openingSection(b),
 				);
+				this.section(body, s.sections.privacy, s.sections.privacyDesc, (b) =>
+					this.privacySection(b),
+				);
+				break;
+			// Mobile is a category of its own rather than two sections inside
+			// Behaviour. Hearth runs on a phone as a first-class board now, not as
+			// a reduced mode of the desktop one, and the settings pane is where
+			// that is either stated or quietly contradicted.
+			case "mobile":
 				this.section(body, s.sections.mobileMode, s.sections.mobileModeDesc, (b) =>
 					this.mobileModeSection(b),
 				);
 				this.section(body, s.mobileActions.heading, s.mobileActions.headingDesc, (b) =>
 					this.mobileActionsSection(b),
-				);
-				this.section(body, s.sections.privacy, s.sections.privacyDesc, (b) =>
-					this.privacySection(b),
 				);
 				break;
 			case "integrations":
@@ -593,7 +614,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		);
 	}
 
-	// ---- Home (title, logo, width) --------------------------------------
+	// ---- Home (title, title icon, width) --------------------------------
 
 	private homeSection(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
@@ -629,25 +650,14 @@ export class HomeSettingTab extends PluginSettingTab {
 			this.addTextReset(title, txt, "title");
 		});
 
-		const logo = new Setting(containerEl)
-			.setName(t().settings.appearance.logo)
-			.setDesc(t().settings.appearance.logoDesc);
-		logo.addText((txt) => {
-			txt.setValue(s.logo).onChange(async (v) => {
-				s.logo = v;
-				this.save();
-			});
-			this.addTextReset(logo, txt, "logo");
-		});
-
-		addIconPicker(
+		addTitleIconPicker(
 			new Setting(containerEl)
-				.setName(t().settings.appearance.logoIcon)
-				.setDesc(t().settings.appearance.logoIconDesc),
+				.setName(t().settings.appearance.titleIcon)
+				.setDesc(t().settings.appearance.titleIconDesc),
 			this.app,
-			s.logoIcon,
+			s.titleIcon,
 			(v) => {
-				s.logoIcon = v;
+				s.titleIcon = v;
 				void this.save();
 			},
 		);
@@ -684,11 +694,26 @@ export class HomeSettingTab extends PluginSettingTab {
 					}),
 			);
 
+		new Setting(containerEl)
+			.setName(t().settings.appearance.fullWidth)
+			.setDesc(t().settings.appearance.fullWidthDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.fullWidth).onChange(async (v) => {
+					s.fullWidth = v;
+					this.save();
+					// The slider below is the ceiling this toggle removes, so it goes
+					// away with it rather than sitting there doing nothing.
+					this.rerender();
+				}),
+			);
+
+		if (s.fullWidth) return;
+
 		const width = new Setting(containerEl)
 			.setName(t().settings.appearance.contentWidth)
 			.setDesc(t().settings.appearance.contentWidthDesc);
 		width.addSlider((sl) => {
-			sl.setLimits(700, 1600, 20)
+			sl.setLimits(CONTENT_WIDTH_MIN, CONTENT_WIDTH_MAX, CONTENT_WIDTH_STEP)
 				.setValue(s.maxWidth)
 				.onChange(async (v) => {
 					s.maxWidth = v;
@@ -927,12 +952,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		const strings = t().settings.performance;
 		const tier = performanceTier(s);
 
-		const label: Record<PerformanceTier, string> = {
-			full: strings.tierFull,
-			balanced: strings.tierBalanced,
-			reduced: strings.tierReduced,
-			minimal: strings.tierMinimal,
-		};
+		const label = tierLabels();
 
 		new Setting(containerEl)
 			.setName(strings.tier)
@@ -1273,6 +1293,16 @@ export class HomeSettingTab extends PluginSettingTab {
 					this.save();
 				}),
 			);
+
+		new Setting(containerEl)
+			.setName(t().settings.behaviour.liveSettingsSync)
+			.setDesc(t().settings.behaviour.liveSettingsSyncDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.liveSettingsSync).onChange(async (v) => {
+					s.liveSettingsSync = v;
+					this.save();
+				}),
+			);
 	}
 
 	// ---- Opening notes ---------------------------------------------------
@@ -1368,6 +1398,32 @@ export class HomeSettingTab extends PluginSettingTab {
 					this.save();
 				}),
 			);
+
+		new Setting(containerEl)
+			.setName(t().settings.behaviour.stackOnNarrow)
+			.setDesc(t().settings.behaviour.stackOnNarrowDesc)
+			.addToggle((tg) =>
+				tg.setValue(s.stackOnNarrow).onChange(async (v) => {
+					s.stackOnNarrow = v;
+					this.save();
+				}),
+			);
+
+		// The mobile performance tier lives here rather than beside the desktop
+		// one: it is a mobile setting that happens to be about performance, and
+		// this is the page someone opens when they are thinking about their phone.
+		new Setting(containerEl)
+			.setName(t().settings.behaviour.mobilePerformanceTier)
+			.setDesc(t().settings.behaviour.mobilePerformanceTierDesc)
+			.addDropdown((d) => {
+				d.addOption("match", t().settings.behaviour.mobileTierMatch);
+				const label = tierLabels();
+				for (const tier of PERFORMANCE_TIERS) d.addOption(tier, label[tier]);
+				d.setValue(s.mobilePerformanceTier).onChange(async (v) => {
+					s.mobilePerformanceTier = v as HomeSettings["mobilePerformanceTier"];
+					this.save();
+				});
+			});
 	}
 
 	// ---- Mobile action bar ----------------------------------------------
@@ -2214,10 +2270,7 @@ export class HomeSettingTab extends PluginSettingTab {
 			new Setting(body)
 				.setName(about.kofi)
 				.setDesc(about.kofiDesc)
-				.addButton((b) => {
-					this.linkButton(b, "coffee", about.kofiButton, KOFI_URL);
-					b.buttonEl.addClass("hearth-kofi-btn");
-				});
+				.addButton((b) => kofiTipButton(b));
 
 			new Setting(body)
 				.setName(about.version(this.plugin.manifest.version))

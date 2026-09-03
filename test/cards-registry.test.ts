@@ -41,6 +41,13 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 			// ---- Notes & files ----
 			{ id: "note", icon: "file-text", category: "notes", requires: null, build: { kind: "embed", title: "Note", target: "", w: 6, h: 3 } },
 			{ id: "daily", icon: "calendar", category: "notes", requires: null, build: { kind: "daily", w: 6, h: 4 } },
+			{
+				id: "periodic",
+				icon: "calendar-range",
+				category: "notes",
+				requires: "Periodic Notes",
+				build: { kind: "periodic", periodic: { granularity: "week" }, w: 6, h: 4 },
+			},
 			{ id: "image", icon: "image", category: "notes", requires: null, build: { kind: "embed", title: "Image", target: "", w: 4, h: 3 } },
 			{
 				id: "slideshow",
@@ -69,8 +76,11 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 			{ id: "heatmap", icon: "activity", category: "vault", requires: null, build: { kind: "heatmap", title: "Activity", heatmap: {}, w: 6, h: 3 } },
 
 			// ---- Tools ----
-			{ id: "links", icon: "layout-grid", category: "tools", requires: null, build: { kind: "links", title: "Links", links: [], w: 6, h: 2 } },
-			{ id: "commands", icon: "terminal-square", category: "tools", requires: null, build: { kind: "commands", title: "Commands", commands: [], w: 6, h: 2 } },
+			// The three launchpad-like cards are built on the scaled button style:
+			// a card added today sizes its buttons as a fraction of itself. Cards
+			// stored before that carry no `tileSizing` and keep the fixed style.
+			{ id: "links", icon: "layout-grid", category: "tools", requires: null, build: { kind: "links", title: "Links", links: [], tileSizing: "scale", w: 6, h: 2 } },
+			{ id: "commands", icon: "terminal-square", category: "tools", requires: null, build: { kind: "commands", title: "Commands", commands: [], tileSizing: "scale", w: 6, h: 2 } },
 			{ id: "text", icon: "pencil", category: "tools", requires: null, build: { kind: "text", title: "Notes", text: "", w: 4, h: 2 } },
 			{ id: "calculator", icon: "calculator", category: "tools", requires: null, build: { kind: "calculator", title: "Calculator", calculator: {}, w: 4, h: 3 } },
 			{ id: "web", icon: "globe", category: "tools", requires: null, build: { kind: "web", title: "Web", url: "", w: 6, h: 4 } },
@@ -81,7 +91,7 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 				icon: "file-plus-2",
 				category: "integrations",
 				requires: "Templater",
-				build: { kind: "templater", title: "New note", templater: { items: [] }, w: 6, h: 2 },
+				build: { kind: "templater", title: "New note", templater: { items: [] }, tileSizing: "scale", w: 6, h: 2 },
 			},
 			{ id: "dataview", icon: "database", category: "integrations", requires: "Dataview", build: { kind: "dataview", title: "Dataview", dataview: {}, w: 6, h: 4 } },
 			{ id: "datacore", icon: "database-zap", category: "integrations", requires: "Datacore", build: { kind: "datacore", title: "Datacore", datacore: {}, w: 6, h: 4 } },
@@ -223,6 +233,7 @@ function maximalCard(): DashboardCard {
 		},
 		secondView: { target: "sv" },
 		slideshow: { slides: [{ id: "s1", path: "Photos/a.png", caption: "A" }] },
+		periodic: { granularity: "week" },
 		tasks: {
 			folders: ["f1"],
 			kanbanOrder: ["k1"],
@@ -286,6 +297,7 @@ describe("cloneCard deep-clone independence", () => {
 		(copy.secondView as { target: string }).target = "sv2";
 		copy.slideshow!.slides![0].caption = "B";
 		copy.slideshow!.slides!.push({ id: "s2", path: "Photos/b.png" });
+		copy.periodic!.granularity = "month";
 		copy.tasks!.folders!.push("f2");
 		copy.tasks!.kanbanOrder!.push("k9");
 		copy.tasks!.kanbanHidden!.push("k9");
@@ -329,6 +341,7 @@ describe("cloneCard deep-clone independence", () => {
 		expect(orig.templater).toEqual(pristine.templater);
 		expect(orig.secondView).toEqual(pristine.secondView);
 		expect(orig.slideshow).toEqual(pristine.slideshow);
+		expect(orig.periodic).toEqual(pristine.periodic);
 		expect(orig.tasks).toEqual(pristine.tasks);
 		expect(orig.calendar).toEqual(pristine.calendar);
 		expect(orig.schedule).toEqual(pristine.schedule);
@@ -361,6 +374,7 @@ describe("liveness classification", () => {
 			embed: "watch-file",
 			slideshow: "vault",
 			daily: "watch-file",
+			periodic: "watch-file",
 			web: "poll",
 			bookmarks: "static",
 			favorites: "static",

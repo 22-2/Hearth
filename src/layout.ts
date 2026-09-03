@@ -8,6 +8,7 @@ import {
 	type CommandItem,
 	type Dashboard,
 	type DashboardCard,
+	type MobileCardOptions,
 	type DatacoreConfig,
 	type DataviewConfig,
 	type EmbedImageFit,
@@ -16,6 +17,7 @@ import {
 	type HeatmapConfig,
 	type HomeSettings,
 	type LeafViewConfig,
+	legacyTitleIcon,
 	type LinkItem,
 	type MobileActionButton,
 	type OperonConfig,
@@ -31,6 +33,7 @@ import {
 	type RssConfig,
 	type RssSource,
 	type SavedSearchConfig,
+	type SlideshowAdvance,
 	type SlideshowConfig,
 	type SlideshowOrder,
 	type SlideshowSlide,
@@ -41,16 +44,22 @@ import {
 	type TaskFilterConfig,
 	type TaskSortRule,
 	type TasksConfig,
+	type TileGeometry,
 	activeDashboard,
 	CARD_BORDER_WIDTH_MAX,
+	CONTENT_WIDTH_MAX,
+	CONTENT_WIDTH_MIN,
 	clampBannerHeight,
 	PERFORMANCE_TIERS,
 	type PerformanceTier,
 } from "./types";
 import { CARD_KINDS } from "./cards";
+import { tileCols, tileMinSize } from "./tiles";
 import { isEmbeddableBaseViewName } from "./bases";
 import { EMBED_IMAGE_FITS, EMBED_IMAGE_POSITIONS } from "./embedimage";
 import {
+	SLIDESHOW_ADVANCES,
+	SLIDESHOW_MAX_DAY_COUNT,
 	SLIDESHOW_MAX_INTERVAL_SEC,
 	SLIDESHOW_MAX_TRANSITION_MS,
 	SLIDESHOW_ORDERS,
@@ -87,6 +96,7 @@ export interface LayoutExport {
 	rowHeight: number;
 	fitToPage: boolean;
 	maxWidth: number;
+	fullWidth: boolean;
 	favorites: string[];
 }
 
@@ -95,7 +105,7 @@ export interface LayoutExport {
 const RANGE = {
 	gridColumns: { min: 4, max: 16 },
 	rowHeight: { min: 32, max: 160 },
-	maxWidth: { min: 700, max: 1600 },
+	maxWidth: { min: CONTENT_WIDTH_MIN, max: CONTENT_WIDTH_MAX },
 	cardW: { min: 1, max: 16 },
 	cardH: { min: 1, max: 60 },
 	cardBlur: { min: 0, max: 24 },
@@ -128,6 +138,7 @@ function layoutPayload(s: HomeSettings): LayoutExport {
 		rowHeight: s.rowHeight,
 		fitToPage: s.fitToPage,
 		maxWidth: s.maxWidth,
+		fullWidth: s.fullWidth,
 		favorites: s.favorites,
 	};
 }
@@ -149,8 +160,7 @@ export function exportSettings(s: HomeSettings): string {
 		// Header
 		title: s.title,
 		showTitle: s.showTitle,
-		logo: s.logo,
-		logoIcon: s.logoIcon,
+		titleIcon: s.titleIcon,
 		tabIcon: s.tabIcon,
 		showSearch: s.showSearch,
 		searchPlaceholder: s.searchPlaceholder,
@@ -281,6 +291,30 @@ function sanitizeEmbedView(
 	return view;
 }
 
+/** Copy a tile's size and position across: both styles' fields, so an imported
+ * layout keeps whichever the card is on — and the other one too, for when it is
+ * switched back. See `TileGeometry` in types.ts. */
+function readTileGeometry(tile: TileGeometry, r: Record<string, unknown>): void {
+	if (typeof r.size === "number") tile.size = r.size;
+	if (typeof r.sizeW === "number") tile.sizeW = r.sizeW;
+	if (typeof r.sizeH === "number") tile.sizeH = r.sizeH;
+	if (typeof r.spanW === "number" && r.spanW > 0) tile.spanW = halfCells(r.spanW);
+	if (typeof r.spanH === "number" && r.spanH > 0) tile.spanH = halfCells(r.spanH);
+	if (typeof r.col === "number" && r.col >= 0) tile.col = r.col;
+	if (typeof r.row === "number" && r.row >= 0) tile.row = r.row;
+	if (typeof r.scaleCol === "number" && r.scaleCol >= 0) tile.scaleCol = r.scaleCol;
+	if (typeof r.scaleRow === "number" && r.scaleRow >= 0) tile.scaleRow = r.scaleRow;
+}
+
+
+/** A scaled span, snapped to the half cells its grid is drawn in — so an
+ * imported half button stays half a button rather than being rounded up to a
+ * whole one. See `TILE_SUBDIV` in tiles.ts. */
+function halfCells(span: number): number {
+	return Math.max(0.5, Math.round(span * 2) / 2);
+}
+
+
 function sanitizeLink(raw: unknown): LinkItem | null {
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
@@ -292,12 +326,30 @@ function sanitizeLink(raw: unknown): LinkItem | null {
 		target: str(r.target) ?? "",
 		type,
 	};
-	if (typeof r.size === "number") link.size = r.size;
-	if (typeof r.sizeW === "number") link.sizeW = r.sizeW;
-	if (typeof r.sizeH === "number") link.sizeH = r.sizeH;
-	if (typeof r.col === "number" && r.col >= 0) link.col = r.col;
-	if (typeof r.row === "number" && r.row >= 0) link.row = r.row;
+	readTileGeometry(link, r);
 	return link;
+}
+
+/** The card's narrow-layout overrides, if it carries any readable ones.
+ *
+ * Every field is optional and every default is *absence*, so a value that
+ * doesn't survive its type check is dropped rather than defaulted — an
+ * unreadable `order` must leave the card following the derived reading order,
+ * not pin it to position 0. Returns undefined when nothing readable is left, so
+ * an imported card carries no empty block. */
+function sanitizeMobileOptions(raw: unknown): MobileCardOptions | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	const mobile: MobileCardOptions = {};
+	if (r.hidden === true) mobile.hidden = true;
+	if (r.collapsed === true) mobile.collapsed = true;
+	if (typeof r.order === "number" && Number.isFinite(r.order)) {
+		mobile.order = Math.round(r.order);
+	}
+	if (typeof r.height === "number" && Number.isFinite(r.height)) {
+		mobile.height = Math.max(0, Math.round(r.height));
+	}
+	return Object.keys(mobile).length > 0 ? mobile : undefined;
 }
 
 function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
@@ -336,6 +388,13 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 		card.fh = Math.max(0, r.fh);
 	}
 
+	// The stacked layout's per-card overrides ride along with the geometry above:
+	// they are part of how a board is laid out, so a layout shared between
+	// devices that dropped them would arrive stacked in the wrong order with the
+	// cards its author had hidden showing again.
+	const mobile = sanitizeMobileOptions(r.mobile);
+	if (mobile) card.mobile = mobile;
+
 	const title = str(r.title);
 	if (title !== undefined) card.title = title;
 	const target = str(r.target);
@@ -365,6 +424,9 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (typeof r.hideBaseHeader === "boolean")
 		card.hideBaseHeader = r.hideBaseHeader;
 	if (typeof r.tileSize === "number") card.tileSize = r.tileSize;
+	if (r.tileSizing === "scale" || r.tileSizing === "fixed") card.tileSizing = r.tileSizing;
+	if (typeof r.tileCols === "number") card.tileCols = tileCols(r.tileCols);
+	if (typeof r.tileMinSize === "number") card.tileMinSize = tileMinSize(r.tileMinSize);
 	if (typeof r.tileAutoFlow === "boolean") card.tileAutoFlow = r.tileAutoFlow;
 	if (typeof r.showOpenButton === "boolean")
 		card.showOpenButton = r.showOpenButton;
@@ -452,11 +514,7 @@ function sanitizeCommand(raw: unknown): CommandItem | null {
 	const id = str(r.id);
 	if (!id) return null;
 	const cmd: CommandItem = { id, name: str(r.name) ?? id, icon: str(r.icon) };
-	if (typeof r.size === "number") cmd.size = r.size;
-	if (typeof r.sizeW === "number") cmd.sizeW = r.sizeW;
-	if (typeof r.sizeH === "number") cmd.sizeH = r.sizeH;
-	if (typeof r.col === "number" && r.col >= 0) cmd.col = r.col;
-	if (typeof r.row === "number" && r.row >= 0) cmd.row = r.row;
+	readTileGeometry(cmd, r);
 	return cmd;
 }
 
@@ -907,8 +965,14 @@ function sanitizeSlideshow(r: Record<string, unknown>): SlideshowConfig {
 	if (SLIDESHOW_ORDERS.includes(r.order as SlideshowOrder)) {
 		cfg.order = r.order as SlideshowOrder;
 	}
+	if (SLIDESHOW_ADVANCES.includes(r.advance as SlideshowAdvance)) {
+		cfg.advance = r.advance as SlideshowAdvance;
+	}
 	if (typeof r.intervalSec === "number" && Number.isFinite(r.intervalSec)) {
 		cfg.intervalSec = clampNum(r.intervalSec, 0, SLIDESHOW_MAX_INTERVAL_SEC, 0);
+	}
+	if (typeof r.dayCount === "number" && Number.isFinite(r.dayCount)) {
+		cfg.dayCount = clampNum(r.dayCount, 1, SLIDESHOW_MAX_DAY_COUNT, 0);
 	}
 	if (SLIDESHOW_TRANSITIONS.includes(r.transition as SlideshowTransition)) {
 		cfg.transition = r.transition as SlideshowTransition;
@@ -1081,6 +1145,11 @@ function sanitizeDashboard(
 	raw: unknown,
 	s: HomeSettings,
 	index: number,
+	/** The export's vault-wide keys, so a board that overrode only one half of
+	 * the pre-2.2.0 `logo`/`logoIcon` pair folds against the same fallback the
+	 * settings migration uses (#252). Empty for a layout-only export, which
+	 * carries no vault-wide header fields at all. */
+	globals: Record<string, unknown> = {},
 ): Dashboard | null {
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
@@ -1118,6 +1187,27 @@ function sanitizeDashboard(
 	if (typeof r.fitToPage === "boolean") dash.fitToPage = r.fitToPage;
 	if (typeof r.showSearch === "boolean") dash.showSearch = r.showSearch;
 	if (typeof r.compact === "boolean") dash.compact = r.compact;
+	// Only "plugin" is carried: anything else — including a mode from a newer
+	// Hearth this build can't render — is left off, so the board imports as the
+	// cards board it also is. Its `cards` came through above either way.
+	if (r.mode === "plugin") dash.mode = "plugin";
+	const rawPluginView = r.pluginView;
+	if (rawPluginView && typeof rawPluginView === "object") {
+		const pv = rawPluginView as Record<string, unknown>;
+		const plugin: NonNullable<Dashboard["pluginView"]> = {};
+		const viewType = str(pv.viewType);
+		if (viewType !== undefined && viewType.trim()) plugin.viewType = viewType.trim();
+		// The view a board hosts is portable; the file it opens is a path into
+		// *this* vault, which may hold nothing of the sort. It is kept anyway
+		// (dropping it silently would be worse than a board that says which file
+		// it wants) — the board reports a missing file rather than breaking.
+		const file = str(pv.file);
+		if (file !== undefined && file.trim()) plugin.file = file.trim();
+		if (typeof pv.hideHeader === "boolean") plugin.hideHeader = pv.hideHeader;
+		if (typeof pv.keepMounted === "boolean") plugin.keepMounted = pv.keepMounted;
+		if (typeof pv.focusable === "boolean") plugin.focusable = pv.focusable;
+		if (Object.keys(plugin).length > 0) dash.pluginView = plugin;
+	}
 	const linkedWorkspace = str(r.linkedWorkspace);
 	if (linkedWorkspace !== undefined && linkedWorkspace.trim())
 		dash.linkedWorkspace = linkedWorkspace;
@@ -1128,12 +1218,14 @@ function sanitizeDashboard(
 		if (typeof h.showTitle === "boolean") header.showTitle = h.showTitle;
 		const title = str(h.title);
 		if (title !== undefined) header.title = title;
-		const logo = str(h.logo);
-		if (logo !== undefined) header.logo = logo;
 		// Kept even when empty: an empty override is a board that deliberately
-		// shows no Lucide title icon, which is not the same as no override.
-		const logoIcon = str(h.logoIcon);
-		if (logoIcon !== undefined) header.logoIcon = logoIcon.trim();
+		// wears the Hearth crystal, which is not the same as no override. An
+		// export taken before 2.2.0 carries the old `logo`/`logoIcon` pair
+		// instead, folded here the same way the settings migration folds it.
+		const hadLegacy = typeof h.logo === "string" || typeof h.logoIcon === "string";
+		const titleIcon =
+			str(h.titleIcon) ?? (hadLegacy ? legacyTitleIcon(h, globals) : undefined);
+		if (titleIcon !== undefined) header.titleIcon = titleIcon.trim();
 		if (
 			h.themeColorTarget === "none" ||
 			h.themeColorTarget === "icon" ||
@@ -1187,6 +1279,7 @@ function sanitizeDashboard(
 			s.maxWidth,
 		);
 	}
+	if (typeof r.fullWidth === "boolean") dash.fullWidth = r.fullWidth;
 	if (typeof r.cardOpacity === "number") {
 		dash.cardOpacity = Math.max(0, Math.min(1, r.cardOpacity));
 	}
@@ -1248,7 +1341,7 @@ function applyLayout(
 	// v2: a full multi-dashboard layout.
 	if (Array.isArray(data.dashboards)) {
 		const dashboards = data.dashboards
-			.map((d, i) => sanitizeDashboard(d, s, i))
+			.map((d, i) => sanitizeDashboard(d, s, i, data))
 			.filter((d): d is Dashboard => d !== null);
 		if (dashboards.length === 0) return t().layout.noValidDashboards;
 		s.dashboards = dashboards;
@@ -1337,6 +1430,10 @@ function applyGlobals(s: HomeSettings, data: Record<string, unknown>): void {
 		s.maxWidth,
 	);
 	if (typeof data.fitToPage === "boolean") s.fitToPage = data.fitToPage;
+	// Absent from layouts exported before full width existed, and left alone
+	// rather than defaulted so importing an old layout can't quietly re-impose a
+	// ceiling the vault has already dropped.
+	if (typeof data.fullWidth === "boolean") s.fullWidth = data.fullWidth;
 	if (Array.isArray(data.favorites)) {
 		s.favorites = data.favorites.filter(
 			(p): p is string => typeof p === "string",
@@ -1401,10 +1498,12 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	const title = str(data.title);
 	if (title !== undefined) s.title = title;
 	if (typeof data.showTitle === "boolean") s.showTitle = data.showTitle;
-	const logo = str(data.logo);
-	if (logo !== undefined) s.logo = logo;
-	const logoIcon = str(data.logoIcon);
-	if (logoIcon !== undefined) s.logoIcon = logoIcon.trim();
+	// A pre-2.2.0 export carries `logo` and `logoIcon` rather than the merged
+	// `titleIcon`; fold the pair exactly as the settings migration does (#252).
+	const hadLegacyIcon = typeof data.logo === "string" || typeof data.logoIcon === "string";
+	const titleIcon =
+		str(data.titleIcon) ?? (hadLegacyIcon ? legacyTitleIcon(data) : undefined);
+	if (titleIcon !== undefined) s.titleIcon = titleIcon.trim();
 	const tabIcon = str(data.tabIcon);
 	if (tabIcon !== undefined) s.tabIcon = tabIcon.trim();
 	if (typeof data.showSearch === "boolean") s.showSearch = data.showSearch;

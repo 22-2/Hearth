@@ -1,5 +1,7 @@
+import { Platform } from "obsidian";
 import type { DatacoreLanguage } from "./datacore";
 import type { EventNoteConfig } from "./eventnote";
+import type { Granularity } from "./periodic";
 import type {
 	GitAction,
 	GitActionStyle,
@@ -12,6 +14,7 @@ export type CardKind =
 	| "embed"
 	| "slideshow"
 	| "daily"
+	| "periodic"
 	| "web"
 	| "bookmarks"
 	| "favorites"
@@ -76,24 +79,68 @@ export interface JiraConfig {
 }
 
 /** A single command tile inside a "commands" card. */
-export interface CommandItem {
+/**
+ * The size and position a single button carries inside a launchpad-like card
+ * (Links, Commands, Templater). Shared by every tile item type, because the
+ * three cards run the same grid, the same drag and the same resize.
+ *
+ * There are two generations of sizing, kept side by side so a card can switch
+ * between them without losing either:
+ *
+ * - **Fixed (legacy).** `sizeW`/`sizeH` are pixels: the button is that big
+ *   whatever the card's size, so widening the card only fits more buttons in.
+ * - **Scaled.** `spanW`/`spanH` count cells of the card's own grid (see
+ *   `DashboardCard.tileCols`), so a button is a *fraction of the card* and
+ *   grows with it — the way a card grows with the dashboard. They move in
+ *   halves, since the grid is drawn at half-cell resolution, so a button can be
+ *   half a cell wide, half a cell tall, or both.
+ *
+ * Which pair is read is decided by the card's `tileSizing`; the other is left
+ * untouched, so turning the legacy style back on restores the old sizes
+ * exactly. A tile with no `spanW`/`spanH` yet derives them from its pixel size
+ * on read, so a card flipped to the scaled style keeps its rough proportions;
+ * free-form positions, which mean different places on the two grids, start
+ * afresh instead (`col`/`row` vs `scaleCol`/`scaleRow`).
+ */
+export interface TileGeometry {
+	/** Fixed sizing: per-tile width in pixels, overriding the card's default. */
+	sizeW?: number;
+	/** Fixed sizing: per-tile height in pixels, overriding the card's default. */
+	sizeH?: number;
+	/** Legacy single per-tile pixel size (drove width and height together).
+	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
+	size?: number;
+	/** Scaled sizing: per-tile width in grid cells, in steps of a half. Default
+	 * 1. */
+	spanW?: number;
+	/** Scaled sizing: per-tile height in grid cells, in steps of a half. Default
+	 * 1. */
+	spanH?: number;
+	/** Fixed sizing: free-form grid position (1-based grid line). When omitted
+	 * the tile auto-flows into the first available cell. Set explicitly when a
+	 * tile is dragged to a spot so it stays there. */
+	col?: number;
+	/** Fixed sizing: free-form grid row (1-based). See `col`. */
+	row?: number;
+	/** Scaled sizing: free-form grid position (1-based grid line). Separate from
+	 * `col` because the two styles' cells are different sizes — one scaled cell
+	 * is a whole button, one fixed cell half of one — so the same number means
+	 * two different places and each style keeps its own arrangement. Halves are
+	 * allowed, like the spans: 2.5 is the half step between the second cell and
+	 * the third. */
+	scaleCol?: number;
+	/** Scaled sizing: free-form grid row (1-based, halves allowed). See
+	 * `scaleCol`. */
+	scaleRow?: number;
+}
+
+export interface CommandItem extends TileGeometry {
 	/** Obsidian command id, e.g. "editor:toggle-bold". */
 	id: string;
 	/** Display name (captured when the command was picked). */
 	name: string;
 	/** Optional Lucide icon id; falls back to a generic command icon. */
 	icon?: string;
-	/** Optional per-tile width in pixels, overriding the card's default. */
-	sizeW?: number;
-	/** Optional per-tile height in pixels, overriding the card's default. */
-	sizeH?: number;
-	/** Legacy single per-tile pixel size (drove width and height together).
-	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
-	size?: number;
-	/** Free-form grid position (1-based grid line). See LinkItem.col. */
-	col?: number;
-	/** Free-form grid row (1-based). See LinkItem.row. */
-	row?: number;
 }
 
 /**
@@ -104,7 +151,7 @@ export interface CommandItem {
  * tile machinery and share their arrange-mode drag and resize. What differs is
  * only what a click *does*.
  */
-export interface TemplaterItem {
+export interface TemplaterItem extends TileGeometry {
 	id: string;
 	label: string;
 	/** Lucide icon id, or the vault path of an image (see `applyTileVisual`). */
@@ -121,17 +168,6 @@ export interface TemplaterItem {
 	/** Open the new note after creating it. Default true; turn it off for tiles
 	 * that only file something away (a log entry, an inbox capture). */
 	open?: boolean;
-	/** Optional per-tile width in pixels, overriding the card's default. */
-	sizeW?: number;
-	/** Optional per-tile height in pixels, overriding the card's default. */
-	sizeH?: number;
-	/** Legacy single per-tile pixel size (drove width and height together).
-	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
-	size?: number;
-	/** Free-form grid position (1-based grid line). See LinkItem.col. */
-	col?: number;
-	/** Free-form grid row (1-based). See LinkItem.row. */
-	row?: number;
 }
 
 /** Per-card configuration for a "templater" card. */
@@ -685,12 +721,81 @@ export interface SearchBarConfig {
 	seamless?: boolean;
 }
 
+/** What a heatmap rule tests: a frontmatter property (the default), the note's
+ * tags, the folder it sits in, or its full path. */
+export type HeatmapRuleField = "property" | "tag" | "folder" | "path";
+
+/** How a heatmap rule compares. `exists`/`missing` ignore the value; `gt`/`lt`
+ * compare numerically (or by date when both sides parse as dates); the rest are
+ * case-insensitive text comparisons. */
+export type HeatmapRuleOp =
+	| "exists"
+	| "missing"
+	| "is"
+	| "isNot"
+	| "contains"
+	| "notContains"
+	| "gt"
+	| "lt";
+
+/** Every rule field, in editor order. */
+export const HEATMAP_RULE_FIELDS: HeatmapRuleField[] = ["property", "tag", "folder", "path"];
+
+/** Every rule operator, in editor order. */
+export const HEATMAP_RULE_OPS: HeatmapRuleOp[] = [
+	"is",
+	"isNot",
+	"contains",
+	"notContains",
+	"gt",
+	"lt",
+	"exists",
+	"missing",
+];
+
+/** One condition a note must meet to be counted by an advanced heatmap. */
+export interface HeatmapRule {
+	/** Stable id, so editor rows keep their identity across re-renders. */
+	id: string;
+	/** What to test. Default "property". */
+	field?: HeatmapRuleField;
+	/** The frontmatter key, when `field` is "property". Ignored otherwise. */
+	key?: string;
+	/** How to compare. Default "is". */
+	op?: HeatmapRuleOp;
+	/** What to compare against. Ignored by "exists" and "missing". */
+	value?: string;
+}
+
 /** Per-card configuration for a "heatmap" (activity) card. */
 export interface HeatmapConfig {
-	/** Which timestamp to count. Default "modified". */
+	/** Which timestamp to count. Default "modified". Basic mode only — advanced
+	 * mode reads `source` instead. */
 	metric?: "modified" | "created";
 	/** How many weeks back to show. Default 26. */
 	weeks?: number;
+	/** Opt into the advanced controls. Off (the default) counts every note by
+	 * `metric`, exactly as the card always has. */
+	advanced?: boolean;
+	/** Advanced mode: where a note's day comes from — a file timestamp, or a
+	 * date held in frontmatter (`dateProperty`). Default "modified". */
+	source?: "modified" | "created" | "property";
+	/** The frontmatter key holding the date, when `source` is "property". A
+	 * list-valued property counts once per parseable entry. */
+	dateProperty?: string;
+	/** Advanced mode: what a matching note adds to its day — 1 ("count", the
+	 * default) or the number in `valueProperty` ("sum"). */
+	value?: "count" | "sum";
+	/** The frontmatter key holding the number to add, when `value` is "sum". */
+	valueProperty?: string;
+	/** How `rules` combine: "all" (AND, the default) or "any" (OR). */
+	match?: "all" | "any";
+	/** Conditions a note must meet to be counted. Empty (the default) counts
+	 * every note. */
+	rules?: HeatmapRule[];
+	/** What one unit is called in the tooltip ("5 workouts"). Defaults to the
+	 * source's own wording ("notes edited"). */
+	unit?: string;
 }
 
 /** The built-in vault statistics a "stats" card can show. */
@@ -876,6 +981,57 @@ export interface LeafViewConfig {
 	 * kebab menu). For a single-file card that chrome is just noise; default
 	 * (false/undefined) keeps it. */
 	hideHeader?: boolean;
+}
+
+/**
+ * What a dashboard *is*.
+ *
+ * `"cards"` is the board Hearth has always had: a grid of Hearth's own cards.
+ * `"plugin"` gives the whole board over to a single registered view — the RSS
+ * reader, a Kanban board, a Canvas — hosted the way the "leaf" card hosts one,
+ * but at full size. The dashboard switcher, the header and the background stay
+ * exactly where they are, so a plugin board is one click away from every other
+ * board rather than a tab of its own.
+ *
+ * Undefined means `"cards"`, so every board saved before this existed keeps
+ * rendering as it did.
+ */
+export type DashboardMode = "cards" | "plugin";
+
+/** Every {@link DashboardMode}, in the order the settings dropdown lists them. */
+export const DASHBOARD_MODES: readonly DashboardMode[] = ["cards", "plugin"];
+
+/**
+ * What a `"plugin"` dashboard hosts, and how.
+ *
+ * The first three keys mean exactly what they mean on a {@link LeafViewConfig}
+ * — the board is the same hosting mechanism at a different size — and the rest
+ * are the choices that only make sense when a hosted view *is* the board.
+ */
+export interface PluginBoardConfig extends LeafViewConfig {
+	/**
+	 * Keep the hosted view alive when another dashboard is showing, so coming
+	 * back to this board is instant instead of a cold start. On by default
+	 * (undefined reads as true): a board that reloads its plugin on every visit
+	 * defeats the point of switching between boards.
+	 *
+	 * The cost is that the view keeps running while it is off screen, so a
+	 * genuinely expensive plugin can be switched back to unmounting here. Only
+	 * a small number of boards are ever kept alive at once regardless — see
+	 * PLUGIN_BOARD_KEEP_ALIVE_MAX in `pluginboard.ts`.
+	 */
+	keepMounted?: boolean;
+	/**
+	 * Let the hosted view become Obsidian's active leaf while the pointer or
+	 * keyboard is inside it, so the plugin's own commands and hotkeys — "RSS:
+	 * refresh all feeds", a Kanban board's own shortcuts — find it.
+	 *
+	 * Off by default, and experimental: an active leaf is also where Obsidian
+	 * puts a note you open, so with this on a link click can replace the hosted
+	 * view with the note. Hearth hands the active leaf back to its own when the
+	 * board goes away, so the effect never outlives the board.
+	 */
+	focusable?: boolean;
 }
 
 /** A single feed a "rss" card can subscribe to. Each source becomes a tab in
@@ -1224,6 +1380,17 @@ export type SlideshowOrder =
 	| "modifiedDesc"
 	| "random";
 
+/**
+ * What moves a slideshow on to the next picture.
+ *
+ * - "timer" — a clock, every `intervalSec` seconds. The original behaviour.
+ * - "daily" — the calendar: one picture per `dayCount` days, worked out from
+ *   today's date rather than from a timer, so a redraw, a board switch or an
+ *   Obsidian restart all land on the same picture (#249).
+ * - "manual" — nothing but the controls; the card stays where you left it.
+ */
+export type SlideshowAdvance = "timer" | "daily" | "manual";
+
 /** How one picture gives way to the next. "none" is a cut. */
 export type SlideshowTransition = "none" | "fade" | "slide" | "zoom";
 
@@ -1234,6 +1401,15 @@ export type SlideshowFit = "cover" | "contain";
 /** Per-card configuration for a "slideshow" card — a picture embed that
  * rotates. All fields are optional; the defaults noted below are the ones a
  * freshly added card runs with. */
+/** What a Periodic note card shows: always the *current* note of one period,
+ * resolved through the Periodic Notes plugin (issue #116). Which folder, name
+ * and template that note has is Periodic Notes' business, not Hearth's. */
+export interface PeriodicCardConfig {
+	/** The period the card tracks. Omitted means weekly — the daily note has a
+	 * card of its own. */
+	granularity?: Granularity;
+}
+
 export interface SlideshowConfig {
 	/** Where the pictures come from. Default "list". */
 	source?: SlideshowSource;
@@ -1245,8 +1421,15 @@ export interface SlideshowConfig {
 	includeSubfolders?: boolean;
 	/** Display order. Default "manual" (a folder source: "name"). */
 	order?: SlideshowOrder;
-	/** Seconds each picture is shown. Default 8; 0 holds the first picture. */
+	/** What moves the card on to the next picture. Default "timer" — except on
+	 * a card saved before this field existed with `intervalSec: 0`, which was
+	 * the only way to say "don't rotate" and so reads as "manual". */
+	advance?: SlideshowAdvance;
+	/** Seconds each picture is shown (advance "timer"). Default 8; 0 holds the
+	 * first picture. */
 	intervalSec?: number;
+	/** Days each picture is shown (advance "daily"). Default 1, at most 365. */
+	dayCount?: number;
 	/** How one picture gives way to the next. Default "fade". */
 	transition?: SlideshowTransition;
 	/** Transition length in milliseconds. Default 700. */
@@ -1265,7 +1448,7 @@ export interface SlideshowConfig {
 }
 
 /** A single tile inside a "links" (launchpad) card. */
-export interface LinkItem {
+export interface LinkItem extends TileGeometry {
 	id: string;
 	label: string;
 	/** Lucide icon id. */
@@ -1273,19 +1456,6 @@ export interface LinkItem {
 	/** Vault path, URL, or command id depending on type. */
 	target: string;
 	type: "note" | "url" | "command";
-	/** Optional per-tile width in pixels, overriding the card's default. */
-	sizeW?: number;
-	/** Optional per-tile height in pixels, overriding the card's default. */
-	sizeH?: number;
-	/** Legacy single per-tile pixel size (drove width and height together).
-	 * Migrated to sizeW/sizeH on first read; new code writes those instead. */
-	size?: number;
-	/** Free-form grid position (1-based grid line). When omitted the tile
-	 * auto-flows into the first available cell. Set explicitly when a tile is
-	 * dragged to a spot so it stays there. */
-	col?: number;
-	/** Free-form grid row (1-based). See `col`. */
-	row?: number;
 }
 
 export interface DashboardCard {
@@ -1303,6 +1473,8 @@ export interface DashboardCard {
 	/** kind === "slideshow": the pictures, where they come from, and how they
 	 * rotate. */
 	slideshow?: SlideshowConfig;
+	/** kind === "periodic": which period's note the card follows. */
+	periodic?: PeriodicCardConfig;
 	/** kind === "web": the web page URL to embed in an iframe. */
 	url?: string;
 	/** kind === "web": allow the framed page same-origin access. Off by default
@@ -1341,7 +1513,8 @@ export interface DashboardCard {
 	savedSearch?: SavedSearchConfig;
 	/** kind === "searchbar": filter row and seamless (frameless) display. */
 	searchBar?: SearchBarConfig;
-	/** kind === "heatmap": metric and range. */
+	/** kind === "heatmap": metric, range and (in advanced mode) the custom
+	 * metric — date source, value, and the rules picking which notes count. */
 	heatmap?: HeatmapConfig;
 	/** kind === "stats": which stats to show, attachment breakdown and custom
 	 * query counts (all gated behind the config's `advanced` flag). */
@@ -1380,7 +1553,7 @@ export interface DashboardCard {
 	 * rendering it read-only. Only applies to Markdown notes. */
 	editable?: boolean;
 
-	/** kind === "embed" / "daily": when editing in place, use Obsidian's own
+	/** kind === "embed" / "daily" / "periodic": when editing in place, use Obsidian's own
 	 * Live Preview editor (hosted in the card) instead of Hearth's plain
 	 * raw-Markdown box. Only meaningful together with `editable`. */
 	livePreview?: boolean;
@@ -1406,8 +1579,43 @@ export interface DashboardCard {
 	 * only the results show. No effect on non-base embeds. */
 	hideBaseHeader?: boolean;
 
+	/** kind === "links" / "commands" / "templater": how the card's buttons are
+	 * sized.
+	 *
+	 * - `"fixed"` (the default when absent) — the original behaviour: a button
+	 *   is a fixed number of pixels, so a wider card fits more buttons rather
+	 *   than bigger ones.
+	 * - `"scale"` — the buttons fill the card: it is divided into `tileCols`
+	 *   columns and as many rows as the buttons need, the rows sharing the
+	 *   card's height between them, and a button spans cells of that grid —
+	 *   whole ones or halves.
+	 *   So every button grows and shrinks with the card the same way a card
+	 *   grows with the dashboard, and every one of them stays visible whatever
+	 *   size the card is — until a cell would fall below `tileMinSize` on either
+	 *   axis, where the card scrolls rather than drawing buttons too small to
+	 *   use. Buttons stay on the grid: they are sized in cells (down to a half),
+	 *   not freely in pixels.
+	 *
+	 * Cards created before this existed carry no value and so keep the fixed
+	 * style; every card added since asks for `"scale"` in its template, and the
+	 * card's own settings switch either way at any time. */
+	tileSizing?: "fixed" | "scale";
+
+	/** kind === "links" / "commands" / "templater": with `tileSizing: "scale"`,
+	 * how many cells wide the card's button grid is — so a one-cell button is
+	 * this fraction of the card. Omitted means TILE_COLS_DEFAULT. Ignored by the
+	 * fixed style. */
+	tileCols?: number;
+
+	/** kind === "links" / "commands" / "templater": with `tileSizing: "scale"`,
+	 * how small a cell may get (px) before the card scrolls instead of shrinking
+	 * its buttons any further. Omitted means TILE_MIN_DEFAULT; clamped to
+	 * [TILE_MIN_MIN, TILE_MIN_MAX] on read. Ignored by the fixed style. */
+	tileMinSize?: number;
+
 	/** kind === "commands" / "templater": pixel size of the tiles (min column
-	 * width). Omitted means the default tile size. */
+	 * width) in the fixed style. Omitted means the default tile size. Ignored by
+	 * the scaled style, which sizes buttons from `tileCols`. */
 	tileSize?: number;
 
 	/** kind === "links" / "commands" / "templater" (beta): when true, tiles auto-shift out
@@ -1419,9 +1627,10 @@ export interface DashboardCard {
 	/** Show a button that opens the card's file in the editor.
 	 *
 	 * The two cards that offer it default differently, because one of them
-	 * predates the other: on `kind === "daily"` the button is shown unless this
-	 * is `false`, while on `kind === "embed"` (added for #144) it is hidden
-	 * unless this is `true`, so no existing embed card sprouts a new control. */
+	 * predates the other: on `kind === "daily"` and `kind === "periodic"` the
+	 * button is shown unless this is `false`, while on `kind === "embed"` (added
+	 * for #144) it is hidden unless this is `true`, so no existing embed card
+	 * sprouts a new control. */
 	showOpenButton?: boolean;
 
 	/** Show this card on every dashboard, sharing one definition and position
@@ -1461,6 +1670,44 @@ export interface DashboardCard {
 	fy?: number;
 	fw?: number;
 	fh?: number;
+
+	// ---- Layout (stacked / narrow) ----
+	/** How this card behaves in the stacked layout a narrow board reflows to
+	 * (see src/narrow.ts). Every field is optional and absent means "derive it
+	 * from the free-form layout above", so no existing card changes behaviour
+	 * and a board only carries what someone actually tuned. */
+	mobile?: MobileCardOptions;
+}
+
+/**
+ * A card's overrides for the stacked layout used on a narrow board.
+ *
+ * The stacked layout derives everything it needs from the free-form geometry —
+ * cards run top-to-bottom in reading order at the height they already have —
+ * so this exists purely for the cases where the derivation is wrong. Deliberately
+ * four hints on the stacked layout rather than a second set of coordinates: a
+ * card has one layout to maintain, and a board that has never been opened on a
+ * phone still stacks sensibly.
+ */
+export interface MobileCardOptions {
+	/** Leave the card out of the stacked layout entirely. For the cards that
+	 * genuinely can't work at phone width (a wide Dataview table, a Jira board)
+	 * — hiding beats squeezing. The card is untouched on a wide board. */
+	hidden?: boolean;
+	/** Sort key overriding the derived reading order. Cards carrying one are
+	 * ordered by it and come first; the rest follow in reading order. Reading
+	 * order is a desktop *layout* fact, and it is rarely the same as what you
+	 * want first on a phone. */
+	order?: number;
+	/** Height in pixels in the stacked layout, instead of the height derived
+	 * from `fh`. A card is full-width when stacked, which is usually much wider
+	 * than it is on the board, so the desktop height can be far more than its
+	 * content now needs. */
+	height?: number;
+	/** Render as a tappable title row that expands on demand, rather than at
+	 * full height. What makes an expensive card worth keeping on a phone: it
+	 * costs one row until someone asks for it. */
+	collapsed?: boolean;
 }
 
 /** Background mode for the home view. "default" uses Hearth's current bundled
@@ -1605,24 +1852,23 @@ export interface DashboardHeaderConfig {
 	showTitle?: boolean;
 	/** Override the global title text for this dashboard. */
 	title?: string;
-	/** Override the global logo text/icon for this dashboard. Empty = Hearth icon. */
-	logo?: string;
-	/** Override the global title Lucide icon for this dashboard. A bare Lucide id
-	 * (`"flame"`), drawn instead of the logo text. An empty string is a real
-	 * override meaning "no icon on this board" — it falls back to the logo text,
-	 * not to the global icon; undefined follows the global setting. */
-	logoIcon?: string;
+	/** Override the global title icon for this dashboard: a Lucide id, an emoji
+	 * or short text, a vault image path, or an image URL (see `titleicon.ts`).
+	 * An empty string is a real override meaning "the Hearth crystal on this
+	 * board"; undefined follows {@link HomeSettings.titleIcon}. */
+	titleIcon?: string;
 	/** Override which parts of this board's brand mark follow the theme's icon
 	 * colour (undefined = use the global {@link HomeSettings.themeColorTarget}).
 	 * Scoped to the board's own title block; Hearth's tab and ribbon icons are
 	 * app-level and keep following the global setting. */
 	themeColorTarget?: HomeSettings["themeColorTarget"];
-	/** Align only the title/logo block; the search section below has its own
+	/** Align only the title block; the search section below has its own
 	 * layout. */
 	align?: HeaderAlign;
 	/** Title size multiplier, clamped to a conservative range. */
 	titleScale?: number;
-	/** Logo size multiplier, clamped to a conservative range. */
+	/** Title icon size multiplier, clamped to a conservative range. The key
+	 * keeps its pre-2.2 name so no board's sizing needs migrating. */
 	logoScale?: number;
 	/** Title block top margin in pixels. Undefined keeps the stylesheet default. */
 	marginTop?: number;
@@ -1634,6 +1880,14 @@ export interface DashboardHeaderConfig {
 export interface Dashboard extends BannerOverrides {
 	id: string;
 	name: string;
+	/** What this board is: a grid of Hearth cards (the default, and what
+	 * undefined means) or a single hosted plugin view filling the board. See
+	 * {@link DashboardMode}. */
+	mode?: DashboardMode;
+	/** Which view a `"plugin"` board hosts, and how. Ignored on a cards board,
+	 * and kept when the mode is switched back and forth so flipping the type
+	 * twice doesn't lose the choice. */
+	pluginView?: PluginBoardConfig;
 	/** Optional emoji/short text shown on the switcher button instead of its
 	 * 1-based number. */
 	icon?: string;
@@ -1652,6 +1906,9 @@ export interface Dashboard extends BannerOverrides {
 	fitToPage?: boolean;
 	/** Override the content max-width (px) for this board (undefined = global). */
 	maxWidth?: number;
+	/** Override "full width" for this board (undefined = global). When true the
+	 * board's content fills the pane and {@link maxWidth} is ignored. */
+	fullWidth?: boolean;
 	/** Override compact spacing for this board (undefined = global). */
 	compact?: boolean;
 	/** Override the card surface opacity for this board (undefined = global). */
@@ -1663,7 +1920,7 @@ export interface Dashboard extends BannerOverrides {
 	cardRadius?: number;
 	/** Override the card border width (px) for this board (undefined = global). */
 	cardBorderWidth?: number;
-	/** Per-dashboard overrides for the title/logo block. */
+	/** Per-dashboard overrides for the title block. */
 	header?: DashboardHeaderConfig;
 	/** Override the global search/command section visibility for this board
 	 * (undefined = follow {@link HomeSettings.showSearch}). */
@@ -1736,13 +1993,12 @@ export interface HomeSettings {
 	// ---- Header ----
 	title: string;
 	showTitle: boolean;
-	/** Emoji or short text shown as a logo next to the title. */
-	logo: string;
-	/** A Lucide icon id drawn as the title icon instead of the emoji/text logo
-	 * (`"flame"`, `"layout-dashboard"`). Empty = fall back to {@link logo}, and
-	 * to the Hearth crystal when that is empty too. Each dashboard can override
-	 * it — see {@link DashboardHeaderConfig.logoIcon}. */
-	logoIcon: string;
+	/** The mark drawn beside the title. One field holding any of five things —
+	 * a Lucide id (`"flame"`), an emoji or short text, a vault image path, an
+	 * image URL, or empty for the Hearth crystal; `titleicon.ts` decides which
+	 * a value is. Each dashboard can override it — see
+	 * {@link DashboardHeaderConfig.titleIcon}. */
+	titleIcon: string;
 	/** A Lucide icon id used for Hearth's tab header and ribbon button instead of
 	 * the Hearth crystal. Empty = the crystal. */
 	tabIcon: string;
@@ -1813,6 +2069,13 @@ export interface HomeSettings {
 	 * board is being arranged. Off by default; a home view already refreshes
 	 * whenever the user switches back to its tab regardless of this setting. */
 	liveRefresh: boolean;
+	/** Adopt settings written to Hearth's `data.json` by something other than
+	 * this window — Obsidian Sync landing another device's dashboards, a git
+	 * pull, an external editor — as they arrive, instead of only at the next
+	 * Obsidian restart. On by default: without it this window keeps showing the
+	 * copy it read at startup and writes that stale copy back on its next save.
+	 * See `src/settingssync.ts`. */
+	liveSettingsSync: boolean;
 	/** On mobile, show only the search field and hide the dashboard. Has no
 	 * effect on desktop, where the full dashboard is always shown. */
 	mobileSearchOnly: boolean;
@@ -1821,6 +2084,12 @@ export interface HomeSettings {
 	showMobileActionBar: boolean;
 	/** Buttons shown in the mobile action bar. */
 	mobileActionButtons: MobileActionButton[];
+	/** Reflow the board into a single full-width column once it is narrower
+	 * than {@link NARROW_MAX_WIDTH} — a phone, but equally a narrow desktop
+	 * pane. On by default: the free-form layout has no meaning at that width
+	 * (a quarter-width card is ~90px on a phone), so the alternative is a board
+	 * nobody can read. Turn it off to keep the scaled free-form layout. */
+	stackOnNarrow: boolean;
 	/** Block all outbound network requests Hearth would otherwise make. The only
 	 * requests are configured live-content cards (including Jira) and the
 	 * calculator's key-less, ECB-backed currency-rate fetch. */
@@ -1855,6 +2124,17 @@ export interface HomeSettings {
 	 * file is edited by hand while a lower tier is selected.
 	 */
 	performanceTier: PerformanceTier;
+	/**
+	 * The performance tier to use on mobile, where {@link performanceTier} is
+	 * ignored. `"match"` follows the desktop tier instead of overriding it.
+	 *
+	 * Separate because the trade-off genuinely differs by device rather than by
+	 * taste: the animated sky and the frosted glass are the two most expensive
+	 * things Hearth draws, and a phone pays for them out of a battery while
+	 * showing them on the smallest screen Hearth runs on. Defaults to
+	 * `"balanced"`, which thins the sky and changes nothing else.
+	 */
+	mobilePerformanceTier: PerformanceTier | "match";
 	/** The flat background colour used on the "minimal" tier. Any CSS colour;
 	 * defaults to {@link LOW_POWER_BACKGROUND}. */
 	lowPowerBackgroundColor: string;
@@ -1959,7 +2239,14 @@ export interface HomeSettings {
 	operonWrites: boolean;
 
 	// ---- Layout ----
+	/** The widest the content column may grow, in pixels. It is a ceiling, not a
+	 * width: the column is fluid and shrinks to fit a narrower pane. Ignored
+	 * entirely while {@link fullWidth} is on. */
 	maxWidth: number;
+	/** Drop the ceiling and let the content column fill the pane at any size.
+	 * Off by default: card geometry scales with the column but type does not, so
+	 * an unbounded column turns a board on a wide monitor sparse. */
+	fullWidth: boolean;
 
 	// ---- Internal bookkeeping ----
 	/** The plugin version whose release notes the user last saw. Used to decide
@@ -1988,9 +2275,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	title: "Obsidian",
 	showTitle: true,
 	// Empty => the Hearth crystal icon is shown as the brand mark.
-	logo: "",
-	// Empty => no Lucide title icon; the logo text (or the crystal) is drawn.
-	logoIcon: "",
+	titleIcon: "",
 	// Empty => the Hearth crystal is the tab and ribbon icon.
 	tabIcon: "",
 	themeColorTarget: "none",
@@ -2023,11 +2308,13 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	replaceNewTabs: true,
 	focusSearchOnOpen: false,
 	liveRefresh: false,
+	liveSettingsSync: true,
 	mobileSearchOnly: false,
 	showMobileActionBar: true,
 	// Backfilled by migrateSettings so a fresh install gets the defaults below
 	// and existing vaults aren't silently reset if the list is emptied.
 	mobileActionButtons: [],
+	stackOnNarrow: true,
 	disableExternalCalls: false,
 
 	// A new tab is what Hearth has always done; existing vaults must not change
@@ -2038,6 +2325,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	openFromOutside: "same",
 
 	performanceTier: "full",
+	mobilePerformanceTier: "balanced",
 	lowPowerBackgroundColor: LOW_POWER_BACKGROUND,
 	// On by default: it pauses animation nobody is looking at (see the field's
 	// own note for why a hidden tab is already free but an unfocused window is
@@ -2097,6 +2385,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	operonWrites: false,
 
 	maxWidth: 1600,
+	fullWidth: false,
 
 	lastSeenVersion: "",
 	// Fresh installs start out owing the wizard a run; `migrateSettings` marks
@@ -2191,9 +2480,39 @@ export function activeCards(s: HomeSettings): DashboardCard[] {
 	return activeDashboard(s).cards;
 }
 
-/** Cards to render on the active board: its own cards plus every pinned card. */
+/** Cards to render on the active board: its own cards plus every pinned card.
+ *
+ * A plugin board renders no cards at all — not even pinned ones, which have
+ * nowhere to sit on a board that is one full-size hosted view. */
 export function renderCards(s: HomeSettings): DashboardCard[] {
-	return [...activeDashboard(s).cards, ...s.pinnedCards];
+	const dash = activeDashboard(s);
+	if (isPluginBoard(dash)) return [];
+	return [...dash.cards, ...s.pinnedCards];
+}
+
+/** Whether `dash` gives its whole board to a hosted plugin view. Undefined
+ * `mode` — every board saved before plugin boards existed — is a cards board,
+ * and so is any unrecognised value synced back from a future version. */
+export function isPluginBoard(dash: Dashboard | undefined): boolean {
+	return dash?.mode === "plugin";
+}
+
+/** Whether the *active* board is a plugin board. */
+export function activeIsPluginBoard(s: HomeSettings): boolean {
+	return isPluginBoard(activeDashboard(s));
+}
+
+/** The view type a plugin board hosts, or "" when it hasn't been pointed at one
+ * yet (a board freshly switched to plugin mode). Trimmed, so a config holding
+ * only whitespace reads as unset. */
+export function pluginBoardViewType(dash: Dashboard): string {
+	return dash.pluginView?.viewType?.trim() ?? "";
+}
+
+/** Whether a plugin board keeps its hosted view alive while another board is
+ * showing. Undefined is on — see {@link PluginBoardConfig.keepMounted}. */
+export function pluginBoardKeepsMounted(dash: Dashboard): boolean {
+	return dash.pluginView?.keepMounted ?? true;
 }
 
 /** Effective grid columns for the active board (per-dashboard override or global). */
@@ -2214,7 +2533,11 @@ export function effectiveFitToPage(s: HomeSettings): boolean {
 /** Whether the active board should show the search/command section
  * (per-dashboard override or global). */
 export function effectiveShowSearch(s: HomeSettings): boolean {
-	return activeDashboard(s).showSearch ?? s.showSearch;
+	const dash = activeDashboard(s);
+	// A plugin board is given over to the hosted view, so the search section is
+	// off there unless the board asks for it back. The board's own override
+	// still wins either way — this only changes what "no override" means.
+	return dash.showSearch ?? (isPluginBoard(dash) ? false : s.showSearch);
 }
 
 export const HEADER_SCALE_MIN = 0.6;
@@ -2245,40 +2568,39 @@ function clampHeaderSpacingBelow(v: unknown): number | undefined {
 		: undefined;
 }
 
-/** Whether the active board should show the title/logo block. */
+/** Whether the active board should show the title block. */
 export function effectiveShowTitle(s: HomeSettings): boolean {
-	return activeDashboard(s).header?.showTitle ?? s.showTitle;
+	const dash = activeDashboard(s);
+	// Same reasoning as effectiveShowSearch: the hosted view is the board, so
+	// the title block starts out of its way and can be switched back on.
+	return dash.header?.showTitle ?? (isPluginBoard(dash) ? false : s.showTitle);
 }
 
-/** Title text for the active board's title/logo block. */
+/** Title text for the active board's title block. */
 export function effectiveTitle(s: HomeSettings): string {
 	return activeDashboard(s).header?.title ?? s.title;
 }
 
-/** Logo text for the active board's title/logo block. Empty = Hearth icon. */
-export function effectiveLogo(s: HomeSettings): string {
-	return activeDashboard(s).header?.logo ?? s.logo;
+/** The title icon for the active board — a Lucide id, emoji/text, a vault image
+ * path or an image URL; `titleicon.ts` decides which. Empty = the Hearth
+ * crystal, and a board's own empty string wins over a global icon: that is how
+ * a single board opts back out of it. */
+export function effectiveTitleIcon(s: HomeSettings): string {
+	return activeDashboard(s).header?.titleIcon ?? s.titleIcon;
 }
 
-/** Lucide title icon for the active board. Empty = none, so the logo text (or
- * the Hearth crystal) is drawn instead. A board's own empty string wins over a
- * global icon: that is how a single board opts back out of it. */
-export function effectiveLogoIcon(s: HomeSettings): string {
-	return activeDashboard(s).header?.logoIcon ?? s.logoIcon;
-}
-
-/** Alignment for the active board's title/logo block; search layout is separate. */
+/** Alignment for the active board's title block; search layout is separate. */
 export function effectiveHeaderAlign(s: HomeSettings): HeaderAlign {
 	const align = activeDashboard(s).header?.align;
 	return align === "left" || align === "right" ? align : "center";
 }
 
-/** Title size multiplier for the active board's title/logo block. */
+/** Title size multiplier for the active board's title block. */
 export function effectiveHeaderTitleScale(s: HomeSettings): number {
 	return clampHeaderScale(activeDashboard(s).header?.titleScale);
 }
 
-/** Logo size multiplier for the active board's title/logo block. */
+/** Title icon size multiplier for the active board's title block. */
 export function effectiveHeaderLogoScale(s: HomeSettings): number {
 	return clampHeaderScale(activeDashboard(s).header?.logoScale);
 }
@@ -2307,9 +2629,29 @@ export function effectiveThemeColorTarget(s: HomeSettings): HomeSettings["themeC
 	return activeDashboard(s).header?.themeColorTarget ?? s.themeColorTarget;
 }
 
+/** Content-width bounds, in pixels. The floor keeps the column wide enough for
+ * a readable multi-column board; the ceiling reaches the full width of a 4K
+ * panel, past which a fixed number stops meaning anything and "full width" is
+ * the honest answer. The settings sliders, the per-board override and the
+ * clamp applied to an imported layout all read these, so the range has exactly
+ * one definition. */
+export const CONTENT_WIDTH_MIN = 700;
+export const CONTENT_WIDTH_MAX = 3840;
+export const CONTENT_WIDTH_STEP = 20;
+
 /** Effective content max-width for the active board (per-dashboard override or global). */
 export function effectiveMaxWidth(s: HomeSettings): number {
 	return activeDashboard(s).maxWidth ?? s.maxWidth;
+}
+
+/** Whether the active board ignores its width ceiling and fills the pane
+ * (per-dashboard override or global). */
+export function effectiveFullWidth(s: HomeSettings): boolean {
+	const dash = activeDashboard(s);
+	// A hosted view is chrome of its own — a reader, a board, a canvas — and
+	// looks wrong boxed into a column of body text, so a plugin board fills the
+	// pane unless it says otherwise.
+	return dash.fullWidth ?? (isPluginBoard(dash) ? true : s.fullWidth);
 }
 
 /**
@@ -2321,7 +2663,19 @@ export function effectiveMaxWidth(s: HomeSettings): number {
  * something arbitrary.
  */
 export function performanceTier(s: HomeSettings): PerformanceTier {
-	return PERFORMANCE_TIERS.includes(s.performanceTier) ? s.performanceTier : "full";
+	// On a phone or tablet the mobile tier answers instead, unless it is set to
+	// follow the desktop one. Resolved here rather than at each call site so
+	// every predicate below (motion, frost, refresh timers) picks it up for
+	// free, and so the desktop tier is never overwritten to express a mobile
+	// preference — both are stored, and the device decides which is read.
+	//
+	// Repaired in two steps rather than one so an unreadable mobile value falls
+	// back to the desktop tier the user actually chose, not to `full`.
+	const mobile = Platform.isMobile ? s.mobilePerformanceTier : "match";
+	const tier = mobile !== "match" && PERFORMANCE_TIERS.includes(mobile)
+		? mobile
+		: s.performanceTier;
+	return PERFORMANCE_TIERS.includes(tier) ? tier : "full";
 }
 
 /** Rank on the ladder, so the predicates below can say "at least this frugal"
@@ -2558,6 +2912,30 @@ export function bannerActive(s: HomeSettings): boolean {
 }
 
 /**
+ * Turn the raw contents of `data.json` into usable settings: defaults for
+ * everything it doesn't carry (top-level and nested), then the one-way
+ * migrations.
+ *
+ * Shared by the load at startup and by the adoption of settings another device
+ * synced in (`src/settingssync.ts`), so a board arriving mid-session is
+ * hydrated exactly the way a restart would have hydrated it.
+ *
+ * `migrated` is true when a destructive migration ran and its result therefore
+ * needs flushing back to storage — see {@link migrateSettings}.
+ */
+export function hydrateSettings(raw: Record<string, unknown>): {
+	settings: HomeSettings;
+	migrated: boolean;
+} {
+	const settings = Object.assign({}, DEFAULT_SETTINGS, raw) as HomeSettings;
+	fillMissingDefaults(
+		settings as unknown as Record<string, unknown>,
+		DEFAULT_SETTINGS as unknown as Record<string, unknown>,
+	);
+	return { settings, migrated: migrateSettings(settings, raw) };
+}
+
+/**
  * Recursively backfill any keys missing from `target` using `defaults`, for
  * plain objects only (arrays and primitives are left as loaded). A top-level
  * Object.assign only backfills top-level keys; this also fills nested config
@@ -2592,7 +2970,8 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  * fields. Idempotent — safe to run on every load.
  *
  * Returns `true` when it performed a destructive/one-way migration whose result
- * must be flushed back to storage (currently only the `commandId` → `target`
+ * must be flushed back to storage (the `commandId` → `target` fold, the
+ * `lowPower` → performance tier fold, and the `logo`/`logoIcon` → `titleIcon`
  * fold), so the caller knows to persist. The purely additive back-fills above
  * remain in-memory until the next ordinary save, exactly as before.
  */
@@ -2650,6 +3029,9 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	s.bannerHeight = clampBannerHeight(s.bannerHeight);
 	if (typeof s.bannerFade !== "boolean") s.bannerFade = true;
 	if (typeof s.bannerFullWidth !== "boolean") s.bannerFullWidth = false;
+	// Additive too: a vault saved before the content column could go unbounded
+	// has no key here, and false leaves it drawing at exactly the width it did.
+	if (typeof s.fullWidth !== "boolean") s.fullWidth = false;
 	// Fit-to-page is the default for fresh installs; existing users keep their
 	// choice (only backfill when the field is missing entirely).
 	if (typeof raw.fitToPage !== "boolean") s.fitToPage = true;
@@ -2717,7 +3099,87 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	// The short-lived "split" pill mode was replaced by a plain single button
 	// whose action is chosen here; fall back to the original New-note behaviour.
 	if ((s.newNoteButtonMode as string) === "split") s.newNoteButtonMode = "newNote";
+	const migratedTitleIcon = migrateTitleIcon(s, raw);
 	// Drop the obsolete single-board field so it can't shadow the dashboards.
 	delete (s as unknown as { cards?: unknown }).cards;
-	return migratedCommandId || migratedLowPower;
+	return migratedCommandId || migratedLowPower || migratedTitleIcon;
+}
+
+/** The pre-2.2 title mark: an emoji/text `logo` beside a Lucide `logoIcon` that
+ * won whenever it held anything (#252). Both are read off persisted data, so
+ * neither is typed as a string until it has been checked. */
+interface LegacyTitleFields {
+	logo?: unknown;
+	logoIcon?: unknown;
+}
+
+function trimmedString(v: unknown): string | undefined {
+	return typeof v === "string" ? v.trim() : undefined;
+}
+
+/**
+ * The one value the legacy `logo`/`logoIcon` pair actually drew.
+ *
+ * `own` is the pair being folded and `inherited` the pair it fell back to field
+ * by field — for a board that is the vault-wide pair, for the vault-wide pair
+ * itself there is none. The precedence is the header's own, from before the
+ * merge: a Lucide icon beat the logo text, and the text was drawn only when no
+ * icon was set. Both sides are consulted independently, because a board that
+ * overrode only one of the two inherited the other.
+ */
+export function legacyTitleIcon(
+	own: LegacyTitleFields,
+	inherited: LegacyTitleFields = {},
+): string {
+	const icon = trimmedString(own.logoIcon) ?? trimmedString(inherited.logoIcon) ?? "";
+	if (icon) return icon;
+	return trimmedString(own.logo) ?? trimmedString(inherited.logo) ?? "";
+}
+
+/**
+ * One-way migration (added 2.2.0): fold `logo` + `logoIcon` into the single
+ * `titleIcon`, vault-wide and on every board that overrode either (#252).
+ *
+ * The merged value is what the pair *drew*, not a preference for one field over
+ * the other — a board keeps exactly the mark it had, even where that means its
+ * own logo text was being hidden by a global Lucide icon all along. A board
+ * whose merged value matches the vault-wide one loses the override entirely
+ * rather than freezing a copy of it, so a later change to the global icon still
+ * reaches it.
+ *
+ * This does NOT round-trip: downgrading below 2.2.0 after it has run shows the
+ * Hearth crystal again until the logo fields are set anew. See CHANGELOG.
+ */
+function migrateTitleIcon(s: HomeSettings, raw: Record<string, unknown>): boolean {
+	let migrated = false;
+	const legacy = raw as LegacyTitleFields;
+	// Keyed off `raw`: loadSettings has already merged DEFAULT_SETTINGS over the
+	// persisted data, so `s.titleIcon` is always a string by now and testing it
+	// would mean never seeing the legacy fields at all.
+	if (typeof raw.titleIcon !== "string") s.titleIcon = legacyTitleIcon(legacy);
+	for (const key of ["logo", "logoIcon"] as const) {
+		if (key in (s as object)) {
+			delete (s as Partial<HomeSettings> & LegacyTitleFields)[key];
+			migrated = true;
+		}
+	}
+	for (const dash of s.dashboards) {
+		const header: (DashboardHeaderConfig & LegacyTitleFields) | undefined = dash.header;
+		if (!header) continue;
+		const hadLegacy = "logo" in header || "logoIcon" in header;
+		if (hadLegacy && typeof header.titleIcon !== "string") {
+			const folded = legacyTitleIcon(header, legacy);
+			// An override that resolves to the vault-wide mark is not an override:
+			// dropping it keeps the board following the global setting.
+			if (folded !== s.titleIcon) header.titleIcon = folded;
+		}
+		if (!hadLegacy) continue;
+		delete header.logo;
+		delete header.logoIcon;
+		migrated = true;
+		// A header left with nothing in it would still read as "this board
+		// overrides its header" everywhere that checks for the object.
+		if (Object.keys(header).length === 0) delete dash.header;
+	}
+	return migrated;
 }

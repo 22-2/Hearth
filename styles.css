@@ -339,6 +339,24 @@
 	height: 1em;
 }
 
+/* A picture used as the title icon — from the vault or from the web. Sized off
+   the same 1em as a Lucide mark, so the "Title icon size" slider moves it too,
+   with the natural aspect ratio kept and a cap so a wide wordmark can't crowd
+   the title out of the row. */
+.hearth-logo-image {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.hearth-logo-image img {
+	height: 1em;
+	width: auto;
+	max-width: min(100%, 6em);
+	object-fit: contain;
+}
+
 /* "Follow theme icon color" setting: tint the crystal and/or the title text
    with the theme's icon color instead of the brand purple / normal text. */
 .hearth-title.is-icon-themed .hearth-logo-icon {
@@ -906,32 +924,61 @@
 		transform 120ms ease;
 }
 
-/* Frosted glass: a SINGLE shared blur layer per grid, not a backdrop-filter on
- * each card. A per-card backdrop-filter seams where merged cards meet: each card
- * is its own backdrop root, so the blur is computed and edge-clamped
- * independently on either side of a shared edge, leaving a visible line that no
- * border/shadow trick can hide (and oversizing a per-card blur only trades the
- * clamp seam for paint-order contamination from the neighbour). Instead one or
- * more .hearth-frost layers sit behind the cards (in .hearth-frost-root, the
- * grid's first child) and blur the wallpaper ONCE; an SVG mask — rebuilt from
- * live card geometry in updateFrostLayers() — reveals each layer only under its
- * cards, so gaps between cards stay sharp while a run of touching cards reads as
- * one seamless frosted tile. Cards keep their translucent tint (see the
- * .hearth-card background), which paints over the shared blur: blur-then-tint,
- * the correct frosted-glass order. One layer is created per distinct resolved
- * blur value (usually just the board default); the blur radius and mask are set
- * inline per layer by updateFrostLayers(). .has-blur simply marks which cards
+/* Frosted glass: one shared blur layer per RUN OF TOUCHING CARDS, not a
+ * backdrop-filter on each card and not one layer for the whole board.
+ *
+ * Not per card, because a per-card backdrop-filter seams where merged cards
+ * meet: each card is its own backdrop root, so the blur is computed and
+ * edge-clamped independently on either side of a shared edge, leaving a bright
+ * line that no border/shadow trick can hide (and oversizing a per-card blur only
+ * trades the clamp seam for paint-order contamination from the neighbour).
+ *
+ * Not one layer per board either, and this is the part that is easy to get
+ * wrong. Such a layer has to span the gaps between far-apart cards, and then
+ * leans entirely on its mask to keep the blur out of them; where the mask is not
+ * honoured — older Chromium does not always clip a backdrop-filter by the
+ * element's own mask — the whole bounding box reads as one frosted sheet with the
+ * cards floating on it, which is exactly what it looks like when two cards sit at
+ * opposite ends of a board. Sizing each layer to its own run means there is
+ * nothing over a gap to hide in the first place.
+ *
+ * So: .hearth-frost layers sit behind the cards (in .hearth-frost-root, the
+ * grid's first child) and blur the wallpaper ONCE per run; an SVG mask — rebuilt
+ * from live card geometry in updateFrostLayers() — reveals each layer only under
+ * that run's cards, so a run of touching cards reads as one seamless frosted tile
+ * while the gaps stay sharp.
+ *
+ * The layer's box is sized to its run exactly, with no padding, and rounded with
+ * an inline border-radius. That is deliberate and it is the second half of the
+ * same lesson: a mask is the only way to trim a backdrop-filter without also
+ * shrinking what it samples (clip-path and an ancestor's overflow clip both
+ * become the sampling region, so the blur clamps at the edge and fringes), but a
+ * mask is also the one thing that may be ignored. So nothing is allowed to extend
+ * past the cards for a mask to have to hide: no padding, and border-radius —
+ * an ordinary element clip, always honoured — for the corners. The mask is then
+ * what carves a notch out of a run of unequal cards, and a refinement rather
+ * than the thing holding the effect together.
+ *
+ * Cards keep their translucent tint (see the .hearth-card background), which
+ * paints over the shared blur: blur-then-tint, the correct frosted-glass order.
+ * One layer per distinct resolved blur value per run (usually just the board
+ * default); the blur radius, box and mask are all set inline per layer by
+ * updateFrostLayers(), keyed by data-frost. .has-blur simply marks which cards
  * feed the frost — cards without blur never enter a layer, so they pay nothing. */
 .hearth-frost-root {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
 }
-/* Position and size are set inline per layer by updateFrostLayers(), to the
- * bounding box of that layer's own cards — NOT `inset: 0`. A backdrop-filter is
- * priced by its element's box rather than by how much of it the mask reveals, so
- * a board-sized layer blurs the whole board's backdrop and then masks the result
- * away. */
+/* Position, size and corner radius are set inline per layer by
+ * updateFrostLayers(), to the bounding box of that layer's own RUN of cards —
+ * NOT `inset: 0`, not the bounding box of every blurred card on the board, and
+ * with no padding around it. A backdrop-filter is priced by its element's box
+ * rather than by how much of it the mask reveals, so a board-sized layer blurs
+ * the whole board's backdrop and then masks the result away — and shows that
+ * blur wherever the mask is not honoured. The inline border-radius is what makes
+ * the common outlines exact without the mask: it is the element's own clip, so it
+ * is honoured where a mask is not. */
 .hearth-frost {
 	position: absolute;
 	pointer-events: none;
@@ -1468,8 +1515,9 @@
 	height: 100%;
 }
 
-/* Daily-note card: the "create today's note" prompt button. */
-.hearth-daily-create {
+/* Daily note and Periodic note cards: the "create this note" prompt button. */
+.hearth-daily-create,
+.hearth-periodic-create {
 	margin-top: 10px;
 	padding: 6px 14px;
 	border-radius: 8px;
@@ -1480,7 +1528,8 @@
 	font-size: 0.85rem;
 }
 
-.hearth-daily-create:hover {
+.hearth-daily-create:hover,
+.hearth-periodic-create:hover {
 	opacity: 0.9;
 }
 
@@ -1882,20 +1931,36 @@
 
 /* ---- Tabbed modals: card & dashboard settings -----------------------
    The card- and dashboard-settings modals reuse the settings pane's ribbon
-   look (.hearth-ribbon-tab): a row of tabs pinned to the top, one group's
+   look (.hearth-ribbon-tab): a row of tabs across the top, one group's
    controls shown at a time, and a persistent action footer below. */
 
+/* The ribbon carries no fill of its own, and scrolls with the body. Pinning it
+   to the top is the nicer behaviour, but a pinned strip has rows passing under
+   it and so must be filled — and every fill that isn't exactly the modal's own
+   surface reads as a slab behind the tabs. Both guesses at that surface were
+   wrong on somebody's theme: --background-primary is the *note* background, and
+   a theme's declared modal colour is itself translucent on a glass modal, where
+   painting it again over a surface already wearing it doubles the tint.
+
+   So pinning is opt-in, granted below only once the modal is measured to wear a
+   colour the strip can match exactly (HearthTabbedModal.hearthSyncModalSurface).
+   Unmeasurable modals — glass, gradient, translucent — keep a ribbon that is
+   merely unpinned, which is a far smaller loss than a slab in the wrong shade. */
 .hearth-modal-ribbon {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 4px;
+	padding-bottom: 10px;
+	margin-bottom: 6px;
+	background: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.hearth-surface-solid .hearth-modal-ribbon {
 	position: sticky;
 	top: 0;
 	z-index: 5;
-	padding-bottom: 10px;
-	margin-bottom: 6px;
-	background: var(--background-primary);
-	border-bottom: 1px solid var(--background-modifier-border);
+	background: var(--hearth-modal-surface);
 }
 
 /* Give the body a floor so switching from a dense tab (tasks) to a sparse one
@@ -1925,9 +1990,13 @@
 	gap: 8px;
 }
 
-/* ---- Settings tab: About panel --------------------------------------
-   The Ko-fi tip button keeps the brand's white/dark look (from the official
-   widget) so it reads as a support button, not a stock accent button. */
+/* ---- Icon+label buttons and the Ko-fi tip button --------------------
+   `hearth-about-btn` is the icon-beside-label button layout the About rows
+   use; it is also worn by the Ko-fi tip button wherever that appears (About,
+   the "What's new" dialog footer, the card picker's request page — see
+   `src/kofi.ts`), so the three can't drift apart. The tip button keeps the
+   brand's white/dark look (from the official widget) so it reads as a support
+   button, not a stock accent button. */
 
 .hearth-about-btn {
 	display: inline-flex;
@@ -2568,6 +2637,146 @@
 	grid-row: var(--hearth-tile-row, auto) / span var(--hearth-tile-rs, 1);
 }
 
+/* ---- Scaled buttons (a card on tileSizing: "scale") ------------------
+ *
+ * The fixed grid above sizes a button in pixels: a wider card fits more
+ * buttons, never bigger ones — and a card too small for them all scrolls, so
+ * some of the buttons aren't there until you scroll to them.
+ *
+ * This one fills the card instead. The columns are the card's own
+ * (`--hearth-tile-cols`) and the rows divide whatever height the card has
+ * between them, so a button is a *fraction of the card* in both directions: it
+ * grows and shrinks with the card the way a card grows with the dashboard,
+ * every button stays visible whatever size the card is, and the body never
+ * scrolls. Buttons stay tied to the grid (its cells and halves of them, never
+ * free pixels), so a launchpad doesn't turn into a second free-form board.
+ *
+ * The grid is drawn at *half*-cell resolution (`--hearth-tile-tracks` is
+ * `--hearth-tile-cols` doubled; see TILE_SUBDIV in `src/tiles.ts`), so a button
+ * can be half a cell wide or tall the way the fixed grid's fine cell always
+ * allowed. A whole-cell button spans two tracks and comes out exactly the size
+ * it would have without the subdivision, since the gap it swallows is the gap
+ * the two tracks gave up.
+ *
+ * Two things need measuring rather than declaring. The column cell is a
+ * fraction of the card's width, which only a query container can tell CSS — so
+ * the card body becomes one and the cell is `100cqw` split by the column count
+ * (`src/tiles.ts` does the same arithmetic for the drag and resize gestures,
+ * reading the row height back out of the grid, since only the browser knows how
+ * many rows the buttons came to). And a button's own contents scale to the
+ * button, not to the card: each button is a query container too, so its icon and
+ * label are sized in `cqmin` — a share of its shorter side, whatever shape the
+ * card left it. */
+.hearth-card-body.hearth-tiles-scaled {
+	container-type: inline-size;
+}
+
+.hearth-links.is-tile-scaled {
+	--hearth-tile-gap: 6px;
+	/* One cell across = one default button: the card's width, split into columns. */
+	--hearth-tile-cell: calc(
+		(100cqw - (var(--hearth-tile-cols, 6) - 1) * var(--hearth-tile-gap)) /
+			var(--hearth-tile-cols, 6)
+	);
+	/* The floor, per track: half a button's, less the gap the two tracks of a
+	 * whole button swallow between them — so a whole-cell button still stops
+	 * shrinking at exactly `--hearth-tile-min`, and a half one at half of it. */
+	--hearth-tile-track-min: max(
+		4px,
+		calc((var(--hearth-tile-min, 28px) - var(--hearth-tile-gap)) / 2)
+	);
+	/* Fill the card: the columns are the card's own, and the rows take an equal
+	 * share of its height — however many rows the buttons need. That is what
+	 * keeps the card free of scrollbars: the grid is no bigger than the card it
+	 * is in.
+	 *
+	 * Down to a floor, on both axes: a cell never shrinks below
+	 * `--hearth-tile-min`, which the card sets (see `createTileGrid`) and defaults
+	 * to about the smallest an icon button can be and still be aimed at. A button
+	 * smaller than that isn't "visible" in any useful sense — and a card too small
+	 * for its buttons even at that size scrolls, as the fixed style always did:
+	 * the fallback, not the intent. */
+	height: 100%;
+	grid-template-columns: repeat(
+		var(--hearth-tile-tracks, 12),
+		minmax(var(--hearth-tile-track-min), 1fr)
+	);
+	grid-auto-rows: minmax(var(--hearth-tile-track-min), 1fr);
+	gap: var(--hearth-tile-gap);
+}
+
+/* `container-type: size` makes each button a query container of its own: its
+ * contents are sized from its own box (below), and its label drops out when
+ * there is no room for it — a span says nothing about how many pixels a button
+ * got, which is the whole point of scaling it.
+ *
+ * Padding stays small and flat, because the contents already scale to the box:
+ * a padding that grew with the card would crowd a button the card left short. */
+.hearth-links.is-tile-scaled .hearth-link-tile {
+	container-type: size;
+	container-name: hearth-tile;
+	/* No padding of its own: at the floor a fixed inset would be a third of the
+	 * button, starving the icon. The contents keep themselves off the edges
+	 * instead — the icon by taking a share of the box, the label by its own
+	 * padding, both of which shrink with the button. */
+	padding: 0;
+	gap: 4px;
+	border-radius: clamp(6px, calc(var(--hearth-tile-cell) * 0.1), 18px);
+}
+
+/* Icon and label are shares of the button's own box, so they fit whatever shape
+ * the card left it — mostly of its height, which is what a stacked icon and line
+ * of text actually compete for, and of its width too so a narrow button doesn't
+ * overflow.
+ *
+ * Both stop growing early. The label is capped at the size Obsidian sets for
+ * small UI text — which is what a launchpad label has always been — so a big
+ * button is a big button rather than a headline, and the icon is capped a little
+ * above its fixed-style size. Between them a button that has room to spare
+ * simply carries more air, which is what makes a wall of them read as one set. */
+.hearth-links.is-tile-scaled .hearth-link-icon .svg-icon {
+	width: min(46cqh, 55cqw, 32px);
+	height: min(46cqh, 55cqw, 32px);
+}
+
+.hearth-links.is-tile-scaled .hearth-link-label {
+	font-size: clamp(0.6rem, min(28cqh, 26cqw), var(--font-ui-small, 0.8rem));
+	line-height: 1.25;
+	padding: 0 min(6px, 8cqw);
+}
+
+/* The resize grip follows the button's own corner radius, which scales. */
+.hearth-links.is-tile-scaled .hearth-tile-resize {
+	border-bottom-right-radius: inherit;
+}
+
+/* Too small for its label: show the icon alone, centred. The fixed style does
+ * this from the tile's span in JS (`applyTileIconOnly`); a scaled button's span
+ * says nothing about its pixels, so it is measured here instead. The flex gap
+ * disappears with the label, leaving the icon dead-centre. */
+@container hearth-tile (max-height: 34px) {
+	.hearth-links.is-tile-scaled .hearth-link-label {
+		display: none;
+	}
+
+	/* With the label gone, the icon can have the height it was sharing. */
+	.hearth-links.is-tile-scaled .hearth-link-icon .svg-icon {
+		width: min(62cqh, 62cqw, 32px);
+		height: min(62cqh, 62cqw, 32px);
+	}
+}
+
+@container hearth-tile (max-width: 52px) {
+	.hearth-links.is-tile-scaled .hearth-link-label {
+		display: none;
+	}
+
+	.hearth-links.is-tile-scaled .hearth-link-icon .svg-icon {
+		width: min(62cqh, 62cqw, 32px);
+		height: min(62cqh, 62cqw, 32px);
+	}
+}
+
 /* Fixed icon size: the icon does NOT scale with tile height. Icons stay a
  * constant, readable size regardless of tile dimensions. */
 .hearth-link-icon {
@@ -2640,6 +2849,13 @@
 .hearth-icon-preview svg {
 	width: 18px;
 	height: 18px;
+}
+
+/* The preview also shows pictures, since the title-icon field takes them. */
+.hearth-icon-preview img {
+	max-width: 24px;
+	max-height: 24px;
+	object-fit: contain;
 }
 
 /* A row in the Lucide icon picker: the icon itself, then its id. */
@@ -4064,6 +4280,360 @@
 	min-width: 0;
 }
 
+/* ---- The full forecast ----
+ *
+ * A weather card is a glance at a snapshot the API sent in full, so clicking
+ * one opens the rest of it: every current reading, the whole week, and the
+ * picked day hour by hour. The card only advertises itself as clickable once it
+ * has a reading to open (`is-clickable`, set by the render). */
+.hearth-weather.is-clickable {
+	cursor: pointer;
+}
+
+/* No hover tint: a weather card is mostly whitespace — and, in the artistic
+ * style, a painted sky — so shading the whole of it reads as a selection.
+ * The focus ring is the affordance keyboard readers get instead. */
+.hearth-weather.is-clickable:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: 8px;
+}
+
+/* Wider than a default modal: the hourly table is nine columns and this is the
+ * one place in Hearth where a forecast is read rather than glanced at. */
+.hearth-weather-modal {
+	width: min(760px, 92vw);
+}
+
+.hearth-weather-modal .modal-content {
+	padding-top: 4px;
+}
+
+/* The region under the place name, on the title's own line. */
+.hearth-weather-detail-region {
+	margin-inline-start: 8px;
+	color: var(--text-muted);
+	font-size: 0.72em;
+	font-weight: 400;
+}
+
+.hearth-weather-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+}
+
+/* ---- The headline reading ---- */
+.hearth-weather-detail-now {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.hearth-weather-detail-glyph {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-normal);
+	font-size: 3rem;
+}
+
+.hearth-weather-detail-glyph .svg-icon {
+	width: 1em;
+	height: 1em;
+}
+
+.hearth-weather-detail-nowtext {
+	min-width: 0;
+}
+
+.hearth-weather-detail-temp {
+	font-size: 2.1rem;
+	font-weight: 600;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+}
+
+.hearth-weather-detail-condition {
+	color: var(--text-normal);
+	font-size: 0.95rem;
+}
+
+.hearth-weather-detail-meta {
+	color: var(--text-muted);
+	font-size: 0.8rem;
+	margin-top: 2px;
+}
+
+/* ---- Sections ---- */
+.hearth-weather-detail-section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.hearth-weather-detail-heading {
+	color: var(--text-muted);
+	font-size: 0.72rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.hearth-weather-detail-summary {
+	color: var(--text-muted);
+	font-size: 0.78rem;
+	margin-top: -2px;
+}
+
+.hearth-weather-detail-empty {
+	color: var(--text-faint);
+	font-size: 0.82rem;
+}
+
+/* ---- The week ---- */
+.hearth-weather-detail-days {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+/* Each row is the button that swaps the hourly table below it. */
+.hearth-weather-detail-day {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 8px;
+	border-radius: 8px;
+	font-size: 0.82rem;
+	cursor: pointer;
+}
+
+.hearth-weather-detail-day:hover {
+	background: var(--background-modifier-hover);
+}
+
+.hearth-weather-detail-day:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.hearth-weather-detail-day.is-selected {
+	background: var(--background-modifier-hover);
+	box-shadow: inset 3px 0 0 var(--interactive-accent);
+}
+
+.hearth-weather-detail-day-name {
+	flex: 0 0 7em;
+	min-width: 0;
+}
+
+.hearth-weather-detail-day-weekday {
+	color: var(--text-normal);
+	font-weight: 500;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hearth-weather-detail-day-date {
+	color: var(--text-faint);
+	font-size: 0.7rem;
+}
+
+.hearth-weather-detail-day-icon {
+	flex: 0 0 auto;
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-weather-detail-day-icon .svg-icon {
+	width: 18px;
+	height: 18px;
+}
+
+.hearth-weather-detail-day-condition {
+	flex: 1 1 6em;
+	min-width: 0;
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hearth-weather-detail-day-precip {
+	flex: 0 0 2.8em;
+	color: var(--color-blue);
+	font-size: 0.72rem;
+	text-align: end;
+}
+
+.hearth-weather-detail-day-low,
+.hearth-weather-detail-day-high {
+	flex: 0 0 2.6em;
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+}
+
+.hearth-weather-detail-day-low {
+	color: var(--text-faint);
+}
+
+.hearth-weather-detail-day-high {
+	color: var(--text-normal);
+	font-weight: 500;
+}
+
+/* The same shared-scale range bar the card draws, one size up. */
+.hearth-weather-detail-day-track {
+	position: relative;
+	flex: 1 1 4em;
+	height: 5px;
+	min-width: 32px;
+	border-radius: 999px;
+	background: var(--background-modifier-border);
+}
+
+.hearth-weather-detail-day-bar {
+	position: absolute;
+	top: 0;
+	height: 100%;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--color-blue), var(--color-orange));
+}
+
+/* ---- Hour by hour ---- */
+
+/* Nine columns don't fit a phone, and dropping any of them would defeat the
+ * point of the dialog — so the table scrolls sideways inside the section
+ * rather than squeezing. */
+.hearth-weather-detail-scroll {
+	overflow-x: auto;
+}
+
+.hearth-weather-detail-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.8rem;
+}
+
+.hearth-weather-detail-table th {
+	position: sticky;
+	top: 0;
+	padding: 4px 8px;
+	background: var(--background-primary);
+	color: var(--text-faint);
+	font-size: 0.66rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	text-align: end;
+	white-space: nowrap;
+}
+
+.hearth-weather-detail-table th:first-child,
+.hearth-weather-detail-table th:nth-child(3) {
+	text-align: start;
+}
+
+.hearth-weather-detail-table td {
+	padding: 4px 8px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-normal);
+	font-variant-numeric: tabular-nums;
+	text-align: end;
+	white-space: nowrap;
+}
+
+.hearth-weather-detail-table td:nth-child(3) {
+	color: var(--text-muted);
+	text-align: start;
+}
+
+/* Overriding the row's own end-alignment, so both need the table's specificity. */
+.hearth-weather-detail-table td.hearth-weather-detail-cell-time {
+	color: var(--text-muted);
+	text-align: start;
+}
+
+/* `width: 1px` on a table cell means "as narrow as your content" — here, the
+ * glyph and nothing else. */
+.hearth-weather-detail-table td.hearth-weather-detail-cell-icon {
+	width: 1px;
+	padding-inline: 0 4px;
+}
+
+.hearth-weather-detail-cellicon {
+	display: flex;
+	color: var(--text-muted);
+}
+
+.hearth-weather-detail-cellicon .svg-icon {
+	width: 16px;
+	height: 16px;
+}
+
+/* The hour the reader is actually in, so the table has a "you are here". */
+.hearth-weather-detail-table tr.is-now td {
+	background: var(--background-modifier-hover);
+	font-weight: 600;
+}
+
+.hearth-weather-detail-table tr.is-now .hearth-weather-detail-cell-time {
+	color: var(--text-accent);
+}
+
+/* ---- Where the reading came from ---- */
+.hearth-weather-detail-foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding-top: 4px;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.hearth-weather-detail-source {
+	color: var(--text-faint);
+	font-size: 0.74rem;
+}
+
+.hearth-weather-detail-refresh {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.hearth-weather-detail-btnicon {
+	display: flex;
+}
+
+.hearth-weather-detail-btnicon .svg-icon {
+	width: 14px;
+	height: 14px;
+}
+
+/* On a phone the week's rows lose the condition text before they lose the
+ * numbers: the glyph says the same thing in a fifth of the width. */
+@media (max-width: 500px) {
+	.hearth-weather-detail-day-condition {
+		display: none;
+	}
+
+	.hearth-weather-detail-day-name {
+		flex: 0 0 5.5em;
+	}
+
+	.hearth-weather-detail-glyph {
+		font-size: 2.4rem;
+	}
+
+	.hearth-weather-detail-temp {
+		font-size: 1.8rem;
+	}
+}
+
 /* Mini calendar card */
 .hearth-calendar {
 	display: flex;
@@ -5376,6 +5946,10 @@
 .hearth-dash-switcher-zone {
 	display: flex;
 	align-items: center;
+	/* A flex item's automatic minimum size is its content, so without this the
+	   zone refuses to shrink below the full width of the switcher inside it and
+	   the overflow is pushed out through the side of the board. */
+	min-width: 0;
 }
 
 /* No in-flow padding on the auto-hide zone (see .hearth-arrange-zone above): the
@@ -5384,6 +5958,13 @@
 .hearth-dash-switcher {
 	display: flex;
 	align-items: center;
+	/* Wrap onto a second row rather than running off the side. A row of boards
+	   is unbounded — someone can keep adding them — and a non-wrapping flex row
+	   grows past its container instead of being clipped by it, which made the
+	   whole board horizontally scrollable and dragged the cards sideways with
+	   it. The button row is the thing that should get taller, not the board that
+	   should get wider. */
+	flex-wrap: wrap;
 	gap: 6px;
 	margin-bottom: -16px;
 	transition:
@@ -5462,6 +6043,272 @@
 
 .hearth-rename-input {
 	width: 100%;
+}
+
+/* ---- Narrow boards (the stacked layout) ------------------------------
+ *
+ * Everything here hangs off `.hearth-narrow`, which view.ts sets from the
+ * MEASURED board width rather than from the platform — so a phone, a narrow
+ * desktop pane and the Arrange phone preview all get the same layout, and the
+ * whole thing can be seen on a desktop by dragging a pane narrow. See
+ * src/narrow.ts for why the board cannot simply scale into this width.
+ */
+
+/* Edge to edge. The horizontal padding is a variable precisely so it can be
+   cancelled (the full-bleed banner does the same), and 24px a side is 12% of a
+   phone's width spent on nothing. The safe-area insets stay: they are not
+   decoration, they are the rounded corner and the camera cut-out. */
+.hearth-view.hearth-narrow .hearth-scroll {
+	--hearth-scroll-pad-x: 0px;
+	--hearth-scroll-pad-top: 8px;
+	padding: var(--hearth-scroll-pad-top) var(--hearth-scroll-pad-x)
+		calc(env(safe-area-inset-bottom, 0px) + 24px);
+	padding-left: max(var(--hearth-scroll-pad-x), env(safe-area-inset-left, 0px));
+	padding-right: max(var(--hearth-scroll-pad-x), env(safe-area-inset-right, 0px));
+}
+
+/* The rule above is more specific than `.is-mobile .hearth-scroll`, so on a
+   phone it was overriding the mobile hard stop — the reserve that keeps the
+   bottom of the board clear of Obsidian's own control bar, which overlays the
+   view and which env(safe-area-inset-bottom) knows nothing about. Give it back
+   at a specificity that wins, or the last card in the column ends underneath
+   the control bar and its resize grip cannot be reached at all. */
+.is-mobile .hearth-view.hearth-narrow .hearth-scroll {
+	padding-bottom: var(--hearth-mobile-safe-bottom);
+}
+
+/* Tighter vertical rhythm: the gap between the header and the board is spacing
+   for a wide board's sake, and on a phone it is a fifth of the first screen. */
+.hearth-view.hearth-narrow .hearth-inner {
+	--hearth-inner-gap: 14px;
+}
+
+.hearth-view.hearth-narrow .hearth-header {
+	gap: 10px;
+}
+
+/* ---- The stacked column --------------------------------------------- */
+
+/* The board stops being a positioned plane and becomes ordinary flow. Cards
+   carry no inline left/top/width in this mode (renderDashboard skips
+   applyCardPosition), only the height the stacked layout gives them, so there
+   is nothing to override — `position: static` is enough to hand them back to
+   the flex column. */
+.hearth-grid.is-stacked {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	/* The free-form board carries an inline min-height for its tallest card;
+	   a column is exactly as tall as its contents. */
+	min-height: 0;
+	/* A run-off at the end of the column, so the last card can be scrolled up
+	   into the middle of the screen instead of stopping at the very bottom of
+	   it. Clearing the control bar (above) is not enough on its own: a card
+	   whose bottom edge is the last thing on the page still ends up in the
+	   worst place on the screen to touch, which is exactly where its resize
+	   grip lives. Capped in pixels as well as screen-relative so the phone
+	   preview — where `vh` is the desktop window, not the phone — reserves the
+	   same run-off it would on the device. */
+	padding-bottom: min(22vh, 180px);
+}
+
+.hearth-grid.is-stacked .hearth-card {
+	/* `relative`, not `static`: in arrange mode the card's header is absolutely
+	   positioned across the top of its card, and it needs the CARD to be its
+	   containing block. A static card hands that job to the nearest positioned
+	   ancestor — which is .hearth-grid — so every header in the column piled up
+	   at the top of the board, on top of each other, and only the first card's
+	   was reachable. Relative keeps the card in normal flow and keeps it the
+	   containing block. */
+	position: relative;
+	width: 100%;
+	/* Cards are sized by the height renderDashboard sets, never stretched or
+	   squeezed to fill the column. */
+	flex: 0 0 auto;
+}
+
+/* The arrange-mode header, in the stacked column, sits IN FLOW.
+ *
+ * On the free-form board it floats over the card's top edge (see
+ * `.hearth-grid.is-arranging .hearth-card-head.is-editing`) so the body keeps
+ * exactly the size it has outside arrange mode — a faithful preview while
+ * resizing. A floating header needs the CARD to be its containing block, and
+ * that is a fragile thing to depend on: get it wrong anywhere and every header
+ * in the column resolves against .hearth-grid instead, lands at the top of the
+ * board, and stacks on top of the others so only one card is reachable.
+ *
+ * A stacked card doesn't need the float. Its width is the column's and its
+ * height is set outright, so there is no live resize for a floating header to
+ * keep honest — and in flow it has nowhere else to go. This rule is written at
+ * a higher specificity than the floating one rather than relying on order, so
+ * it holds wherever it lands in the sheet.
+ *
+ * `relative` rather than `static` so the header keeps its z-index above the
+ * arrange shield; the inherited top/left/right offsets are all 0 and so are
+ * no-ops. */
+.hearth-grid.is-stacked.is-arranging .hearth-card-head.is-editing {
+	position: relative;
+	border-radius: var(--hearth-card-radius, 14px)
+		var(--hearth-card-radius, 14px) 0 0;
+}
+
+/* A collapsed card is as tall as its own header, whatever height it would have
+   had open. Its body is not merely hidden — it has never been built (see
+   enableCollapseToggle) — so there is nothing here to lay out. */
+.hearth-grid.is-stacked .hearth-card.is-collapsed {
+	height: auto;
+}
+
+.hearth-card.is-collapsed .hearth-card-body {
+	display: none;
+}
+
+/* The whole header is the tap target outside arrange mode, where it holds no
+   controls of its own. */
+.hearth-card-head.is-collapsible {
+	cursor: pointer;
+}
+
+.hearth-card-expand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	/* A thumb-sized target that doesn't take a thumb-sized bite out of the
+	   header: the box is 44px, the icon inside it is the usual size. */
+	width: 44px;
+	height: 44px;
+	margin: -6px -8px -6px 0;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+}
+
+.hearth-card-expand .svg-icon {
+	transition: transform 140ms ease;
+}
+
+/* Chevron down when open, pointing right when there is something to open. */
+.hearth-card.is-collapsed .hearth-card-expand .svg-icon {
+	transform: rotate(-90deg);
+}
+
+/* ---- Header: search, button and chips at narrow widths ---------------- */
+
+/* On a wide board the chips and the results hang off the search COLUMN, so
+   they line up with the bar and the button sits flush beside them. At phone
+   width that column is only part of the row — the button takes a real bite out
+   of ~390px — and everything inherited the bite: a half-width chip row and a
+   half-width results list with empty space beside them. Here they hang off the
+   wrap instead (header.ts moves them) and the row simply wraps. */
+.hearth-view.hearth-narrow .hearth-search-wrap {
+	flex-wrap: wrap;
+	max-width: none;
+	gap: 10px;
+}
+
+.hearth-view.hearth-narrow .hearth-search {
+	max-width: none;
+}
+
+/* The chip row is a full-width line of its own below the bar and the button. */
+.hearth-view.hearth-narrow .hearth-search-wrap > .hearth-filters {
+	flex: 1 0 100%;
+}
+
+/* The button keeps its icon and loses its words — it still has its aria-label
+   and tooltip, and the field is what the width is for. */
+.hearth-view.hearth-narrow .hearth-newnote-label {
+	display: none;
+}
+
+.hearth-view.hearth-narrow .hearth-newnote {
+	padding: 0 14px;
+}
+
+/* ---- Touch targets ---------------------------------------------------- */
+
+/* 38px is comfortable for a mouse and under the ~44px a fingertip actually
+   covers. These two are the most-touched controls Hearth has, so they get the
+   room on a narrow board and keep the tighter size everywhere else.
+   The chips' gap divides the leftover space by the chip width, so it has to be
+   told the new one or the row spaces itself for a size it no longer uses. */
+.hearth-view.hearth-narrow .hearth-filter {
+	width: 44px;
+	height: 44px;
+}
+
+.hearth-view.hearth-narrow .hearth-filters {
+	gap: 8px clamp(8px, calc((100% - var(--n) * 44px) / max(var(--n) - 1, 1)), 48px);
+}
+
+.hearth-view.hearth-narrow .hearth-result {
+	min-height: 44px;
+	padding: 11px 12px;
+}
+
+/* ---- Arrange: the phone-width preview --------------------------------- */
+
+/* An actual phone drawn around the previewed board. A bare column clamped to
+   400px tells you the width and nothing else — whether a card is a comfortable
+   third of a screen or most of one is a question about the *device*, and it is
+   answered by seeing the board sit inside a device. The shell is deliberately
+   plain: a graphite body, a speaker slot and a home indicator, no branding and
+   no attempt at a specific handset.
+
+   Fixed dark in both themes, because a phone is an object rather than a piece
+   of the interface — a shell that went pale in the light theme would read as a
+   panel around the board instead of a thing holding it. */
+.hearth-phone-frame {
+	--hearth-phone-bezel: 12px;
+	position: relative;
+	width: 100%;
+	max-width: calc(var(--hearth-phone-screen, 400px) + var(--hearth-phone-bezel) * 2);
+	/* Auto side margins centre it in the scroll area, as a block and as a
+	   column flex item (fit-to-page makes .hearth-scroll the latter). */
+	margin: 10px auto 28px;
+	padding: 28px var(--hearth-phone-bezel) 30px;
+	border-radius: 48px;
+	background: linear-gradient(160deg, #23252b, #131418);
+	box-shadow:
+		0 20px 50px rgba(0, 0, 0, 0.38),
+		0 2px 6px rgba(0, 0, 0, 0.3),
+		inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+
+/* The screen. No `overflow: hidden` — clipping here would also clip the search
+   results dropdown, which is an overlay that deliberately leaves the column. */
+.hearth-phone-frame .hearth-inner {
+	min-height: calc(var(--hearth-phone-screen, 400px) * 1.9);
+	border-radius: 34px;
+}
+
+/* Speaker slot. */
+.hearth-phone-frame::before {
+	content: "";
+	position: absolute;
+	top: 13px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 56px;
+	height: 5px;
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.2);
+}
+
+/* Home indicator. */
+.hearth-phone-frame::after {
+	content: "";
+	position: absolute;
+	bottom: 11px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 110px;
+	height: 5px;
+	border-radius: 3px;
+	background: rgba(255, 255, 255, 0.3);
 }
 
 /* ---- Mobile-only mode (search-only launcher) ------------------------ */
@@ -5893,6 +6740,56 @@
 	.hearth-resize-handle.is-sw {
 		width: 26px;
 		height: 26px;
+	}
+}
+
+/* See the note in dashboard.ts: a click shield for arranging a stacked board,
+   which unlike .hearth-card-overlay must let a finger scroll the column
+   through it. `pan-y` allows exactly the vertical scroll and nothing else. */
+.hearth-card-shield {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	background: transparent;
+	touch-action: pan-y;
+}
+
+/* The stacked layout's one grip. A stacked card owns only its height — width
+   is the column's, position is the order — so instead of eight grips it gets a
+   single bar along the bottom edge, and unlike the free-form grips that bar is
+   VISIBLE. The free-form ones can afford to be invisible because a card you can
+   drag anywhere invites you to try its edges; a card locked to a column looks
+   like it has nothing to grab, and a resize nobody discovers may as well not
+   exist. Declared after the edge grips above so it wins the `is-s` geometry it
+   is replacing (same specificity, later wins). */
+.hearth-resize-handle.is-stacked-grip {
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 22px;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	padding-bottom: 5px;
+	cursor: ns-resize;
+}
+
+.hearth-resize-handle.is-stacked-grip::after {
+	content: "";
+	width: 40px;
+	height: 4px;
+	border-radius: 2px;
+	background: var(--background-modifier-border);
+	transition: background 120ms ease;
+}
+
+.hearth-card.is-resizing .hearth-resize-handle.is-stacked-grip::after {
+	background: var(--interactive-accent);
+}
+
+@media (hover: hover) {
+	.hearth-resize-handle.is-stacked-grip:hover::after {
+		background: var(--interactive-accent);
 	}
 }
 
@@ -8426,6 +9323,14 @@ body.hearth-dv-resizing {
 	padding-bottom: 0;
 }
 
+/* That row holds the Ko-fi tip button as well as the close CTA: space the two,
+   and let the tip button drop to its own line rather than squeeze the CTA on a
+   narrow phone modal. */
+.hearth-whatsnew-modal .modal-content > .setting-item .setting-item-control {
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.hearth-whatsnew-release-chevron {
 		transition: none;
@@ -9664,6 +10569,18 @@ body.hearth-dv-resizing {
 	color: var(--text-accent);
 }
 
+/* The Ko-fi tip button as the rail's last entry, directly under "Request a
+   card". It keeps the brand's white/red look (see `src/kofi.ts`) rather than
+   the rail's flat transparent rows — it is a link out, not a scope you can
+   switch to — and takes the rail's own metrics so it lines up with them. */
+.hearth-picker-rail-kofi {
+	width: 100%;
+	margin-top: 10px;
+	padding: 6px 10px;
+	justify-content: center;
+	font-size: var(--font-ui-small);
+}
+
 .hearth-picker-results {
 	flex: 1 1 auto;
 	min-width: 0;
@@ -10074,6 +10991,16 @@ body.hearth-dv-resizing {
 
 	.hearth-picker-rail-sep {
 		display: none;
+	}
+
+	/* One more chip in the scrolling row, at its end: no stretching, no
+	   wrapping, and no top margin now that the rail runs sideways. */
+	.hearth-picker-rail-kofi {
+		flex: none;
+		width: auto;
+		margin-top: 0;
+		border-radius: 999px;
+		white-space: nowrap;
 	}
 
 	.hearth-picker-grid {
@@ -10691,4 +11618,116 @@ body.hearth-dv-resizing {
 	padding: 4px 8px;
 	font-size: 0.8rem;
 	color: var(--text-muted);
+}
+
+/* ---- Plugin boards ---------------------------------------------------
+ *
+ * A dashboard whose whole board is one hosted view (Dashboard.mode ===
+ * "plugin"; see src/pluginboard.ts). The switcher, header, banner and
+ * background above it are the ordinary board chrome — only what would have
+ * been the card grid is replaced.
+ *
+ * The view is always given a definite height to fill and scrolls itself inside
+ * it, so the board is rendered fitted regardless of the fit-to-page setting
+ * (view.ts forces `.hearth-fit` on). Everything here is about keeping that
+ * height chain unbroken: a single `height: auto` anywhere between the scroll
+ * area and the hosted leaf collapses the view to nothing. */
+
+.hearth-plugin-board {
+	/* Take whatever height the switcher row above leaves — not height:100%,
+	 * which would ignore that row and overflow the board by exactly its
+	 * height. */
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	position: relative;
+	box-sizing: border-box;
+	/* One big card, styled by the same four values the Style tab drives for the
+	 * cards on an ordinary board (set as variables in renderPluginBoard). */
+	border-radius: var(--hearth-card-radius, 14px);
+	border: var(--card-border-width, 1px) solid var(--background-modifier-border);
+	--hearth-card-surface: color-mix(
+		in srgb,
+		var(--background-primary) calc(var(--card-opacity, 1) * 100%),
+		transparent
+	);
+	background: var(--hearth-card-surface);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+	/* Clip the hosted view to the rounded corners, and keep any overflow it
+	 * produces inside the board rather than over the header above it. */
+	overflow: hidden;
+}
+
+/* Frosted glass. Cards share one blur layer per grid because a per-card
+ * backdrop-filter seams where merged cards touch; a single surface has no
+ * seams, so it takes the filter directly. `effectiveCardBlur` already reports 0
+ * below the `reduced` performance tier, so no class is added there. */
+.hearth-plugin-board.has-blur {
+	backdrop-filter: blur(var(--hearth-plugin-blur, 0px));
+	-webkit-backdrop-filter: blur(var(--hearth-plugin-blur, 0px));
+}
+
+/* The host inherits the leaf-card hosting rules (transparent pane surfaces, an
+ * optional hidden view header); all it adds is filling the board. */
+.hearth-plugin-board-host {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/* ---- Edge to edge ----
+ *
+ * A plugin board spends no space on itself. The hosted view is the board, so
+ * everything Hearth would normally put around a grid of cards — the page
+ * gutter, the column gap, the card frame — comes off, and the only chrome left
+ * is the switcher row with the board's settings gear on the end of it.
+ *
+ * Written against `.hearth-view.hearth-plugin-view` (two classes on the root)
+ * so it matches the specificity of the narrow-board padding rule above and wins
+ * on source order, rather than by reaching for !important. */
+.hearth-view.hearth-plugin-view .hearth-scroll {
+	--hearth-scroll-pad-x: 0px;
+	--hearth-scroll-pad-top: 0px;
+	padding: 0;
+}
+
+/* No column gap: the switcher row carries its own padding (below) and the board
+ * begins immediately under it. */
+.hearth-view.hearth-plugin-view .hearth-inner {
+	gap: 0;
+}
+
+/* The switcher row is the one piece of chrome left, so it pays for its own
+ * breathing room instead of borrowing the page gutter. The negative margin it
+ * normally carries exists to pull a *header* up under it; with no header on a
+ * plugin board it would pull the hosted view up under the buttons instead. */
+.hearth-view.hearth-plugin-view .hearth-dash-switcher-zone {
+	padding: 6px 8px;
+	gap: 8px;
+}
+
+.hearth-view.hearth-plugin-view .hearth-dash-switcher {
+	margin-bottom: 0;
+}
+
+/* The settings gear sits at the far end of the switcher row. */
+.hearth-plugin-actions {
+	margin-left: auto;
+}
+
+/* Edge to edge means edge to edge: no frame, no rounding, nothing for the
+ * wallpaper to show through at the corners. The surface tint (--card-opacity)
+ * and its blur stay — those are what the board is painted with, not space it
+ * is spending. */
+.hearth-view.hearth-plugin-view .hearth-plugin-board {
+	border: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+
+/* An empty state on a plugin board (no view chosen, its plugin disabled, a
+ * document view with no file) is the whole board rather than a card body, so
+ * centre it instead of letting it sit against the top edge. */
+.hearth-plugin-board > .hearth-card-empty {
+	flex: 1 1 auto;
 }

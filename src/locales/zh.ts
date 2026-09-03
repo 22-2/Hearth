@@ -48,6 +48,7 @@ export const zh: Translations = {
 		couldNotRecordVoice: "Hearth：无法开始录音。",
 		enableDailyNotes: "Hearth：请启用核心插件“日记”。",
 		couldNotOpenDaily: "Hearth：无法打开今天的日记。",
+		couldNotOpenPeriodic: "Hearth：Periodic Notes 无法创建该笔记。",
 		commandNotFound: (id: string) => `Hearth：找不到命令：${id}`,
 		couldNotCreateNoteForDay: (day: string) => `Hearth：无法为 ${day} 创建笔记。`,
 		couldNotCreateEventNote: "Hearth：无法为该事件创建笔记。",
@@ -202,8 +203,9 @@ export const zh: Translations = {
 			titleDesc: "以大字显示在面板顶部。",
 			showTitle: "显示标题",
 			showTitleDesc: "关闭后面板将完全没有标题。",
-			logo: "图标",
-			logoDesc: "标题旁显示的表情或一两个字符。留空则使用 Hearth 水晶图标。",
+			titleIcon: "标题图标",
+			titleIconDesc:
+				"标题旁显示的表情、一两个字符、Lucide 图标 id、仓库图片路径或图片网址。留空则使用 Hearth 水晶图标。",
 			themeColor: "跟随主题的强调色",
 			themeColorDesc: "品牌标识的哪些部分采用主题的颜色。",
 			themeColorOptions: {
@@ -424,6 +426,8 @@ export const zh: Translations = {
 		iconPlaceholder: "Lucide 图标 id",
 		iconBrowse: "浏览 Lucide 图标",
 		iconClear: "清除图标",
+		titleIconPlaceholder: "图标 id、表情、图片路径或网址",
+		titleIconBrowseImage: "从仓库中选择图片",
 	},
 
 	// ---- Dashboard toolbar & card controls -----------------------------
@@ -445,6 +449,12 @@ export const zh: Translations = {
 		removeCardMessage: (name: string) => `要从面板中移除“${name}”吗？`,
 		removeCardConfirm: "移除",
 		thisCard: "此卡片",
+		expandCard: "展开卡片",
+		collapseCard: "折叠卡片",
+		phonePreview: "以手机宽度预览",
+		phonePreviewOff: "退出手机预览",
+		moveCardUp: "上移卡片",
+		moveCardDown: "下移卡片",
 	},
 
 	// ---- Dashboard switcher & per-dashboard settings -------------------
@@ -467,12 +477,41 @@ export const zh: Translations = {
 			/** Tabs across the top of the dashboard settings modal. */
 			tabs: {
 				general: "通用",
+				plugin: "插件视图",
 				header: "顶部",
 				layout: "布局",
 				style: "样式",
 				background: "背景",
 			},
 			name: "名称",
+			mode: "仪表板类型",
+			modeDesc:
+				"由 Hearth 卡片组成的面板，或将整个面板交给某个插件的视图。切换为插件视图时会保留本面板的卡片——切换回来即可恢复。",
+			modeOptions: {
+				cards: "卡片",
+				plugin: "插件视图",
+			},
+			modePickViewHint: "此面板尚未选择视图——请在“插件视图”标签页中选择。",
+			pluginViewType: "视图",
+			pluginViewTypeDesc:
+				"由哪个已注册的视图铺满本面板。列表为当前应用中的全部视图，因此取决于启用了哪些插件。",
+			pluginViewTypeNone: "选择一个视图…",
+			pluginViewFile: "文件",
+			pluginViewFileDesc:
+				"在指定文件上打开该视图——如 Canvas 白板、Excalidraw 绘图。留空则单独承载该视图。",
+			pluginViewFileRequiredDesc:
+				"此视图需要一个文件才能显示内容。请选择本面板要打开的笔记、PDF 或图片。",
+			pluginViewHideHeader: "隐藏视图自带的标题栏",
+			pluginViewHideHeaderDesc:
+				"去掉所承载视图的面包屑、前进/后退箭头和三点菜单。视图自身的工具栏与标签页不受影响。",
+			pluginViewKeepMounted: "在后台保持运行",
+			pluginViewKeepMountedDesc:
+				"显示其他仪表板时仍保持加载，切换回来即刻可用，无需重新加载。若插件较重、不想让它常驻，可关闭此项。同时保持加载的面板数量始终有限。",
+			pluginViewFocusable: "允许视图获得焦点（实验性）",
+			pluginViewFocusableDesc:
+				"在其中操作时将其设为活动面板，使插件自身的命令与快捷键能够找到它。Obsidian 也会把打开的笔记放入活动面板，因此点击链接可能会替换该视图，直到你切换面板为止。",
+			pluginViewPerfNote:
+				"所承载的视图是插件在完整运行，而非预览——开销与直接打开该插件相同。在自己标签页里慢的视图，在这里同样慢。",
 			switcherIcon: "切换器图标",
 			switcherIconDesc: "显示在切换按钮上的表情或短文本。留空则显示编号。",
 			switcherLucide: "切换器 Lucide 图标",
@@ -492,20 +531,18 @@ export const zh: Translations = {
 			searchVisibility: "搜索可见性",
 			searchVisibilityDesc:
 				"在此面板上显示或隐藏搜索与命令栏及其结果和筛选按钮。覆盖全局设置。",
-			searchVisibilityDefault: (state: string) => `使用全局默认（${state}）`,
 			searchVisibilityShow: "显示搜索",
 			searchVisibilityHide: "隐藏搜索",
+			visibilityDefaultPlugin: (state: string) => `插件视图面板的默认值（${state}）`,
 			visibilityShown: "显示",
 			visibilityHidden: "隐藏",
 			visibilityShow: "显示标题",
 			visibilityHide: "隐藏标题",
 			titleText: "标题文本",
 			titleTextDesc: "为此面板覆盖全局标题文本。",
-			logoText: "图标文本",
-			logoTextDesc: "为此面板覆盖全局图标。留空则使用 Hearth 水晶图标。",
-			logoIcon: "标题图标",
-			logoIconDesc:
-				"在此面板标题旁绘制一个 Lucide 图标，取代图标文本。清空后，仅此面板会显示图标文本（或 Hearth 水晶图标）。",
+			titleIcon: "标题图标",
+			titleIconDesc:
+				"此面板标题旁的标识：Lucide 图标 id、表情或短文本、仓库图片路径，或图片网址。清空后，仅此面板会显示 Hearth 水晶图标。",
 			titleAlign: "标题对齐",
 			titleAlignDesc: "仅对齐标题/图标区块。搜索栏保持自身布局。",
 			alignDefault: "默认（居中）",
@@ -513,10 +550,17 @@ export const zh: Translations = {
 			alignCenter: "居中",
 			alignRight: "右对齐",
 			titleSize: "标题大小",
-			logoSize: "图标大小",
+			titleIconSize: "标题图标大小",
 			titleTopMargin: "标题上边距",
 			headerSpacingBelow: "标题/顶部下方间距",
 			contentWidth: "内容宽度",
+			fullWidth: "全宽",
+			fullWidthDesc: "为此面板覆盖宽度上限。",
+			fullWidthDefault: (state: string) => `使用全局默认（${state}）`,
+			fullWidthOptionOn: "填满窗格",
+			fullWidthOptionOff: "限制宽度",
+			fullWidthStateOn: "填满窗格",
+			fullWidthStateOff: "限制宽度",
 			fitToPage: "适应页面",
 			fitToPageDesc: "为此面板覆盖滚动行为。",
 			fitDefault: (state: string) => `使用全局默认（${state}）`,
@@ -524,6 +568,7 @@ export const zh: Translations = {
 			fitStateScroll: "滚动",
 			fitOptionFit: "适应单页",
 			fitOptionScroll: "允许滚动",
+			fitToPagePluginNote: "插件视图面板始终铺满窗格——所承载的视图会填满它并自行滚动。",
 			themeColorTarget: "标题上的强调色",
 			themeColorTargetDesc:
 				"此面板品牌标识的哪些部分跟随主题的图标颜色。仅为此面板覆盖全局设置；Hearth 的标签页与侧边栏图标仍跟随全局设置。",
@@ -608,7 +653,8 @@ export const zh: Translations = {
 			appearance: "标题、图标、背景与低功耗模式。",
 			search: "搜索栏及其提供的结果。",
 			dashboard: "网格、卡片表面与面板周围的控件。",
-			behaviour: "启动、笔记打开方式、移动端与隐私。",
+			behaviour: "启动、笔记打开方式与隐私。",
+			mobile: "手机上的堆叠布局，以及操作栏。",
 			integrations: "TaskNotes、文件图标，以及 Hearth 读取的每个插件。",
 			backup: "导出与导入您的布局和设置。",
 			about: "版本、更新内容，以及问题反馈渠道。",
@@ -624,6 +670,7 @@ export const zh: Translations = {
 			search: "搜索",
 			dashboard: "面板",
 			behaviour: "行为",
+			mobile: "移动端",
 			integrations: "集成",
 			backup: "备份",
 			about: "关于",
@@ -647,8 +694,8 @@ export const zh: Translations = {
 			startupDesc: "主页视图何时、在何处打开。",
 			opening: "打开笔记",
 			openingDesc: "在 Hearth 中点击笔记时它在哪里打开。",
-			mobileMode: "移动模式",
-			mobileModeDesc: "Hearth 在手机和平板上的行为。",
+			mobileMode: "布局",
+			mobileModeDesc: "当屏幕宽度不足以容纳面板自身布局时，面板如何排布。",
 			privacy: "隐私与网络",
 			privacyDesc: "控制 Hearth 允许发出的对外请求。",
 		},
@@ -691,13 +738,11 @@ export const zh: Translations = {
 				"显示搜索与命令栏及其结果和筛选按钮。各个面板可在自己的设置中覆盖此项。",
 			title: "标题",
 			titleDesc: "显示在主页视图顶部的标题文本。",
-			logo: "图标",
-			logoDesc: "标题旁显示的表情或短文本。留空则使用 Hearth 水晶图标。",
-			logoIcon: "标题图标",
-			logoIconDesc:
-				"在标题旁绘制一个 Lucide 图标，取代图标文本。" +
-				"可浏览图标集或输入 id；留空则保留图标文本。" +
-				"每个面板都可以在自己的设置中覆盖此项。",
+			titleIcon: "标题图标",
+			titleIconDesc:
+				"标题旁绘制的标识。可以是 Lucide 图标 id（用 🔍 按钮浏览图标集）、" +
+				"表情或一两个字符、仓库中图片的路径（📷 按钮），或网络图片的网址。" +
+				"留空则使用 Hearth 水晶图标。每个面板都可以在自己的设置中覆盖此项。",
 			tabIcon: "标签页图标",
 			tabIconDesc:
 				"用于 Hearth 标签页标题栏和侧边栏按钮的 Lucide 图标，取代 Hearth 水晶图标。" +
@@ -759,7 +804,13 @@ export const zh: Translations = {
 			newNoteFilenamePlaceholder: "Untitled",
 			newNoteDestination: (destination: string) => `将创建于 ${destination}`,
 			contentWidth: "内容宽度",
-			contentWidthDesc: "主页内容的最大宽度（像素）。",
+			contentWidthDesc:
+				"主页内容可以扩展到的最大宽度（像素）。这只是上限，而非固定宽度 — " +
+				"在较窄的窗格中内容仍会自动收缩。",
+			fullWidth: "全宽",
+			fullWidthDesc:
+				"让内容填满整个窗格，而不停在下方设置的宽度处。窗格变宽时卡片会按比例" +
+				"放大，但文字不会随之变大，因此非常宽的面板看起来会比较稀疏。",
 		},
 		performance: {
 			tier: "性能档位",
@@ -882,9 +933,23 @@ export const zh: Translations = {
 			liveRefreshDesc:
 				"仓库变化时保持已打开的主页视图为最新 — 最近、书签和已保存查询卡片" +
 				"无需重新打开标签页即会更新。无论此设置如何，切回 Hearth 标签页时总会刷新。",
+			liveSettingsSync: "接收同步的更改",
+			liveSettingsSyncDesc:
+				"同步送达其他设备上所做的面板更改后立即应用，而不必等到下次重启 " +
+				"Obsidian。除非面板在使用过程中重新加载会造成困扰，否则请保持开启。",
 			mobileSearchOnly: "移动模式（仅搜索）",
 			mobileSearchOnlyDesc:
 				"在手机和平板上隐藏面板，仅显示搜索框。对桌面端无影响。",
+			stackOnNarrow: "窄屏时堆叠卡片",
+			stackOnNarrowDesc:
+				"当面板宽度不足以容纳其布局时——手机，或桌面端的窄窗格——改为将卡片显示为" +
+				"单列通栏。你的布局不会被修改，恢复宽度后即照旧。每张卡片都可以在自身设置" +
+				"中为该单列单独设置隐藏、排序、高度或折叠。",
+			mobilePerformanceTier: "移动端性能档位",
+			mobilePerformanceTierDesc:
+				"在手机和平板上使用的档位——那里动画天空与毛玻璃绘制在最小的屏幕上，却要由" +
+				"电池来买单。桌面端的档位单独保存，不会被改变。",
+			mobileTierMatch: "与桌面一致",
 			disableExternalCalls: "禁用对外调用",
 			disableExternalCallsDesc:
 				"阻止 Hearth 发出的所有对外网络请求，包括 Jira、外部日历、RSS 源" +
@@ -1020,6 +1085,12 @@ export const zh: Translations = {
 						"自己的模板、目标文件夹和文件名格式，一键即可创建笔记。" +
 						"模板处理由 Templater 完成 — 您的用户脚本、tp.system.prompt() 对话框" +
 						"和光标定位的行为都与从它自己的命令调用时一致。",
+				},
+				periodicNotes: {
+					name: "Periodic Notes",
+					desc:
+						"“周期笔记”卡片显示本周、本月、本季度或本年的笔记 — " +
+						"定位由 Periodic Notes 完成，缺失的笔记也由它按您自己的模板创建。",
 				},
 				git: {
 					name: "Git",
@@ -1298,6 +1369,22 @@ export const zh: Translations = {
 		cardTitle: "标题",
 		cardTitleDesc: "显示在卡片标题栏中。留空则卡片不带标题栏。",
 		cardTitlePlaceholder: "标题",
+		mobile: {
+			heading: "窄屏面板上",
+			hidden: "隐藏",
+			hiddenDesc:
+				"当面板堆叠为单列时不显示此卡片。对于需要宽度才有意义的卡片（宽表格、看板视图），隐藏比压缩更好。",
+			collapsed: "默认折叠",
+			collapsedDesc:
+				"只显示卡片的标题行，点击展开时才构建卡片。未被展开的卡片只占一行，且不会运行任何内容。",
+			height: "高度",
+			heightDesc:
+				"堆叠时的高度（像素）。留空则沿用卡片自身的高度，并加以限制，避免过高的卡片独占整屏。",
+			order: "位置",
+			orderDesc:
+				"此卡片在堆叠中的位置，从 0 开始。留空则按面板的阅读顺序排列——从上到下、从左到右。",
+			autoPlaceholder: "自动",
+		},
 		resetSize: "重置为默认尺寸",
 		removeCard: "移除卡片",
 		removeCardTitle: "移除卡片？",
@@ -1309,6 +1396,7 @@ export const zh: Translations = {
 			embed: "嵌入（笔记 / 图片 / base）",
 			slideshow: "幻灯片",
 			daily: "日记（今天）",
+			periodic: "周期笔记（周 / 月 / 年）",
 			web: "网页（iframe）",
 			bookmarks: "书签",
 			favorites: "收藏",
@@ -1435,10 +1523,23 @@ export const zh: Translations = {
 				modifiedDesc: "修改日期（最新在前）",
 				random: "随机",
 			},
+			advance: "切换图片的方式",
+			advanceDesc:
+				"由什么来推进卡片：定时器、日历，或仅由控件操作。“每天一张”会根据当天日期" +
+				"推算出要显示的图片，因此无论看板重绘多少次，它整天都保持不变 —— 它与" +
+				"“仅手动”都会记住上次停留的位置。",
+			advances: {
+				timer: "按定时器",
+				daily: "每天一张",
+				manual: "仅手动",
+			},
 			interval: "每张图片秒数",
 			intervalDesc:
 				"每张图片显示的时长。0 表示固定显示第一张并关闭轮播；低功耗模式也会暂停它。",
 			intervalAria: "每张图片显示的秒数",
+			days: "每张图片天数",
+			daysDesc: "每张图片保留多少天后换成下一张。1 表示每天午夜更换；7 则是每周一张。",
+			daysAria: "每张图片显示的天数",
 			transition: "过渡",
 			transitionDesc: "一张图片如何切换到下一张。",
 			transitions: {
@@ -1475,6 +1576,28 @@ export const zh: Translations = {
 			info: "日记",
 			infoDesc:
 				"今天的笔记依据核心插件“日记”的日期格式和文件夹定位。卡片会随您的编辑实时更新。",
+		},
+		periodic: {
+			granularity: "周期",
+			granularityDesc:
+				"此卡片显示哪一种周期笔记。始终是当前的那一篇，因此周期结束后卡片会自动切换。",
+			granularities: {
+				day: "每日",
+				week: "每周",
+				month: "每月",
+				quarter: "每季度",
+				year: "每年",
+			},
+			editable: "可编辑",
+			editableDesc: "就地编辑该笔记，而非只读。更改会保存到仓库。",
+			openButton: "打开按钮",
+			openButtonDesc: "显示一个按钮，在编辑器中打开该笔记。",
+			info: "Periodic Notes",
+			infoDesc:
+				"该笔记依据 Periodic Notes 插件自身的文件夹、日期格式和模板定位，" +
+				"缺失时也由 Periodic Notes 创建。卡片会随您的编辑实时更新。",
+			missingDesc:
+				"此卡片需要社区插件 Periodic Notes。请安装并启用它，然后在其中开启您想要的笔记类型。",
 		},
 		web: {
 			url: "网址",
@@ -1690,6 +1813,63 @@ export const zh: Translations = {
 			metric: "指标",
 			weeks: "周数",
 			weeksDesc: "显示多少周的历史。",
+			advanced: "高级",
+			advancedDesc:
+				"自定义指标：用属性中的日期决定格子、把属性里的数字累加起来代替计数，" +
+				"并挑选哪些笔记参与统计。关闭时按文件日期统计全部笔记。",
+			metricHeading: "统计什么",
+			rangeHeading: "范围",
+			source: "日期来源",
+			sourceDesc: "由哪个日期决定笔记落在哪一格。",
+			sourceOptions: {
+				modified: "修改日期",
+				created: "创建日期",
+				property: "属性中的日期",
+			},
+			dateProperty: "日期属性",
+			datePropertyDesc:
+				"存放日期的属性名，例如 date、due、published。可以是日期、日期时间或 " +
+				"[[日记]] 链接；列表中的每一项各算一次。没有该属性的笔记会被跳过。",
+			datePropertyPlaceholder: "date",
+			value: "每篇笔记计入",
+			valueDesc: "每篇算 1，或累加某个属性中的数字——阅读分钟数、写作页数、跑步公里数。",
+			valueOptions: {
+				count: "1（统计笔记数）",
+				sum: "属性中的数字",
+			},
+			valueProperty: "数值属性",
+			valuePropertyDesc: "存放待累加数字的属性名。数值不是数字的笔记会被跳过，而不是按 1 计入。",
+			valuePropertyPlaceholder: "minutes",
+			unit: "单位",
+			unitDesc: "描述某一天时使用的单位名称——“5 次锻炼”。留空则跟随指标。",
+			unitPlaceholder: "篇已编辑",
+			rules: "哪些笔记参与统计",
+			rulesDesc: "笔记需要满足的条件。没有规则时，所有笔记都参与统计。",
+			match: "匹配方式",
+			matchOptions: {
+				all: "满足全部规则（AND）",
+				any: "满足任一规则（OR）",
+			},
+			fieldOptions: {
+				property: "属性",
+				tag: "标签",
+				folder: "文件夹",
+				path: "路径",
+			},
+			opOptions: {
+				is: "等于",
+				isNot: "不等于",
+				contains: "包含",
+				notContains: "不包含",
+				gt: "大于",
+				lt: "小于",
+				exists: "已设置",
+				missing: "未设置",
+			},
+			keyPlaceholder: "属性名",
+			valuePlaceholder: "值",
+			addRule: "添加规则",
+			removeRule: "删除规则",
 		},
 		stats: {
 			advanced: "高级",
@@ -1748,6 +1928,27 @@ export const zh: Translations = {
 				"去掉卡片外框 — 无边框、无背景、无标题行 — 让它在面板上看起来就是一个独立的搜索栏。",
 			sizeNote:
 				"输入框的粗细与卡片高度一致 — 在“排列”模式下拖动卡片边缘即可让搜索栏更粗或更细。",
+		},
+		tiles: {
+			heading: "按钮",
+			sizing: "按钮尺寸方式",
+			sizingDesc:
+				"按钮是铺满整张卡片——随卡片一起缩放，无论卡片多大每个按钮都完整可见——" +
+				"还是保持固定的像素尺寸，于是放不下时卡片就会滚动。铺满模式下按钮在横竖两个方向上都不会小到不便使用，" +
+				"到了这个下限就不再继续变小；此时卡片若仍装不下也会出现滚动条。在此设置出现之前创建的卡片会继续使用固定方式，" +
+				"直到你手动切换；两种方式各自保留自己的尺寸，因此切换回去后原来的样子会完好如初。",
+			sizingScale: "铺满卡片",
+			sizingFixed: "固定尺寸（旧版）",
+			across: "每行按钮数",
+			acrossDesc:
+				"卡片横向能放几个按钮，也就决定了单个按钮有多宽：它始终是卡片宽度的一个固定比例，直到触及按钮的最小尺寸。" +
+				"高度同理——各行平分卡片的高度——所以卡片变矮只会让按钮变矮，而不会把按钮藏起来。" +
+				"在排列模式下拖动右下角，仍可把一个按钮做成两三格宽（或高），也可以只占半格——横竖两个方向都能按半格调整，且始终对齐网格。",
+			minSize: "按钮最小尺寸",
+			minSizeDesc:
+				"一个整格按钮最小可以缩到多少像素；再小下去卡片就会改为滚动，而不再继续压缩按钮（半格按钮则停在这个值的一半）。" +
+				"默认值较低，以便尽量让按钮都放得下、不出现滚动条；如果某张卡片你经常缩得很小，" +
+				"可以把它调高以保证按钮好按，此时放不下时卡片就会滚动。",
 		},
 		links: {
 			heading: "链接",
@@ -2478,6 +2679,7 @@ export const zh: Translations = {
 			embedEnableCanvas: "请启用核心插件“白板”以嵌入白板",
 			embedInstallExcalidraw: "请安装 Excalidraw 插件以嵌入绘图",
 			dailyEnable: "请启用核心插件“日记”",
+			periodicInstall: "请安装 Periodic Notes 插件",
 			scheduleNoSources:
 				"请启用核心插件“日记”，或在此卡片的设置中订阅一个日历",
 			webNoUrl: "请在设置中设定网址",
@@ -2508,6 +2710,8 @@ export const zh: Translations = {
 			weatherNoLocation: "请在卡片设置中选择一个位置",
 			renderFailed: "此卡片无法绘制 — 详情请查看控制台",
 			leafPickView: "请在卡片设置中选择一个插件视图",
+			boardPickView: "请在仪表板设置中为本面板选择一个视图",
+			boardNeedsFile: "请在仪表板设置中为本面板选择一个文件",
 			leafViewMissing: "此视图不可用 — 请启用提供它的插件",
 			operonEnable: "请启用 Operon 插件以显示其任务",
 			operonDisabled: "Operon 集成已关闭 — 请在 设置 → Hearth → 集成 中开启",
@@ -2641,6 +2845,35 @@ export const zh: Translations = {
 			/** Compass points, clockwise from north. Indexed by the bearing's
 			 * eighth — keep all eight, in this order. */
 			compass: ["北", "东北", "东", "东南", "南", "西南", "西", "西北"],
+			/** The full-forecast dialog a weather card opens when it is clicked:
+			 * every reading the response carries, whatever the card shows. */
+			detail: {
+				title: "天气预报",
+				open: "打开完整预报",
+				now: "此刻",
+				days: "未来一周",
+				hoursFor: (day: string) => `逐小时 · ${day}`,
+				selectDay: (day: string) => `查看${day}的逐小时预报`,
+				noHours: "这一天已没有剩余的小时",
+				refresh: "刷新",
+				source: "Open-Meteo",
+				feelsLikeLabel: "体感温度",
+				gust: "阵风",
+				cloudCover: "云量",
+				precipChance: "降水概率",
+				precipHour: "本小时降水",
+				precipTotal: "降水总量",
+				windMax: "最大风速",
+				uvMax: "紫外线最高值",
+				columnTime: "时间",
+				columnCondition: "天气",
+				columnTemp: "气温",
+				columnFeels: "体感",
+				columnPrecip: "降水",
+				columnWind: "风",
+				columnHumidity: "湿度",
+				columnUv: "紫外线",
+			},
 			/** One per WMO weather code group; see `weatherLabelKey`. */
 			conditions: {
 				clear: "晴",
@@ -2737,9 +2970,28 @@ export const zh: Translations = {
 			openToday: "打开今天的笔记",
 			noNoteYet: "今天还没有笔记",
 		},
+		periodic: {
+			/** 当前周期，用于下面的句子。 */
+			period: {
+				day: "今天",
+				week: "本周",
+				month: "本月",
+				quarter: "本季度",
+				year: "今年",
+			},
+			noNoteYet: (period: string) => `${period}还没有笔记`,
+			create: (period: string) => `创建${period}的笔记`,
+			open: (period: string) => `打开${period}的笔记`,
+			notEnabled: (granularity: string) =>
+				`请在 Periodic Notes 中开启${granularity}笔记`,
+		},
 		heatmap: {
 			less: "少",
 			more: "多",
+			unitModified: "篇已编辑",
+			unitCreated: "篇已创建",
+			unitNotes: "篇笔记",
+			dayValue: (date: string, value: string, unit: string) => `${date}：${value} ${unit}`,
 		},
 		calendar: {
 			previousMonth: "上个月",
@@ -3000,6 +3252,7 @@ export const zh: Translations = {
 		excalidraw: "Excalidraw 绘图",
 		canvas: "嵌入白板",
 		daily: "日记（今天）",
+		periodic: "周期笔记",
 		web: "网页（iframe）",
 		bookmarks: "书签",
 		favorites: "收藏",
@@ -3042,6 +3295,7 @@ export const zh: Translations = {
 		excalidraw: "一幅 Excalidraw 绘图，支持原生平移与缩放",
 		canvas: "一块可以就地平移的白板",
 		daily: "始终是今天的笔记，首次点击时创建",
+		periodic: "来自 Periodic Notes 的本周、本月或本年笔记",
 		web: "iframe 中的网页，按计时器刷新",
 		bookmarks: "您的 Obsidian 书签，一键可达",
 		favorites: "您在 Hearth 中标星的笔记",
