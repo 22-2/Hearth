@@ -1,7 +1,10 @@
 import { Platform } from "obsidian";
 import type { DatacoreLanguage } from "./datacore";
+import { normalizeAuthorKey } from "./identity";
+import { DEFAULT_GALLERY_URL, normalizeGalleryUrl } from "./gallery/client";
 import type { EventNoteConfig } from "./eventnote";
 import type { Granularity } from "./periodic";
+import { DEFAULT_WEB_SEARCH_ENGINE, type WebSearchEngineId } from "./websearch";
 import type {
 	GitAction,
 	GitActionStyle,
@@ -1500,6 +1503,19 @@ export interface DashboardCard {
 	 * Any combination of the search filter's types; undefined or empty means all
 	 * types are shown. */
 	recentTypes?: string[];
+	/**
+	 * kind === "favorites": this card's own list of note paths, instead of the
+	 * vault-wide one in `settings.favorites`.
+	 *
+	 * Undefined is the normal case and means "follow the vault", which is what
+	 * every favourites card did before this field existed and what a card added
+	 * by hand still does. It is set by an import: a board arriving from another
+	 * vault carries the paths its author's card was showing, and folding them
+	 * onto the card is the only way that card can arrive looking like theirs
+	 * without an import quietly rewriting a list every *other* board in this
+	 * vault reads from.
+	 */
+	favorites?: string[];
 	/** kind === "clock": time/greeting/date display options. */
 	clock?: ClockConfig;
 	/** kind === "tasks": source, folder scope and display options. */
@@ -1925,6 +1941,58 @@ export interface Dashboard extends BannerOverrides {
 	/** Override the global search/command section visibility for this board
 	 * (undefined = follow {@link HomeSettings.showSearch}). */
 	showSearch?: boolean;
+	/** Override the search field's placeholder text for this board (undefined =
+	 * follow {@link HomeSettings.searchPlaceholder}). An empty string is a real
+	 * override meaning "the built-in placeholder on this board". */
+	searchPlaceholder?: string;
+	/** Override whether the button beside the search field is shown on this
+	 * board (undefined = follow {@link HomeSettings.showNewNoteButton}). */
+	showNewNoteButton?: boolean;
+	/** Override what that button does on this board (undefined = follow
+	 * {@link HomeSettings.newNoteButtonMode}). */
+	newNoteButtonMode?: "newNote" | "searchOnline";
+	/** Override its label on this board (undefined = follow
+	 * {@link HomeSettings.newNoteButtonLabel}). Empty = the built-in wording. */
+	newNoteButtonLabel?: string;
+	/** Override which auto-detected search filter chips are hidden on this board
+	 * (undefined = follow {@link HomeSettings.hiddenFilters}). An empty array is
+	 * a real override meaning "show every chip on this board". */
+	hiddenFilters?: string[];
+	/** Override whether this board reflows into one column when narrow
+	 * (undefined = follow {@link HomeSettings.stackOnNarrow}). */
+	stackOnNarrow?: boolean;
+	/** Override the arrange button's visibility on this board (undefined =
+	 * follow {@link HomeSettings.arrangeButtonVisibility}). */
+	arrangeButtonVisibility?: ChromeVisibility;
+	/** Override the dashboard switcher's visibility while this board is showing
+	 * (undefined = follow {@link HomeSettings.dashboardSwitcherVisibility}). */
+	dashboardSwitcherVisibility?: ChromeVisibility;
+	/** Override whether the painted weather sky drifts on this board (undefined
+	 * = follow {@link HomeSettings.backgroundSkyAnimate}).
+	 *
+	 * Sits beside {@link background} rather than inside it for the same reason
+	 * the banner overrides do (see {@link BannerOverrides}): it says how the
+	 * board wears its backdrop, so a board can still animate — or hold still —
+	 * a sky it inherits from the vault without restating the picture. The
+	 * performance tier and the reader's reduced-motion preference both still
+	 * override it downwards; this can ask for motion, never insist on it. */
+	backgroundSkyAnimate?: boolean;
+	/**
+	 * Identity of the *shared work* this board is a copy of, if it is one.
+	 *
+	 * Distinct from {@link id}, which answers "which board is this in this
+	 * vault" and is minted fresh per vault. This answers "which published
+	 * dashboard is this", is stable across vaults, and is what lets a later
+	 * version of the same dashboard update this board instead of landing beside
+	 * it as a near-duplicate.
+	 *
+	 * Written when a package carrying one is imported, and when a board is
+	 * exported (an export mints one if the board has none, so the file and the
+	 * board it came from agree from then on). A *duplicated* board deliberately
+	 * does not inherit it: a copy is a new board, not another instance of the
+	 * same published work. See `src/portable/`.
+	 */
+	sourceId?: string;
 	/** Name of a core-Workspace; loading that workspace auto-switches to this
 	 * dashboard (one-way, workspace → dashboard). Undefined = not linked. */
 	linkedWorkspace?: string;
@@ -2032,6 +2100,10 @@ export interface HomeSettings {
 	 * Omnisearch community plugin (only usable when Omnisearch is installed and
 	 * enabled — Hearth falls back to the built-in engine otherwise). */
 	searchEngine: "builtin" | "omnisearch";
+	/** Which web search engine the “Search online” button opens. The dropdown
+	 * beside the button can search elsewhere for one query without changing
+	 * this. See {@link WebSearchEngineId}. */
+	webSearchEngine: WebSearchEngineId;
 
 	// ---- Background ----
 	backgroundKind: BackgroundKind;
@@ -2255,6 +2327,50 @@ export interface HomeSettings {
 	lastSeenVersion: string;
 	/** How far the first-run setup wizard has got. See {@link SetupStatus}. */
 	setupStatus: SetupStatus;
+	/**
+	 * The secret behind this vault's export identity, minted the first time a
+	 * dashboard is exported. Empty until then.
+	 *
+	 * Private, and the only part of an identity that is stored: the public
+	 * author id and the username are derived from it on demand (see
+	 * `src/identity.ts`). Deliberately left out of every export file, backups
+	 * included — a settings backup is a thing people hand to each other, and a
+	 * key in one is an identity given away. Carrying an identity to a new
+	 * install is a separate, deliberate paste of the key itself.
+	 */
+	authorKey: string;
+	/**
+	 * Whether the user has been handed their recovery key.
+	 *
+	 * There is no reset: nothing but this vault holds the key, so losing it
+	 * loses the handle and everything published under it, permanently. That is
+	 * the price of having no accounts, and it is only a fair price if the moment
+	 * of being told is impossible to walk past — so the export dialog keeps
+	 * saying so until the key has actually been copied, and this is the flag
+	 * that stops it nagging afterwards.
+	 */
+	authorKeySaved: boolean;
+	/**
+	 * The dashboard gallery this vault browses and publishes to.
+	 *
+	 * Seeded with {@link DEFAULT_GALLERY_URL}. **Empty means the gallery is off**
+	 * — no buttons, no requests — and clearing the field is how somebody turns it
+	 * off. That choice has to survive an upgrade, which is why the migration
+	 * below distinguishes a stored empty string from a key that was never there:
+	 * seeding the default over the first is overriding a decision, while seeding
+	 * it over the second is just a new setting arriving with its default.
+	 *
+	 * `https` only, except a loopback address so a self-hosted gallery can be
+	 * tried from `docker compose up` without a certificate — see
+	 * `normalizeGalleryUrl` in `src/gallery/client.ts`, which is the one place
+	 * this string is turned into a request.
+	 *
+	 * Deliberately left out of a settings backup, for the reason `authorKey` is,
+	 * one step removed: it is not a secret, but it is a server that receives this
+	 * vault's requests, and a backup is a thing people hand each other. Restoring
+	 * somebody else's must not quietly point your vault at their host.
+	 */
+	galleryUrl: string;
 }
 
 /**
@@ -2289,6 +2405,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	newNoteFilename: "",
 	searchContents: true,
 	searchEngine: "builtin",
+	webSearchEngine: DEFAULT_WEB_SEARCH_ENGINE,
 
 	backgroundKind: "default",
 	backgroundValue: "",
@@ -2392,6 +2509,12 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	// every *existing* vault as done, so nobody is offered a rebuild of a
 	// dashboard they already have.
 	setupStatus: "pending",
+	// Minted on first use, never before: a vault that has not shared anything
+	// has no identity to have.
+	authorKey: "",
+	authorKeySaved: false,
+	// No host until the user names one: see the field's own note.
+	galleryUrl: DEFAULT_GALLERY_URL,
 };
 
 /** The cards a brand-new vault starts with. Coordinates and sizes are taken
@@ -2538,6 +2661,101 @@ export function effectiveShowSearch(s: HomeSettings): boolean {
 	// off there unless the board asks for it back. The board's own override
 	// still wins either way — this only changes what "no override" means.
 	return dash.showSearch ?? (isPluginBoard(dash) ? false : s.showSearch);
+}
+
+/**
+ * The nine resolvers below complete the per-board override set.
+ *
+ * Every one of them answers the same question the older resolvers above do —
+ * "what does *this* board show?" — for a setting that until now only existed
+ * globally. They were promoted for one reason: a board that travels between
+ * vaults (an export, a shared layout, a gallery download) has to be able to
+ * carry its whole look with it, and a look that lives half in the board and
+ * half in the vault around it cannot be carried at all.
+ *
+ * They all keep the contract the existing overrides have: *unset means follow
+ * the vault, as it changes later*. That is what makes them safe to write during
+ * an import — the importer sets only what the exported board actually had set,
+ * so nothing the importing vault didn't ask for is frozen in place.
+ */
+
+/** The search field's placeholder for the active board. May be empty, which
+ * every call site reads as "use the built-in wording". */
+export function effectiveSearchPlaceholder(s: HomeSettings): string {
+	return activeDashboard(s).searchPlaceholder ?? s.searchPlaceholder;
+}
+
+/** Whether the active board shows the button beside the search field. */
+export function effectiveShowNewNoteButton(s: HomeSettings): boolean {
+	return activeDashboard(s).showNewNoteButton ?? s.showNewNoteButton;
+}
+
+/** What that button does on the active board: make a note, or web-search the
+ * current query. */
+export function effectiveNewNoteButtonMode(
+	s: HomeSettings,
+): HomeSettings["newNoteButtonMode"] {
+	const mode = activeDashboard(s).newNoteButtonMode;
+	return mode === "newNote" || mode === "searchOnline" ? mode : s.newNoteButtonMode;
+}
+
+/** The raw label configured for that button on the active board — untrimmed and
+ * possibly empty. `newNoteButtonLabel()` in newnote.ts turns it into the text
+ * actually drawn. */
+export function effectiveNewNoteButtonLabel(s: HomeSettings): string {
+	return activeDashboard(s).newNoteButtonLabel ?? s.newNoteButtonLabel;
+}
+
+/** Filter-chip group ids hidden on the active board. A board's own empty array
+ * wins over a global list: that is how one board shows every chip. */
+export function effectiveHiddenFilters(s: HomeSettings): string[] {
+	return activeDashboard(s).hiddenFilters ?? s.hiddenFilters;
+}
+
+/** Whether the active board reflows into a single column once it is narrow. */
+export function effectiveStackOnNarrow(s: HomeSettings): boolean {
+	return activeDashboard(s).stackOnNarrow ?? s.stackOnNarrow;
+}
+
+/** Arrange-button visibility for the active board. */
+export function effectiveArrangeButtonVisibility(s: HomeSettings): ChromeVisibility {
+	return chromeVisibility(activeDashboard(s).arrangeButtonVisibility, s.arrangeButtonVisibility);
+}
+
+/** Dashboard-switcher visibility while the active board is showing. */
+export function effectiveSwitcherVisibility(s: HomeSettings): ChromeVisibility {
+	return chromeVisibility(
+		activeDashboard(s).dashboardSwitcherVisibility,
+		s.dashboardSwitcherVisibility,
+	);
+}
+
+/** Repaired on read, like {@link performanceTier}: anything that isn't one of
+ * the two values reads as the vault's choice rather than as "hover", so a
+ * hand-edited board can't hide the chrome by accident. */
+function chromeVisibility(
+	override: ChromeVisibility | undefined,
+	fallback: ChromeVisibility,
+): ChromeVisibility {
+	if (override === "always" || override === "hover") return override;
+	return fallback === "hover" ? "hover" : "always";
+}
+
+/**
+ * Whether the painted weather sky may drift on the active board.
+ *
+ * Three-state on both levels, and deliberately so: the board's `undefined`
+ * follows the vault, and the vault's own `undefined` means on (which is how
+ * settings.ts stores "yes"). A board can therefore ask for a still sky in a
+ * vault that animates, or for a drifting one in a vault that doesn't.
+ *
+ * This is the *configured* answer only. The performance tier and the reader's
+ * reduced-motion preference are checked separately by the caller through
+ * {@link motionAllowed}, so neither can be overridden from a board — an
+ * imported board can ask for motion, never insist on it.
+ */
+export function effectiveSkyAnimate(s: HomeSettings): boolean {
+	return (activeDashboard(s).backgroundSkyAnimate ?? s.backgroundSkyAnimate) !== false;
 }
 
 export const HEADER_SCALE_MIN = 0.6;
@@ -2901,14 +3119,42 @@ export function effectiveBackground(s: HomeSettings): ResolvedBackground {
 	};
 }
 
+/** Whether a background kind is fetched from the web. "weather" is not in the
+ * list: a live sky asks for a forecast, but the fetch is gated on its own and
+ * what it draws is drawn locally either way (see background.ts), so it still
+ * paints something. */
+export function backgroundIsRemote(kind: BackgroundKind): boolean {
+	return kind === "url" || kind === "default";
+}
+
+/**
+ * Whether a resolved background has anything to paint.
+ *
+ * "default" ships its own image so it needs no value; every other kind but
+ * "none" needs one. `externalCallsDisabled` — the vault's **Disable external
+ * calls** setting — takes the two remote kinds out: a wallpaper the switch will
+ * not let Hearth fetch is a wallpaper that isn't there, and saying so here is
+ * what keeps the banner strip from being reserved for a picture that never
+ * arrives.
+ */
+export function backgroundPaintable(
+	bg: BackgroundConfig,
+	externalCallsDisabled: boolean,
+): boolean {
+	if (bg.kind === "none") return false;
+	if (externalCallsDisabled && backgroundIsRemote(bg.kind)) return false;
+	return bg.kind === "default" || !!bg.value;
+}
+
 /** Whether the active board paints its backdrop as a banner rather than as a
- * full-view wallpaper. A "none" background has nothing to put in a banner, so
- * it reports false and the board is drawn without one. Low power mode does not
- * change the answer — it swaps what fills the banner, not whether there is one
- * (see {@link effectiveBackground}). */
+ * full-view wallpaper. A background with nothing to paint — "none", a kind with
+ * no value, or a remote picture the kill switch blocks — has nothing to put in a
+ * banner, so it reports false and the board is drawn without one. Low power mode
+ * does not change the answer — it swaps what fills the banner, not whether there
+ * is one (see {@link effectiveBackground}). */
 export function bannerActive(s: HomeSettings): boolean {
 	const bg = effectiveBackground(s);
-	return bg.layout === "banner" && bg.kind !== "none";
+	return bg.layout === "banner" && backgroundPaintable(bg, s.disableExternalCalls);
 }
 
 /**
@@ -3096,6 +3342,27 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 		// treated as done, which is the outcome that never surprises anyone.
 		s.setupStatus = "done";
 	}
+	// An identity is a key or it is nothing: anything else in the field (a
+	// hand-edit, a half-synced data.json) would derive an id nobody can recover,
+	// so it is cleared rather than kept. Normalised in place so a key pasted in
+	// any casing or spacing settles to one stored form.
+	s.authorKey = typeof raw.authorKey === "string" ? (normalizeAuthorKey(raw.authorKey) ?? "") : "";
+	// A vault with no key has nothing to have saved, so the prompt starts over
+	// with the identity rather than staying dismissed from a previous one.
+	s.authorKeySaved = s.authorKey !== "" && raw.authorKeySaved === true;
+	// A host is a URL this build would actually talk to, or it is nothing: a
+	// value that fails the check is cleared rather than stored, so a hand-edited
+	// `data.json` cannot leave a vault pointed at an `http:` host on the network
+	// and looking configured.
+	//
+	// A vault that has never seen this setting takes the default; one that stored
+	// an empty string chose to have no gallery, and re-seeding the default over
+	// that would switch a feature back on that somebody had switched off — every
+	// upgrade, silently.
+	s.galleryUrl =
+		typeof raw.galleryUrl === "string"
+			? (normalizeGalleryUrl(raw.galleryUrl) ?? "")
+			: DEFAULT_GALLERY_URL;
 	// The short-lived "split" pill mode was replaced by a plain single button
 	// whose action is chosen here; fall back to the original New-note behaviour.
 	if ((s.newNoteButtonMode as string) === "split") s.newNoteButtonMode = "newNote";

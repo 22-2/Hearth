@@ -3,9 +3,9 @@
 All notable changes to Hearth are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to a numeric-only versioning scheme
-(`MAJOR.MINOR.PATCH`) as required by Obsidian's plugin manifest. Beta builds
-carry a fourth `.N-beta` segment and are omitted here; each entry aggregates its
+and this project adheres to [semantic versioning](https://semver.org/)
+(`MAJOR.MINOR.PATCH`) as required by Obsidian's plugin manifest. Beta builds are
+tagged `MAJOR.MINOR.PATCH-beta.N` and are omitted here; each entry aggregates its
 preceding beta series.
 
 History begins at 1.5.0. For releases before 1.5.0, see the
@@ -14,6 +14,78 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 ## [3.1.0]
 
 ### Added
+
+- **A dashboard gallery, and a server to host one.** Boards other people have
+  published, browsable by category, search or rating, and installable in a
+  click — with the way to publish your own in the same dialog you already
+  export from.
+
+  Browsing is a large modal shaped like the add-card picker: categories down
+  the left, a search field across the top, and four orders to read them in —
+  trending, top rated, newest, most installed. Each board shows as a thumbnail
+  with its author, its score and its install count. Opening one shows what a
+  thumbnail can't: **what is actually on the board**, by card kind; what it
+  needs installed that you may not have; **how much of it is fetched from the
+  internet**; how large the file is; and whether its author can be proved at
+  all. Clicking an author opens their page — everything they have published,
+  and the sum of their votes across all of it.
+
+  **Installing has no separate path.** The package is downloaded and handed to
+  the same import dialog a file picked off disk goes to, so a board from a
+  stranger gets the signature check, the missing-note and missing-plugin list
+  and the sanitizers, rather than a shortcut around them. As always, importing
+  adds a board and touches no global setting.
+
+  A published board can carry **a picture of itself**: a screenshot taken at
+  publish with every word blanked out in the page and every embedded picture
+  blurred *before* the shutter, so the layout, colours, icons and wallpaper
+  survive and nothing readable does. You see the picture in the dialog before
+  anything is uploaded. Desktop only, opt-in, and where there isn't one a
+  wallpaper stands in, and an entry with neither says so.
+
+  The picture blanks out what is *inside* cards that hold something personal,
+  and nothing else: the header, the toolbar, the dashboard switcher, each card's
+  own title, a card with nothing of yours in it (a clock), and a calendar's own
+  dates and weekdays stay as they are. Blanked text is drawn as a soft bar in the theme's own ink rather
+  than as a hard block. A board taller than the window is scrolled through and
+  stitched, so the picture is the whole board; a listing shows its top and the
+  detail view shows all of it. Click it, in the dialog or in the gallery, to see
+  it full size.
+
+  Authors can also say **"recommended with Minimal"** — a toggle that fills in
+  the theme they are using. Advisory: nothing installs or changes a theme.
+
+  Each board also carries **comments** — flat, newest first, a paragraph each.
+  Their author can delete their own, and a board's owner can delete any comment
+  on their board, which is moderation in the hands of the person with the most
+  reason to use it.
+
+  Voting is Reddit-style — upvotes minus downvotes, and pressing the arrow you
+  already chose takes it back. Worth being plain about: identities are free to
+  mint, so votes are free to mint, and no amount of server-side mechanism fixes
+  that. A gallery can make it tedious, and the one this repository ships does,
+  but a vote count means "some number of people who have Hearth installed".
+
+  Three ways in, all of them absent until a gallery is configured: beside **Add
+  card** in arrange mode, above **Request a card** in the picker's rail, and
+  beside **Next** on the setup wizard's first step — where somebody has nothing
+  yet that installing a board could overwrite.
+
+  **Nothing is fetched until you open it, and nothing is sent until you
+  publish.** Hearth points at `gallery.o-uhnavy.com` out of the box; the
+  address lives in Settings → Import / export → Dashboard gallery, and clearing
+  it turns the gallery off entirely — no buttons, no requests — and keeps it off
+  across upgrades. Point it at a different one, or at your own, in the same
+  field.
+
+  **The server is in this repository** (`server/`), and
+  [`docs/gallery-hosting.md`](docs/gallery-hosting.md) is how to run one: one
+  Docker command for a local gallery, a reverse proxy and one environment
+  variable for a public one, and its whole state is a single SQLite file you
+  back up by copying. It has no runtime dependencies, no accounts and no
+  passwords — signing in is a challenge-response against the ed25519 key that
+  already signs your exports, so a breach of a gallery leaks public keys, which
+  are public.
 
 - **Plugin view dashboards.** A dashboard no longer has to be a grid of cards.
   Set one to **Plugin view** (Dashboard settings → General → **Dashboard type**)
@@ -116,7 +188,240 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   alone until you are done. Off is available — Settings → Behaviour → **Pick up
   synced changes** — but on is the honest default.
 
+- **Share a dashboard.** Export one board — not the whole vault — as a file
+  someone else can import, and get back a board that looks like the one you
+  sent. **Dashboard settings → the switcher's right-click menu → Export
+  dashboard**, or Settings → Import / export.
+
+  The reason this needed building rather than tweaking is that a dashboard never
+  described itself completely. Half its look lived on the board and half in the
+  vault's global settings, which the board fell back to for anything it hadn't
+  overridden — so a board handed to someone else arrived wearing *their* grid,
+  card opacity, wallpaper and search placeholder. An export now resolves all of
+  it onto the board itself: it stops inheriting and states what it is.
+
+  **The wallpaper travels too, if you want it to.** A background picture is a
+  file in your vault, and a path to it means nothing in anyone else's — so the
+  export can carry the picture (and image icons, and a slideshow's explicit
+  pictures) inside the file, and the import writes them into the importing
+  vault. It is a toggle in the export dialog, on for a shared board and worth
+  turning off for a backup of your own vault, where the pictures are already
+  where they belong. Anything too large or no longer in the vault is left as a
+  path and reported rather than silently dropped.
+
+  **What you see is what travels.** The export carries the board exactly as it
+  is on screen — every card's own settings, the cards you had pinned to every
+  board (they arrive as ordinary cards on the imported board, so nothing gets
+  pinned across the importer's vault), and the notes a Favorites card was
+  showing. None of that is a question the dialog asks any more, because none of
+  it is a difference you can see on a dashboard.
+
+  Importing **adds** the board rather than replacing anything: a new board, a
+  name that doesn't collide, and not one of your own settings touched. A shared
+  dashboard carries an identity of its own — separate from which board it is in
+  any one vault — so when the author publishes a newer version of it, importing
+  that offers to *update* the board you already have instead of leaving you two
+  near-identical ones in the switcher. The dialog reads the file first and
+  says what is in it — who made it, what plugins it wants, which of its notes
+  your vault hasn't got, whether it brought its pictures — before anything
+  changes. None of those gaps stop an import; the cards come through and you
+  point them at your own notes.
+
+- **A signed, anonymous handle, instead of typing your name.** The export dialog
+  used to ask for an author name. That is a bad question twice over: it is
+  personal information Hearth has no reason to hold, and it is a label anybody
+  can type — the first person to publish a board as somebody else's name is the
+  last one anyone trusts a name from.
+
+  So nothing is asked. Hearth makes you one **recovery key** the first time you
+  export something, keeps it in your vault, and everything public follows from
+  it: a handle like `quiet-lantern-4kj2m8`, and a signature on every file you
+  export. It says nothing about who you are, and it is the same on everything
+  you export.
+
+  **Nobody else can publish under it.** Your handle appears in every board you
+  share, so anyone can copy it — which is exactly why the file is signed. A
+  reader recomputes the handle from the key in the file and then checks that the
+  holder of that key really made this file. A board carrying somebody else's
+  handle fails that check and is shown with no author at all, and the import
+  dialog says why. This is the part that hashing alone could never do: a file is
+  static, so any proof it carries, its reader has too — only a signature works.
+
+  What it doesn't do is tell you *who* somebody is. It tells you that the same
+  person made two boards, which is what a gallery needs to build reputation on
+  and about as far as a file format can honestly go on its own.
+
+  **Reinstalling doesn't lose it.** The key is the only thing worth keeping:
+  paste it into a new vault (Settings → Import / export → **Published as**, or
+  the same row in the export dialog) and the same handle comes back. There is no
+  account and nothing is stored anywhere but your vault, which is also the catch
+  — there is no reset and nobody to ask, so the export dialog keeps asking you
+  to save the key until you have, and warns before letting you paste another one
+  over a key you never copied. It is left out of every export file, backups
+  included.
+
+- **One switch for everything private in the file.** A dashboard export
+  deliberately carries the paths it points at — that is what makes it work as
+  your own backup — which is exactly wrong for a board you are about to publish.
+  **Leave out my private information** removes the note and folder paths,
+  calendar feed links, an internal Jira host, your location, and anything you
+  typed on a text card. The board still looks identical; the cards just arrive
+  pointing at nothing, which whoever downloads it has to fill in anyway.
+
+  And it can be checked rather than trusted. **See and tune exactly what
+  travels** opens a section that lists the actual values — read from this board,
+  not described in the abstract — for each group it removes, and lets each group
+  be turned on or off separately (queries and command ids are off by default,
+  since removing those stops the board doing anything). Left as it is, the same
+  section lists everything the file will mention. It is built only when you open
+  it, so an export you never expand costs nothing.
+
+- **A board can carry its own search row, chrome and sky.** Nine settings that
+  decide how a board looks were vault-wide only: the search placeholder, the
+  button beside the search field (whether it's there, what it does, what it
+  says), which filter chips show, whether the board stacks into one column when
+  narrow, whether the arrange button and the dashboard switcher stay visible or
+  fade in on hover, and whether the painted weather sky drifts. Each is now a
+  per-board override in Dashboard settings, following the vault until you say
+  otherwise — which is both a feature in its own right and what lets an exported
+  board describe its whole appearance.
+
+  The sky override can ask for motion but never insist on it: the performance
+  tier and your own reduced-motion setting still have the last word, so an
+  imported board can't start animating on a device that has opted out.
+
+- **The "Search online" button can search somewhere other than DuckDuckGo.**
+  The button used to be wired to DuckDuckGo and nothing else. It still opens
+  DuckDuckGo out of the box, but it now carries an arrow beside it: click that
+  and pick DuckDuckGo, DuckDuckGo with its AI features off (`noai.duckduckgo.com`),
+  Brave, Kagi, Google, Mojeek, Ecosia or Qwant for that one search, without
+  changing anything.
+
+  Which engine the button itself opens is **Settings → Appearance → Online
+  search engine**, and it travels in a full settings backup like every other
+  setting. Every engine on the list is a plain query URL — no key, no account,
+  nothing fetched in the background: the button opens a link in your browser
+  exactly as it always did.
+
+- **"Open dashboard 1…9" — go to a particular board in one shortcut.** Hearth
+  could switch the active dashboard, and it could open Hearth, but going to a
+  named board from a note took both, which meant a macro plugin to chain them.
+  There is now a second command per position that does the two together, so a
+  hotkey or a note-toolbar button can land you on the board you want from
+  anywhere in the vault. "Switch to dashboard N" is unchanged and keeps its
+  hotkeys, for when Hearth is already in front of you.
+
+### Changed
+
+- **"Export dashboard" is now "Share dashboard",** with a switch at the top for
+  where it is going: a file, or the gallery. The two asked almost the same
+  questions and differed only in their defaults, so they are one dialog rather
+  than two that drift apart. It also gained the board's own thumbnail at the
+  top — the same one a gallery listing draws — and a **category**, which is the
+  one thing about a published dashboard that cannot be worked out from it.
+
+  Publishing names what it takes out — every note, folder and attachment path;
+  private calendar feeds, private hosts and your location; anything you typed on
+  a text card and a calculator's last sum; every credential a card can hold —
+  and what it keeps, which is the board itself. The details section lists the
+  actual values, so it can be checked rather than believed. The wallpaper is a
+  plain switch at the top, on by default, on both sides.
+
 ### Fixed
+
+- **Publishing a board no longer edits the notes it photographs.** The picture
+  taken at publish blanked the board by writing block characters over the page
+  itself and putting the text back afterwards — which is harmless for something
+  merely rendered, and was not harmless for the three cards whose page *is* your
+  data. A live-preview note card hosts Obsidian's own editor, which read the
+  blocks back as typing and saved them, so publishing a board rewrote the note
+  on it and the restore came too late to help; the raw-edit note card and the
+  text card could do the same through a save landing in the second the shutter
+  was open. Those regions are now blanked by *style* — hidden, drawn in nothing,
+  and blurred — so nothing readable is in the frame and nothing is written to
+  the vault to get it there. **If you published a board carrying a live note
+  card before this, check that note**: Obsidian's own File recovery holds a
+  snapshot from before the damage.
+
+- **A published board's picture no longer misses what a card renders late, and
+  a live-preview note photographs as writing again.** Two things the redaction
+  behind the publish snapshot got wrong. A card that fills itself from a query
+  — a Bases embed above all — renders its rows whenever the query comes back,
+  which can be after the page has been blanked and even during the moment the
+  picture is being read, so a table of somebody's notes could land in the
+  frame; the board is now watched for the whole capture and anything that
+  appears is covered in the frame it appeared in, and a shot the board moved
+  under is thrown away and taken again rather than published. And a
+  live-preview note card, which has to be hidden rather than blanked over
+  (its page is the note), was photographing as a grey slab; its line rhythm is
+  now measured and drawn back as bars, so the card still reads as a note.
+  Nothing readable is painted either way — the bars are decoration over a
+  region that is already blank, and stand only where text really is.
+
+- **A card hidden from the narrow board can be brought back from a phone.**
+  Hiding a card for the stacked layout took it off the board — including off the
+  board its own settings are reached from — so the switch could only be turned
+  back off from a desktop or by forcing the wide layout. Arranging a stacked
+  board now shows the hidden cards too, greyed out and dashed, each with an eye
+  button in its header that puts it back. They are never built while they sit
+  there (hiding a card is usually because it is expensive or needs width), they
+  keep their place in the stack so unhiding returns a card where it was left,
+  and outside arrange mode nothing changes: hidden stays hidden, and the
+  free-form board on a desktop is untouched.
+
+- **"Disable external calls" now also covers a background image and a title icon
+  given as a web address.** The switch promises to block every outbound request
+  Hearth makes, and every card kept that promise — but a wallpaper whose kind is
+  "Image URL", the bundled default wallpaper (which is served from GitHub rather
+  than from the plugin folder), and a title icon pointed at an `https://` address
+  were all set straight onto the page and fetched regardless. That was a footnote
+  while those strings were ones you typed yourself; with boards now shared and
+  installed from a gallery they are strings a stranger chose, and a board can be
+  authored so that merely opening it reports your IP to a host of the author's
+  choosing. All three are now blocked while the switch is on, and a blocked
+  wallpaper falls back to no picture — a bannered board loses the strip rather
+  than reserving an empty one — while a blocked icon falls back to the Hearth
+  crystal. Nothing is rewritten: turn the switch off and the wallpaper and the
+  icon come back. **If you have deliberately set a URL wallpaper or icon and have
+  the switch on, that picture will disappear on upgrade** — either point it at a
+  vault attachment, or turn the switch off.
+
+- **A full settings backup no longer forgets eleven settings.** Export every
+  Hearth setting, restore it into a fresh vault, and eleven of them came back at
+  their defaults instead of yours: the theme-colour target, the mobile
+  performance tier, both chrome-visibility choices, focus-search-on-open, live
+  refresh, pick-up-synced-changes, stack-when-narrow, custom file icons, the
+  Iconize property name, and the Operon writes switch. They were never written
+  to the file, so nothing could restore them. All eleven now travel, and a test
+  checks the export against the settings list so the next one added can't slip
+  through the same gap.
+
+- **A restored backup keeps its painted sky.** A vault whose background was the
+  weather sky restored with no background at all: the importer's list of
+  background kinds had never been updated with `weather`, so the setting failed
+  its check and was dropped. The per-board background override was unaffected.
+
+- **Exports and backups no longer drop eight kinds of card setting.** A card's
+  configuration is what the card *is*, and the importer's allowlist had never
+  been told about eight blocks of it — so a Calendar card came back with no
+  feeds, a weather card pointing nowhere, and the Periodic, Templater, search
+  bar, Stats, pet and recent-file-type settings back at their defaults. It
+  looked like nothing was wrong, because an unconfigured card of the right kind
+  still renders. All of them now travel, in single-dashboard exports and in full
+  backups alike, and a test walks every kind's config block so the next one
+  added cannot slip through the same gap.
+
+- **Exporting a single dashboard no longer includes a Jira token.** The layout
+  and full-settings exports have always scrubbed a Jira card's personal access
+  token; the new single-dashboard export needed the same scrub, and there is now
+  one shared function doing it for all three so a future export path cannot
+  forget.
+
+- **Duplicating a dashboard copies all of it.** The duplicate action carried a
+  hand-written list of fields, which had fallen behind every override added
+  after it was written — a copy came out subtly unlike the board it came from.
+  It now clones the board and takes back only the two things a copy must not
+  share: a workspace link and the mobile-default flag.
 
 - **Frosted glass no longer smears across the gaps between cards.** With the
   card blur turned on, two cards sitting apart on a board could show a single
@@ -157,6 +462,18 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   is rebuilt by the same pass that decides which cards touch, and that pass bailed
   out early when there was nothing that *could* touch — so a board holding exactly
   one card came out with no frosted glass at all, however high its blur was set.
+
+- **Chaining "switch dashboard" and "open Hearth" showed the old board.** Two
+  commands run back to back — by a Commander macro, a note-toolbar button,
+  anything that chains them — switched the dashboard in settings and then
+  revealed the previous one, while each command on its own behaved. A board that
+  is open but off screen is deliberately not re-rendered when settings change,
+  on the understanding that whatever next puts it on screen will render it.
+  Revealing a tab turned out not to be one of those things: Obsidian reports a
+  leaf becoming active, and a leaf that was already the active one in a hidden
+  tab group never becomes active again. A skipped render is now remembered
+  against the board rather than assumed away, and every route back on screen
+  pays it.
 
 ## [3.0.0]
 

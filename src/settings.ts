@@ -8,9 +8,17 @@ import { addIconPicker } from "./lucide";
 import { CommandPickerModal, FilePickerModal, FolderPickerModal } from "./pickers";
 import { addTitleIconPicker } from "./titleicon";
 import { configuredPlaces, renderSkySource } from "./placepicker";
-import { BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN, CONTENT_WIDTH_STEP, DEFAULT_SETTINGS, defaultMobileActionButtons, frostAllowed, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, skyDensity, timersAllowed } from "./types";
-import { exportLayout, exportSettings, importLayout, importSettings } from "./layout";
-import { confirmAction, downloadTextFile, makeClickable, pickTextFile } from "./ui";
+import { activeDashboard, BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, backgroundIsRemote, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN, CONTENT_WIDTH_STEP, DEFAULT_SETTINGS, defaultMobileActionButtons, frostAllowed, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, skyDensity, timersAllowed } from "./types";
+import {
+	exportLayout,
+	exportSettings,
+	identitySetting,
+	openExportDashboard,
+	pickAndImport,
+} from "./exportimport";
+import { forgetGallerySession, galleryConfigured, normalizeGalleryUrl } from "./gallery";
+import { openGallery } from "./gallerybrowse";
+import { makeClickable } from "./ui";
 import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
 import { formatSkyValue, parseSkyValue } from "./sky";
 import {
@@ -30,6 +38,7 @@ import {
 import { CHANGELOG, WhatsNewModal } from "./whatsnew";
 import { openSetupWizard } from "./onboarding";
 import { t } from "./i18n";
+import { isWebSearchEngineId, WEB_SEARCH_ENGINES, webSearchEngine } from "./websearch";
 import {
 	destinationSummary,
 	isTemplaterAvailable,
@@ -84,8 +93,6 @@ const GITHUB_URL = "https://github.com/ondreu/hearth";
 const GITHUB_ISSUES_URL = "https://github.com/ondreu/hearth/issues/new";
 
 /** Download filenames for the JSON exports. */
-const LAYOUT_FILE = "hearth-layout.json";
-const SETTINGS_FILE = "hearth-settings.json";
 
 /** A tab in the settings ribbon: an id (keys `t().settings.tabs`, declared in
  * `integrations.ts` so the catalogue can point at one) and a Lucide icon shown
@@ -660,6 +667,7 @@ export class HomeSettingTab extends PluginSettingTab {
 				s.titleIcon = v;
 				void this.save();
 			},
+			s.disableExternalCalls,
 		);
 
 		addIconPicker(
@@ -794,6 +802,20 @@ export class HomeSettingTab extends PluginSettingTab {
 						s.newNoteButtonMode = v as typeof s.newNoteButtonMode;
 						this.save();
 					});
+			});
+
+		// Which engine the "Search online" button opens. The dropdown beside the
+		// button overrides it for a single search; this is the one it comes back
+		// to (see src/websearch.ts).
+		new Setting(containerEl)
+			.setName(t().settings.appearance.webSearchEngine)
+			.setDesc(t().settings.appearance.webSearchEngineDesc)
+			.addDropdown((d) => {
+				for (const engine of WEB_SEARCH_ENGINES) d.addOption(engine.id, engine.name);
+				d.setValue(webSearchEngine(s.webSearchEngine).id).onChange(async (v) => {
+					if (isWebSearchEngineId(v)) s.webSearchEngine = v;
+					this.save();
+				});
 			});
 
 		this.newNoteSection(containerEl);
@@ -1040,6 +1062,19 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	// ---- Background -----------------------------------------------------
 
+	/** The note that says a web wallpaper is not being fetched, shown only when
+	 * the chosen kind actually is one and the switch actually is on. */
+	private remoteBackgroundNote(containerEl: HTMLElement, kind: BackgroundKind): void {
+		if (!backgroundIsRemote(kind) || !this.plugin.settings.disableExternalCalls) return;
+		const note = new Setting(containerEl).setDesc(
+			t().settings.background.externalCallsDisabled,
+		);
+		note.settingEl.addClass("hearth-setting-note");
+		const icon = createSpan("hearth-setting-note-icon");
+		setIcon(icon, "wifi-off");
+		note.descEl.prepend(icon);
+	}
+
 	private backgroundSection(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
 
@@ -1071,6 +1106,11 @@ export class HomeSettingTab extends PluginSettingTab {
 					this.rerender();
 				});
 			});
+
+		// A wallpaper fetched from the web is one the kill switch blocks (#281),
+		// and a background that quietly doesn't appear is worse than one that says
+		// why — so the note sits with the dropdown that chose it.
+		this.remoteBackgroundNote(containerEl, s.backgroundKind);
 
 		// The weather sky stores a place rather than a typed-in value, so it gets
 		// the shared place picker instead of the text field below.
@@ -2095,128 +2135,133 @@ export class HomeSettingTab extends PluginSettingTab {
 
 	// ---- Layout import / export ----------------------------------------
 
-	private layoutSection(containerEl: HTMLElement): void {
-		const s = this.plugin.settings;
+	/**
+	 * The four export/import rows, all on the portable-package engine (see
+	 * `src/portable/`).
+	 *
+	 * The dashboard row is the one that's new, and it comes first because it is
+	 * the one most people want: a single board, carrying its whole look, that
+	 * lands in someone else's vault without replacing anything. The two
+	 * whole-vault rows below it are the backups, and only those are destructive
+	 * — which is why only those wear the danger styling.
+	 */
+	/**
+	 * Where this vault browses and publishes dashboards.
+	 *
+	 * Under the export rows rather than in a tab of its own: a gallery is the
+	 * far end of the same pipe — a package that goes somewhere instead of into a
+	 * file — and the identity row it depends on is already here.
+	 *
+	 * The address field is the on switch, and it arrives with
+	 * `DEFAULT_GALLERY_URL` in it. Clearing it turns the gallery off — the
+	 * buttons elsewhere in the plugin are not drawn, nothing is fetched and
+	 * nothing is sent — and that stays cleared across upgrades, which is the
+	 * half of it `migrateSettings` handles.
+	 */
+	private gallerySection(containerEl: HTMLElement): void {
+		const strings = t().gallery.settings;
+		new Setting(containerEl).setName(strings.heading).setHeading();
 
-		// Export the current dashboard layout as a JSON file.
 		new Setting(containerEl)
-			.setName(t().settings.layout.export)
-			.setDesc(t().settings.layout.exportDesc)
+			.setName(strings.host)
+			.setDesc(strings.hostDesc)
+			.addText((tx) => {
+				// Committed on the way out of the field rather than per
+				// keystroke. Half of `https://gallery.example.com` is not an
+				// address, and validating each keystroke means either
+				// complaining about every one of them or — worse — leaving the
+				// *previous* host stored behind a field that now shows something
+				// else, so the gallery buttons would keep talking to a server the
+				// settings page has stopped naming.
+				const commit = (raw: string): void => {
+					const trimmed = raw.trim();
+					const host = trimmed ? normalizeGalleryUrl(trimmed) : "";
+					if (trimmed && host === null) {
+						new Notice(strings.hostInvalid);
+						// Cleared, not left as it was: a field showing an address
+						// Hearth won't use must not sit over one it still would.
+						tx.setValue(this.plugin.settings.galleryUrl);
+						return;
+					}
+					const next = host ?? "";
+					if (next === this.plugin.settings.galleryUrl) return;
+					this.plugin.settings.galleryUrl = next;
+					// A held token belongs to the host that issued it.
+					forgetGallerySession();
+					void this.plugin.saveData(this.plugin.settings);
+					new Notice(next ? strings.hostSet(next) : strings.hostCleared);
+					// The browse row below appears and disappears with the host.
+					this.rerender();
+				};
+				tx.setPlaceholder(strings.hostPlaceholder).setValue(this.plugin.settings.galleryUrl);
+				tx.inputEl.addEventListener("blur", () => commit(tx.inputEl.value));
+				tx.inputEl.addEventListener("keydown", (evt: KeyboardEvent) => {
+					if (evt.key === "Enter") commit(tx.inputEl.value);
+				});
+			});
+
+		if (!galleryConfigured(this.plugin)) return;
+		new Setting(containerEl)
+			.setName(strings.browse)
+			.setDesc(strings.browseDesc)
 			.addButton((b) =>
-				this.exportButton(b, LAYOUT_FILE, () => exportLayout(s), t().notices.layoutExported),
+				b.setButtonText(strings.browseButton).onClick(() => openGallery(this.plugin)),
+			);
+	}
+
+	private layoutSection(containerEl: HTMLElement): void {
+		const strings = t().settings.layout;
+
+		// Export the active dashboard on its own.
+		new Setting(containerEl)
+			.setName(strings.exportDashboard)
+			.setDesc(strings.exportDashboardDesc)
+			.addButton((b) =>
+				b
+					.setButtonText(strings.exportDashboardButton)
+					.onClick(() =>
+						openExportDashboard(this.plugin, activeDashboard(this.plugin.settings)),
+					),
 			);
 
-		// Import a dashboard layout from a chosen JSON file.
+		// Import anything: one board, a layout, or a full backup. The dialog
+		// reads the file and offers only the modes that make sense for it.
 		new Setting(containerEl)
-			.setName(t().settings.layout.import)
-			.setDesc(t().settings.layout.importDesc)
-			.addButton((b) => {
-				b.buttonEl.addClass("hearth-danger-btn");
-				b.setButtonText(t().settings.layout.importButton).onClick(() =>
-					this.importFromFile({
-						title: t().settings.layout.importTitle,
-						message: t().settings.layout.importMessage,
-						apply: (json) => importLayout(s, json),
-						imported: t().notices.layoutImported,
-					}),
-				);
-			});
+			.setName(strings.importAny)
+			.setDesc(strings.importAnyDesc)
+			.addButton((b) =>
+				b.setButtonText(strings.importButton).onClick(() => void pickAndImport(this.plugin)),
+			);
+
+		// Who a shared dashboard says it is by. Here as well as in the export
+		// dialog because the recovery key is the one thing worth writing down
+		// before it is needed, and nobody goes looking for it inside a dialog
+		// they only open when they are already exporting.
+		identitySetting(this.plugin, containerEl, () => this.rerender());
+
+		this.gallerySection(containerEl);
+
+		// Export the whole dashboard setup as a JSON file.
+		new Setting(containerEl)
+			.setName(strings.export)
+			.setDesc(strings.exportDesc)
+			.addButton((b) => this.exportButton(b, () => exportLayout(this.plugin)));
 
 		// Export every Hearth setting as a JSON file.
 		new Setting(containerEl)
-			.setName(t().settings.layout.exportSettings)
-			.setDesc(t().settings.layout.exportSettingsDesc)
-			.addButton((b) =>
-				this.exportButton(b, SETTINGS_FILE, () => exportSettings(s), t().notices.settingsExported),
-			);
-
-		// Import a full settings backup from a chosen JSON file.
-		new Setting(containerEl)
-			.setName(t().settings.layout.importSettings)
-			.setDesc(t().settings.layout.importSettingsDesc)
-			.addButton((b) => {
-				b.buttonEl.addClass("hearth-danger-btn");
-				b.setButtonText(t().settings.layout.importButton).onClick(() =>
-					this.importFromFile({
-						title: t().settings.layout.importSettingsTitle,
-						message: t().settings.layout.importSettingsMessage,
-						apply: (json) => importSettings(s, json),
-						imported: t().notices.settingsImported,
-					}),
-				);
-			});
+			.setName(strings.exportSettings)
+			.setDesc(strings.exportSettingsDesc)
+			.addButton((b) => this.exportButton(b, () => exportSettings(this.plugin)));
 	}
 
-	/** Wire an export button. `build` is called at click time so it always
+	/** Wire an export button. `run` is called at click time so it always
 	 * serializes the current settings. On mobile, where a browser download can't
 	 * be triggered, the file is written to the vault root instead and the button
 	 * carries a tooltip saying so. */
-	private exportButton(
-		b: ButtonComponent,
-		filename: string,
-		build: () => string,
-		desktopNotice: string,
-	): void {
+	private exportButton(b: ButtonComponent, run: () => Promise<void>): void {
 		b.setButtonText(t().settings.layout.exportButton);
 		if (Platform.isMobile) b.setTooltip(t().settings.layout.exportMobileTooltip);
-		b.onClick(() => void this.exportJson(filename, build(), desktopNotice));
-	}
-
-	/** Save an export: download it (desktop) or write it to the vault root
-	 * (mobile, which can't download). */
-	private async exportJson(filename: string, content: string, desktopNotice: string): Promise<void> {
-		if (Platform.isMobile) {
-			try {
-				await this.saveToVaultRoot(filename, content);
-				new Notice(t().notices.exportedToVault(filename));
-			} catch {
-				new Notice(t().notices.exportFailed);
-			}
-			return;
-		}
-		downloadTextFile(filename, content);
-		new Notice(desktopNotice);
-	}
-
-	/** Create (or overwrite) a file at the vault root. */
-	private async saveToVaultRoot(filename: string, content: string): Promise<void> {
-		const existing = this.app.vault.getAbstractFileByPath(filename);
-		if (existing instanceof TFile) {
-			await this.app.vault.modify(existing, content);
-		} else {
-			await this.app.vault.create(filename, content);
-		}
-	}
-
-	/** Shared flow for the file-based imports: pick a JSON file, confirm the
-	 * destructive replace, then apply it. `apply` returns an error string or null. */
-	private async importFromFile(opts: {
-		title: string;
-		message: string;
-		apply: (json: string) => string | null;
-		imported: string;
-	}): Promise<void> {
-		const json = await pickTextFile();
-		if (json === null) return; // cancelled or unreadable
-		confirmAction(this.app, {
-			title: opts.title,
-			message: opts.message,
-			confirmText: t().settings.layout.importButton,
-			onConfirm: () => {
-				const error = opts.apply(json);
-				if (error) {
-					new Notice(t().notices.layoutImportError(error));
-					return;
-				}
-				void this.save();
-				// An import can carry a different tab icon (or theme-color
-				// target), and neither the ribbon button nor an open tab header
-				// is redrawn by a settings save on its own.
-				this.plugin.refreshBrandIcons();
-				this.rerender();
-				new Notice(opts.imported);
-			},
-		});
+		b.onClick(() => void run());
 	}
 
 	// ---- About ----------------------------------------------------------

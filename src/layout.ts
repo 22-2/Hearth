@@ -32,7 +32,13 @@ import {
 	type OpenOutsideRule,
 	type RssConfig,
 	type RssSource,
+	type PetConfig,
+	type PetSpecies,
+	type PeriodicCardConfig,
 	type SavedSearchConfig,
+	type ScheduleConfig,
+	type ScheduleView,
+	type SearchBarConfig,
 	type SlideshowAdvance,
 	type SlideshowConfig,
 	type SlideshowOrder,
@@ -44,7 +50,20 @@ import {
 	type TaskFilterConfig,
 	type TaskSortRule,
 	type TasksConfig,
+	type TaskNotesSourceConfig,
+	type TemplaterConfig,
+	type TemplaterItem,
 	type TileGeometry,
+	type CalendarChipConfig,
+	type CalendarSourcesConfig,
+	type IcsSource,
+	type StatId,
+	type StatsConfig,
+	type StatsQuery,
+	type WeatherConfig,
+	type WeatherPlace,
+	type WeatherStyle,
+	ALL_STATS,
 	activeDashboard,
 	CARD_BORDER_WIDTH_MAX,
 	CONTENT_WIDTH_MAX,
@@ -67,6 +86,15 @@ import {
 } from "./slideshow";
 import { DATACORE_LANGUAGES, type DatacoreLanguage } from "./datacore";
 import {
+	type EventField,
+	type EventFieldAction,
+	type EventNoteConfig,
+	type EventNoteFieldRule,
+} from "./eventnote";
+import { GRANULARITIES, type Granularity } from "./periodic";
+import { FILE_TYPE_GROUPS } from "./filetypes";
+import { PET_SPECIES } from "./cards/pet";
+import {
 	GIT_ACTION_STYLES,
 	GIT_COMMIT_SCOPES,
 	gitActions,
@@ -75,6 +103,7 @@ import {
 	type GitCommitScope,
 } from "./git";
 import { t } from "./i18n";
+import { isWebSearchEngineId } from "./websearch";
 
 /** Current dashboard-layout export schema version. v2 carries every dashboard
  * (with per-board overrides and backgrounds) plus pinned cards and globals;
@@ -116,15 +145,29 @@ const RANGE = {
 	headerSpacingBelow: { min: 0, max: 96 },
 };
 
-/** Build the portable layout payload (the dashboard setup and its globals). */
-function layoutPayload(s: HomeSettings): LayoutExport {
-	// SECURITY-REVIEW: Jira PATs authenticate outbound requests and must never be
-	// copied into portable layout/settings artifacts. Clone only the affected
-	// card/config objects so live settings retain their credentials unchanged.
-	const scrubCard = (card: DashboardCard): DashboardCard =>
-		card.jira?.pat === undefined
-			? card
-			: { ...card, jira: { ...card.jira, pat: undefined } };
+/**
+ * A card with its credentials taken out.
+ *
+ * SECURITY-REVIEW: Jira PATs authenticate outbound requests and must never be
+ * copied into a portable artifact. Only the affected card and config objects are
+ * cloned, so the live settings keep their credentials unchanged.
+ *
+ * Exported because every kind of export has to go through it: the layout and
+ * settings payloads below, and — since a board can be exported on its own — the
+ * dashboard capture in `src/portable/capture.ts` as well. One scrub, called from
+ * everywhere, rather than one per export path.
+ */
+export function scrubCard(card: DashboardCard): DashboardCard {
+	return card.jira?.pat === undefined
+		? card
+		: { ...card, jira: { ...card.jira, pat: undefined } };
+}
+
+/** Build the portable layout payload (the dashboard setup and its globals).
+ *
+ * Exported for `src/portable/`, which wraps it as the payload of a `layout`
+ * package rather than re-deriving it. */
+export function layoutPayload(s: HomeSettings): LayoutExport {
 	const dashboards = s.dashboards.map((dashboard) => ({
 		...dashboard,
 		cards: dashboard.cards.map(scrubCard),
@@ -153,7 +196,19 @@ export function exportLayout(s: HomeSettings): string {
  * pretty JSON string. Internal bookkeeping (e.g. `lastSeenVersion`) is omitted
  * so a shared backup can't rewind another vault's "What's new" state. */
 export function exportSettings(s: HomeSettings): string {
-	const data = {
+	return JSON.stringify(exportSettingsPayload(s), null, 2);
+}
+
+/**
+ * The full-settings payload as an object.
+ *
+ * Split out from {@link exportSettings} so `src/portable/` can embed it in a
+ * package without serializing and re-parsing it, and so `test/portable.test.ts`
+ * can check it against `DEFAULT_SETTINGS` key by key — which is how the eleven
+ * settings this function used to forget were found.
+ */
+export function exportSettingsPayload(s: HomeSettings): Record<string, unknown> {
+	return {
 		hearthSettings: SETTINGS_SCHEMA,
 		...layoutPayload(s),
 
@@ -162,6 +217,7 @@ export function exportSettings(s: HomeSettings): string {
 		showTitle: s.showTitle,
 		titleIcon: s.titleIcon,
 		tabIcon: s.tabIcon,
+		themeColorTarget: s.themeColorTarget,
 		showSearch: s.showSearch,
 		searchPlaceholder: s.searchPlaceholder,
 		showNewNoteButton: s.showNewNoteButton,
@@ -172,6 +228,7 @@ export function exportSettings(s: HomeSettings): string {
 		newNoteFilename: s.newNoteFilename,
 		searchContents: s.searchContents,
 		searchEngine: s.searchEngine,
+		webSearchEngine: s.webSearchEngine,
 
 		// Background
 		backgroundKind: s.backgroundKind,
@@ -186,13 +243,22 @@ export function exportSettings(s: HomeSettings): string {
 		// them, so it has to travel with them — otherwise an export taken on a
 		// lower tier would describe a look the importing vault doesn't show.
 		performanceTier: s.performanceTier,
+		// The mobile tier travels with the desktop one for the same reason: a
+		// backup that restored only half the pair would describe a look the
+		// restoring device doesn't show.
+		mobilePerformanceTier: s.mobilePerformanceTier,
 		lowPowerBackgroundColor: s.lowPowerBackgroundColor,
 		pauseWhenUnfocused: s.pauseWhenUnfocused,
+		backgroundSkyAnimate: s.backgroundSkyAnimate,
 
 		// Behaviour
 		openOnStartup: s.openOnStartup,
 		replaceNewTabs: s.replaceNewTabs,
+		focusSearchOnOpen: s.focusSearchOnOpen,
+		liveRefresh: s.liveRefresh,
+		liveSettingsSync: s.liveSettingsSync,
 		mobileSearchOnly: s.mobileSearchOnly,
+		stackOnNarrow: s.stackOnNarrow,
 		showMobileActionBar: s.showMobileActionBar,
 		mobileActionButtons: s.mobileActionButtons,
 		disableExternalCalls: s.disableExternalCalls,
@@ -202,6 +268,8 @@ export function exportSettings(s: HomeSettings): string {
 
 		// Appearance
 		compact: s.compact,
+		arrangeButtonVisibility: s.arrangeButtonVisibility,
+		dashboardSwitcherVisibility: s.dashboardSwitcherVisibility,
 		cardOpacity: s.cardOpacity,
 		cardBlur: s.cardBlur,
 		cardRadius: s.cardRadius,
@@ -218,10 +286,14 @@ export function exportSettings(s: HomeSettings): string {
 		taskFieldsEnabled: s.taskFieldsEnabled,
 		taskFields: s.taskFields,
 
+		// File icons (Iconic / Iconize)
+		customFileIcons: s.customFileIcons,
+		iconizeIconProperty: s.iconizeIconProperty,
+
 		// Operon
 		operonIntegration: s.operonIntegration,
+		operonWrites: s.operonWrites,
 	};
-	return JSON.stringify(data, null, 2);
 }
 
 function num(value: unknown, fallback: number): number {
@@ -352,7 +424,7 @@ function sanitizeMobileOptions(raw: unknown): MobileCardOptions | undefined {
 	return Object.keys(mobile).length > 0 ? mobile : undefined;
 }
 
-function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
+export function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	if (!raw || typeof raw !== "object") return null;
 	const r = raw as Record<string, unknown>;
 	const kind = CARD_KINDS.includes(r.kind as CardKind)
@@ -463,6 +535,35 @@ function sanitizeCard(raw: unknown, index: number): DashboardCard | null {
 	}
 	if (r.calendar && typeof r.calendar === "object") {
 		card.calendar = sanitizeCalendar(r.calendar as Record<string, unknown>);
+	}
+	if (r.schedule && typeof r.schedule === "object") {
+		card.schedule = sanitizeSchedule(r.schedule as Record<string, unknown>);
+	}
+	if (r.periodic && typeof r.periodic === "object") {
+		card.periodic = sanitizePeriodic(r.periodic as Record<string, unknown>);
+	}
+	if (r.templater && typeof r.templater === "object") {
+		card.templater = sanitizeTemplater(r.templater as Record<string, unknown>);
+	}
+	if (r.searchBar && typeof r.searchBar === "object") {
+		card.searchBar = sanitizeSearchBar(r.searchBar as Record<string, unknown>);
+	}
+	if (r.stats && typeof r.stats === "object") {
+		card.stats = sanitizeStats(r.stats as Record<string, unknown>);
+	}
+	if (r.weather && typeof r.weather === "object") {
+		card.weather = sanitizeWeather(r.weather as Record<string, unknown>);
+	}
+	if (r.pet && typeof r.pet === "object") {
+		card.pet = sanitizePet(r.pet as Record<string, unknown>);
+	}
+	const recentTypes = sanitizeFileTypeGroups(r.recentTypes);
+	if (recentTypes) card.recentTypes = recentTypes;
+	// A favourites card's own list, which only an import writes (see
+	// `DashboardCard.favorites`). Undefined stays undefined, so a card that
+	// follows the vault keeps following it.
+	if (Array.isArray(r.favorites)) {
+		card.favorites = r.favorites.filter((v): v is string => typeof v === "string");
 	}
 	if (r.savedSearch && typeof r.savedSearch === "object") {
 		card.savedSearch = sanitizeSavedSearch(
@@ -802,6 +903,9 @@ function sanitizeTasks(r: Record<string, unknown>): TasksConfig {
 
 function sanitizeCalendar(r: Record<string, unknown>): CalendarConfig {
 	const cfg: CalendarConfig = {};
+	sanitizeCalendarSources(cfg, r);
+	if (r.view === "month" || r.view === "agenda") cfg.view = r.view;
+	if (typeof r.agendaDays === "number") cfg.agendaDays = clampNum(r.agendaDays, 1, 365, 14);
 	if (typeof r.showWeekNumbers === "boolean")
 		cfg.showWeekNumbers = r.showWeekNumbers;
 	if (typeof r.heatmap === "boolean") cfg.heatmap = r.heatmap;
@@ -811,6 +915,381 @@ function sanitizeCalendar(r: Record<string, unknown>): CalendarConfig {
 	if (typeof r.operonTasks === "boolean") cfg.operonTasks = r.operonTasks;
 	const operonTaskColor = str(r.operonTaskColor);
 	if (operonTaskColor !== undefined) cfg.operonTaskColor = operonTaskColor;
+	return cfg;
+}
+
+/**
+ * Where a calendar-style card gets its events: the ICS feeds, the refresh, the
+ * TaskNotes overlay, the chip set and the event-note routing.
+ *
+ * Shared by the mini calendar and the full Calendar card because they share the
+ * config interface, and written out field by field like everything else here —
+ * a card that arrives without its feeds is a card that arrives empty, which is
+ * what an export is for.
+ */
+function sanitizeCalendarSources(
+	cfg: CalendarSourcesConfig,
+	r: Record<string, unknown>,
+): void {
+	if (Array.isArray(r.sources)) {
+		cfg.sources = r.sources
+			.map(sanitizeIcsSource)
+			.filter((s): s is IcsSource => s !== null);
+	}
+	if (typeof r.refreshMin === "number" && r.refreshMin >= 0) {
+		cfg.refreshMin = clampNum(r.refreshMin, 0, 24 * 60, 0);
+	}
+	const eventNote = sanitizeEventNote(r.eventNote);
+	if (eventNote) cfg.eventNote = eventNote;
+	const taskNotes = sanitizeTaskNotesSource(r.taskNotes);
+	if (taskNotes) cfg.taskNotes = taskNotes;
+	const chips = sanitizeCalendarChips(r.chips);
+	if (chips) cfg.chips = chips;
+}
+
+/** One subscribed ICS feed. A source with no URL is nothing, so it is dropped
+ * rather than imported as an empty row. */
+function sanitizeIcsSource(raw: unknown): IcsSource | null {
+	if (!raw || typeof raw !== "object") return null;
+	const r = raw as Record<string, unknown>;
+	const url = str(r.url);
+	if (url === undefined || url.trim() === "") return null;
+	const source: IcsSource = {
+		id: str(r.id) ?? `ics-${Math.random().toString(36).slice(2)}`,
+		name: str(r.name) ?? "",
+		url,
+	};
+	const color = str(r.color);
+	if (color !== undefined) source.color = color;
+	if (typeof r.enabled === "boolean") source.enabled = r.enabled;
+	return source;
+}
+
+const EVENT_FIELDS: readonly EventField[] = [
+	"summary",
+	"date",
+	"start",
+	"end",
+	"location",
+	"description",
+	"url",
+	"calendar",
+];
+const EVENT_FIELD_ACTIONS: readonly EventFieldAction[] = ["ignore", "frontmatter", "body"];
+
+function sanitizeEventNote(raw: unknown): EventNoteConfig | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	const cfg: EventNoteConfig = {};
+	if (typeof r.enabled === "boolean") cfg.enabled = r.enabled;
+	const folder = str(r.folder);
+	if (folder !== undefined) cfg.folder = folder;
+	const filename = str(r.filename);
+	if (filename !== undefined) cfg.filename = filename;
+	const template = str(r.template);
+	if (template !== undefined) cfg.template = template;
+	const linkKey = str(r.linkKey);
+	if (linkKey !== undefined) cfg.linkKey = linkKey;
+	if (Array.isArray(r.fields)) {
+		cfg.fields = r.fields
+			.map(sanitizeEventNoteField)
+			.filter((f): f is EventNoteFieldRule => f !== null);
+	}
+	return cfg;
+}
+
+function sanitizeEventNoteField(raw: unknown): EventNoteFieldRule | null {
+	if (!raw || typeof raw !== "object") return null;
+	const r = raw as Record<string, unknown>;
+	if (!EVENT_FIELDS.includes(r.field as EventField)) return null;
+	if (!EVENT_FIELD_ACTIONS.includes(r.action as EventFieldAction)) return null;
+	const rule: EventNoteFieldRule = {
+		field: r.field as EventField,
+		action: r.action as EventFieldAction,
+	};
+	const key = str(r.key);
+	if (key !== undefined) rule.key = key;
+	const format = str(r.format);
+	if (format !== undefined) rule.format = format;
+	return rule;
+}
+
+function sanitizeTaskNotesSource(raw: unknown): TaskNotesSourceConfig | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	const cfg: TaskNotesSourceConfig = {};
+	const flags = [
+		"enabled",
+		"scheduled",
+		"due",
+		"recurring",
+		"timeblocks",
+		"completed",
+		"archived",
+		"subscriptions",
+		"allowComplete",
+	] as const;
+	for (const flag of flags) {
+		if (typeof r[flag] === "boolean") cfg[flag] = r[flag];
+	}
+	if (r.colorBy === "status" || r.colorBy === "priority" || r.colorBy === "fixed") {
+		cfg.colorBy = r.colorBy;
+	}
+	for (const key of ["color", "dueColor", "timeblockColor"] as const) {
+		const value = str(r[key]);
+		if (value !== undefined) cfg[key] = value;
+	}
+	return cfg;
+}
+
+function sanitizeCalendarChips(raw: unknown): CalendarChipConfig | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	const cfg: CalendarChipConfig = {};
+	const chips = [
+		"time",
+		"source",
+		"status",
+		"priority",
+		"due",
+		"timeblock",
+		"recurring",
+	] as const;
+	for (const chip of chips) {
+		if (typeof r[chip] === "boolean") cfg[chip] = r[chip];
+	}
+	return cfg;
+}
+
+const SCHEDULE_VIEWS: readonly ScheduleView[] = ["month", "week", "day", "list"];
+
+/** The full Calendar card: its views, its grid, and the sources it shares with
+ * the mini calendar. Hours and heights are clamped to what the editor allows so
+ * an imported card can't draw a grid nothing fits in. */
+function sanitizeSchedule(r: Record<string, unknown>): ScheduleConfig {
+	const cfg: ScheduleConfig = {};
+	sanitizeCalendarSources(cfg, r);
+	if (SCHEDULE_VIEWS.includes(r.view as ScheduleView)) cfg.view = r.view as ScheduleView;
+	if (Array.isArray(r.views)) {
+		const views = r.views.filter((v): v is ScheduleView =>
+			SCHEDULE_VIEWS.includes(v as ScheduleView),
+		);
+		if (views.length) cfg.views = views;
+	}
+	if (typeof r.hideToolbar === "boolean") cfg.hideToolbar = r.hideToolbar;
+	if (typeof r.firstDay === "number") cfg.firstDay = clampNum(r.firstDay, 0, 6, 0);
+	if (typeof r.hideWeekends === "boolean") cfg.hideWeekends = r.hideWeekends;
+	if (typeof r.weekNumbers === "boolean") cfg.weekNumbers = r.weekNumbers;
+	if (typeof r.dayStart === "number") cfg.dayStart = clampNum(r.dayStart, 0, 23, 0);
+	if (typeof r.dayEnd === "number") cfg.dayEnd = clampNum(r.dayEnd, 1, 24, 24);
+	if (typeof r.hourHeight === "number") cfg.hourHeight = clampNum(r.hourHeight, 12, 240, 44);
+	if (r.clock === "12" || r.clock === "24") cfg.clock = r.clock;
+	if (typeof r.maxPerDay === "number") cfg.maxPerDay = clampNum(r.maxPerDay, 0, 50, 3);
+	if (r.monthStyle === "chips" || r.monthStyle === "dots") cfg.monthStyle = r.monthStyle;
+	if (typeof r.listDays === "number") cfg.listDays = clampNum(r.listDays, 1, 365, 14);
+	if (typeof r.nowLine === "boolean") cfg.nowLine = r.nowLine;
+	if (typeof r.dailyNotes === "boolean") cfg.dailyNotes = r.dailyNotes;
+	return cfg;
+}
+
+/** Which period a "periodic" card follows. */
+function sanitizePeriodic(r: Record<string, unknown>): PeriodicCardConfig {
+	const cfg: PeriodicCardConfig = {};
+	if (GRANULARITIES.includes(r.granularity as Granularity)) {
+		cfg.granularity = r.granularity as Granularity;
+	}
+	return cfg;
+}
+
+/** A Templater tile: the template it runs and where the note it makes lands. */
+function sanitizeTemplaterItem(raw: unknown): TemplaterItem | null {
+	if (!raw || typeof raw !== "object") return null;
+	const r = raw as Record<string, unknown>;
+	const template = str(r.template);
+	if (template === undefined) return null;
+	const item: TemplaterItem = {
+		id: str(r.id) ?? `tpl-${Math.random().toString(36).slice(2)}`,
+		label: str(r.label) ?? "",
+		icon: str(r.icon) ?? "file-plus",
+		template,
+	};
+	const folder = str(r.folder);
+	if (folder !== undefined) item.folder = folder;
+	const filename = str(r.filename);
+	if (filename !== undefined) item.filename = filename;
+	if (typeof r.open === "boolean") item.open = r.open;
+	readTileGeometry(item, r);
+	return item;
+}
+
+function sanitizeTemplater(r: Record<string, unknown>): TemplaterConfig {
+	const cfg: TemplaterConfig = {};
+	if (Array.isArray(r.items)) {
+		cfg.items = r.items
+			.map(sanitizeTemplaterItem)
+			.filter((i): i is TemplaterItem => i !== null);
+	}
+	return cfg;
+}
+
+/** The in-card search field. `hiddenFilters` is checked against the real
+ * file-type groups so a stale or invented id can't hide a chip nothing can
+ * bring back. */
+function sanitizeSearchBar(r: Record<string, unknown>): SearchBarConfig {
+	const cfg: SearchBarConfig = {};
+	if (typeof r.filters === "boolean") cfg.filters = r.filters;
+	const hidden = sanitizeFileTypeGroups(r.hiddenFilters);
+	if (hidden) cfg.hiddenFilters = hidden;
+	const placeholder = str(r.placeholder);
+	if (placeholder !== undefined) cfg.placeholder = placeholder;
+	if (r.button === "none" || r.button === "newNote" || r.button === "searchOnline") {
+		cfg.button = r.button;
+	}
+	if (typeof r.seamless === "boolean") cfg.seamless = r.seamless;
+	return cfg;
+}
+
+/** File-type group ids that actually exist, in the order given. */
+function sanitizeFileTypeGroups(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const known = new Set(FILE_TYPE_GROUPS.map((g) => g.id));
+	return value.filter((v): v is string => typeof v === "string" && known.has(v));
+}
+
+function sanitizeStatsQuery(raw: unknown): StatsQuery | null {
+	if (!raw || typeof raw !== "object") return null;
+	const r = raw as Record<string, unknown>;
+	const query = str(r.query);
+	if (query === undefined) return null;
+	const stat: StatsQuery = {
+		id: str(r.id) ?? `stat-${Math.random().toString(36).slice(2)}`,
+		query,
+	};
+	const label = str(r.label);
+	if (label !== undefined) stat.label = label;
+	const icon = str(r.icon);
+	if (icon !== undefined) stat.icon = icon;
+	return stat;
+}
+
+function sanitizeStats(r: Record<string, unknown>): StatsConfig {
+	const cfg: StatsConfig = {};
+	if (typeof r.advanced === "boolean") cfg.advanced = r.advanced;
+	if (Array.isArray(r.builtins)) {
+		cfg.builtins = r.builtins.filter((v): v is StatId =>
+			ALL_STATS.includes(v as StatId),
+		);
+	}
+	const attachmentTypes = sanitizeFileTypeGroups(r.attachmentTypes);
+	if (attachmentTypes) cfg.attachmentTypes = attachmentTypes;
+	if (Array.isArray(r.queries)) {
+		cfg.queries = r.queries
+			.map(sanitizeStatsQuery)
+			.filter((q): q is StatsQuery => q !== null);
+	}
+	return cfg;
+}
+
+const WEATHER_STYLES: readonly WeatherStyle[] = [
+	"minimal",
+	"compact",
+	"detailed",
+	"forecast",
+	"artistic",
+];
+
+/** The place a weather card is set to. Coordinates are the whole value here, so
+ * a place without a usable pair is no place at all. */
+function sanitizeWeatherPlace(raw: unknown): WeatherPlace | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	if (typeof r.lat !== "number" || !Number.isFinite(r.lat)) return undefined;
+	if (typeof r.lon !== "number" || !Number.isFinite(r.lon)) return undefined;
+	const place: WeatherPlace = {
+		name: str(r.name) ?? "",
+		lat: clampFloat(r.lat, -90, 90, 0),
+		lon: clampFloat(r.lon, -180, 180, 0),
+	};
+	const region = str(r.region);
+	if (region !== undefined) place.region = region;
+	const timezone = str(r.timezone);
+	if (timezone !== undefined) place.timezone = timezone;
+	return place;
+}
+
+function sanitizeWeather(r: Record<string, unknown>): WeatherConfig {
+	const cfg: WeatherConfig = {};
+	const place = sanitizeWeatherPlace(r.place);
+	if (place) cfg.place = place;
+	if (WEATHER_STYLES.includes(r.style as WeatherStyle)) cfg.style = r.style as WeatherStyle;
+	if (r.tempUnit === "c" || r.tempUnit === "f") cfg.tempUnit = r.tempUnit;
+	if (r.windUnit === "kmh" || r.windUnit === "ms" || r.windUnit === "mph" || r.windUnit === "kn") {
+		cfg.windUnit = r.windUnit;
+	}
+	if (r.precipUnit === "mm" || r.precipUnit === "inch") {
+		cfg.precipUnit = r.precipUnit;
+	}
+	if (r.hourFormat === "auto" || r.hourFormat === "12" || r.hourFormat === "24") {
+		cfg.hourFormat = r.hourFormat;
+	}
+	const flags = [
+		"showLocation",
+		"showCondition",
+		"showFeelsLike",
+		"showHighLow",
+		"showHumidity",
+		"showWind",
+		"showPrecip",
+		"showUv",
+		"showPressure",
+		"showSun",
+		"showUpdated",
+		"animate",
+	] as const;
+	for (const flag of flags) {
+		if (typeof r[flag] === "boolean") cfg[flag] = r[flag];
+	}
+	if (typeof r.hourlyCount === "number") cfg.hourlyCount = clampNum(r.hourlyCount, 0, 48, 6);
+	if (typeof r.dailyCount === "number") cfg.dailyCount = clampNum(r.dailyCount, 0, 16, 4);
+	if (typeof r.refreshMin === "number") cfg.refreshMin = clampNum(r.refreshMin, 0, 24 * 60, 30);
+	return cfg;
+}
+
+/** A pet card, its palette and the thresholds that decide its mood.
+ * `lastPlayedAt` is the card's own working state and is deliberately not
+ * carried: an imported pet starts from the vault it landed in, not from the
+ * last time someone else patted it. */
+function sanitizePet(r: Record<string, unknown>): PetConfig {
+	const cfg: PetConfig = {};
+	if (PET_SPECIES.includes(r.species as PetSpecies)) cfg.species = r.species as PetSpecies;
+	const name = str(r.name);
+	if (name !== undefined) cfg.name = name;
+	const bodyColor = str(r.bodyColor);
+	if (bodyColor !== undefined) cfg.bodyColor = bodyColor;
+	const accentColor = str(r.accentColor);
+	if (accentColor !== undefined) cfg.accentColor = accentColor;
+	if (r.metric === "modified" || r.metric === "created") cfg.metric = r.metric;
+	if (typeof r.dailyGoal === "number") cfg.dailyGoal = clampNum(r.dailyGoal, 1, 999, 3);
+	if (typeof r.excitedAt === "number") cfg.excitedAt = clampNum(r.excitedAt, 1, 999, 6);
+	if (typeof r.contentAt === "number") cfg.contentAt = clampNum(r.contentAt, 1, 999, 1);
+	if (typeof r.sleepyAfterMin === "number") {
+		cfg.sleepyAfterMin = clampNum(r.sleepyAfterMin, 1, 60 * 24 * 7, 360);
+	}
+	if (typeof r.pettedForMin === "number") {
+		cfg.pettedForMin = clampNum(r.pettedForMin, 1, 60 * 24, 30);
+	}
+	if (r.eyesFollow === "off" || r.eyesFollow === "card" || r.eyesFollow === "board") {
+		cfg.eyesFollow = r.eyesFollow;
+	}
+	if (r.nightSleep === "off" || r.nightSleep === "quiet" || r.nightSleep === "always") {
+		cfg.nightSleep = r.nightSleep;
+	}
+	if (typeof r.nightFrom === "number") cfg.nightFrom = clampNum(r.nightFrom, 0, 23, 23);
+	if (typeof r.nightTo === "number") cfg.nightTo = clampNum(r.nightTo, 0, 23, 7);
+	if (r.size === "sm" || r.size === "md" || r.size === "lg") cfg.size = r.size;
+	if (typeof r.showName === "boolean") cfg.showName = r.showName;
+	if (typeof r.showMood === "boolean") cfg.showMood = r.showMood;
+	if (typeof r.showActivity === "boolean") cfg.showActivity = r.showActivity;
 	return cfg;
 }
 
@@ -1141,7 +1620,7 @@ function applyBannerOverrides(dash: Dashboard, r: Record<string, unknown>): void
 	}
 }
 
-function sanitizeDashboard(
+export function sanitizeDashboard(
 	raw: unknown,
 	s: HomeSettings,
 	index: number,
@@ -1187,6 +1666,33 @@ function sanitizeDashboard(
 	if (typeof r.fitToPage === "boolean") dash.fitToPage = r.fitToPage;
 	if (typeof r.showSearch === "boolean") dash.showSearch = r.showSearch;
 	if (typeof r.compact === "boolean") dash.compact = r.compact;
+	// The chrome/search overrides. Each is read only when it type-checks, so a
+	// board that carries none keeps following the importing vault — the same
+	// contract the sliders above have. See the resolver block in types.ts.
+	const searchPlaceholder = str(r.searchPlaceholder);
+	if (searchPlaceholder !== undefined) dash.searchPlaceholder = searchPlaceholder;
+	if (typeof r.showNewNoteButton === "boolean")
+		dash.showNewNoteButton = r.showNewNoteButton;
+	if (r.newNoteButtonMode === "newNote" || r.newNoteButtonMode === "searchOnline")
+		dash.newNoteButtonMode = r.newNoteButtonMode;
+	const newNoteButtonLabel = str(r.newNoteButtonLabel);
+	if (newNoteButtonLabel !== undefined) dash.newNoteButtonLabel = newNoteButtonLabel;
+	if (Array.isArray(r.hiddenFilters)) {
+		dash.hiddenFilters = r.hiddenFilters.filter(
+			(id): id is string => typeof id === "string",
+		);
+	}
+	if (typeof r.stackOnNarrow === "boolean") dash.stackOnNarrow = r.stackOnNarrow;
+	if (r.arrangeButtonVisibility === "always" || r.arrangeButtonVisibility === "hover")
+		dash.arrangeButtonVisibility = r.arrangeButtonVisibility;
+	if (
+		r.dashboardSwitcherVisibility === "always" ||
+		r.dashboardSwitcherVisibility === "hover"
+	) {
+		dash.dashboardSwitcherVisibility = r.dashboardSwitcherVisibility;
+	}
+	if (typeof r.backgroundSkyAnimate === "boolean")
+		dash.backgroundSkyAnimate = r.backgroundSkyAnimate;
 	// Only "plugin" is carried: anything else — including a mode from a newer
 	// Hearth this build can't render — is left off, so the board imports as the
 	// cards board it also is. Its `cards` came through above either way.
@@ -1208,6 +1714,10 @@ function sanitizeDashboard(
 		if (typeof pv.focusable === "boolean") plugin.focusable = pv.focusable;
 		if (Object.keys(plugin).length > 0) dash.pluginView = plugin;
 	}
+	// Held to the shape an export writes, since it is matched against boards
+	// already in this vault. See `Dashboard.sourceId`.
+	const sourceId = str(r.sourceId)?.trim();
+	if (sourceId && /^[A-Za-z0-9_-]{1,64}$/.test(sourceId)) dash.sourceId = sourceId;
 	const linkedWorkspace = str(r.linkedWorkspace);
 	if (linkedWorkspace !== undefined && linkedWorkspace.trim())
 		dash.linkedWorkspace = linkedWorkspace;
@@ -1334,7 +1844,9 @@ export function importLayout(s: HomeSettings, json: string): string | null {
 /** Apply the dashboard/layout portion of a parsed export onto `s`. Returns an
  * error message on failure, or null on success. Supports the v2 multi-dashboard
  * format and the legacy v1 single-`cards` format. */
-function applyLayout(
+/** Exported for `src/portable/`, which applies a layout/settings package
+ * through exactly these sanitizers rather than a second set of its own. */
+export function applyLayout(
 	s: HomeSettings,
 	data: Record<string, unknown>,
 ): string | null {
@@ -1493,7 +2005,7 @@ function applyOpenIn(s: HomeSettings, data: Record<string, unknown>): void {
 }
 
 
-function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
+export function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	// Header
 	const title = str(data.title);
 	if (title !== undefined) s.title = title;
@@ -1506,6 +2018,14 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	if (titleIcon !== undefined) s.titleIcon = titleIcon.trim();
 	const tabIcon = str(data.tabIcon);
 	if (tabIcon !== undefined) s.tabIcon = tabIcon.trim();
+	if (
+		data.themeColorTarget === "none" ||
+		data.themeColorTarget === "icon" ||
+		data.themeColorTarget === "title" ||
+		data.themeColorTarget === "both"
+	) {
+		s.themeColorTarget = data.themeColorTarget;
+	}
 	if (typeof data.showSearch === "boolean") s.showSearch = data.showSearch;
 	const searchPlaceholder = str(data.searchPlaceholder);
 	if (searchPlaceholder !== undefined) s.searchPlaceholder = searchPlaceholder;
@@ -1530,8 +2050,12 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	if (data.searchEngine === "builtin" || data.searchEngine === "omnisearch") {
 		s.searchEngine = data.searchEngine;
 	}
+	if (isWebSearchEngineId(data.webSearchEngine)) s.webSearchEngine = data.webSearchEngine;
 
 	// Background
+	// "weather" belongs here as much as anywhere: it is a background kind like
+	// the others, and leaving it out of this list meant a full-settings backup
+	// taken on a vault with a painted sky restored without one.
 	const bgKinds: BackgroundKind[] = [
 		"none",
 		"default",
@@ -1539,6 +2063,7 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 		"color",
 		"image",
 		"url",
+		"weather",
 	];
 	if (bgKinds.includes(data.backgroundKind as BackgroundKind)) {
 		s.backgroundKind = data.backgroundKind as BackgroundKind;
@@ -1569,6 +2094,16 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 	} else if (typeof data.lowPower === "boolean") {
 		s.performanceTier = data.lowPower ? "minimal" : "full";
 	}
+	const mobileTier = str(data.mobilePerformanceTier);
+	if (mobileTier === "match" || PERFORMANCE_TIERS.includes(mobileTier as PerformanceTier)) {
+		s.mobilePerformanceTier = mobileTier as HomeSettings["mobilePerformanceTier"];
+	}
+	// Three-state: absent leaves the vault's own choice alone, `false` is a
+	// deliberate "hold still", and `true` is stored as absence — which is how
+	// settings.ts writes "yes" (see HomeSettings.backgroundSkyAnimate).
+	if (typeof data.backgroundSkyAnimate === "boolean") {
+		s.backgroundSkyAnimate = data.backgroundSkyAnimate ? undefined : false;
+	}
 	const lowPowerColor = str(data.lowPowerBackgroundColor)?.trim();
 	if (lowPowerColor) s.lowPowerBackgroundColor = lowPowerColor;
 	if (typeof data.pauseWhenUnfocused === "boolean") {
@@ -1580,8 +2115,15 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 		s.openOnStartup = data.openOnStartup;
 	if (typeof data.replaceNewTabs === "boolean")
 		s.replaceNewTabs = data.replaceNewTabs;
+	if (typeof data.focusSearchOnOpen === "boolean")
+		s.focusSearchOnOpen = data.focusSearchOnOpen;
+	if (typeof data.liveRefresh === "boolean") s.liveRefresh = data.liveRefresh;
+	if (typeof data.liveSettingsSync === "boolean")
+		s.liveSettingsSync = data.liveSettingsSync;
 	if (typeof data.mobileSearchOnly === "boolean")
 		s.mobileSearchOnly = data.mobileSearchOnly;
+	if (typeof data.stackOnNarrow === "boolean")
+		s.stackOnNarrow = data.stackOnNarrow;
 	if (typeof data.showMobileActionBar === "boolean")
 		s.showMobileActionBar = data.showMobileActionBar;
 	if (Array.isArray(data.mobileActionButtons)) {
@@ -1595,6 +2137,15 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 
 	// Appearance
 	if (typeof data.compact === "boolean") s.compact = data.compact;
+	if (data.arrangeButtonVisibility === "always" || data.arrangeButtonVisibility === "hover") {
+		s.arrangeButtonVisibility = data.arrangeButtonVisibility;
+	}
+	if (
+		data.dashboardSwitcherVisibility === "always" ||
+		data.dashboardSwitcherVisibility === "hover"
+	) {
+		s.dashboardSwitcherVisibility = data.dashboardSwitcherVisibility;
+	}
 	if (typeof data.cardOpacity === "number") {
 		s.cardOpacity = Math.max(0, Math.min(1, data.cardOpacity));
 	}
@@ -1645,8 +2196,19 @@ function applySettings(s: HomeSettings, data: Record<string, unknown>): void {
 		s.taskFieldsEnabled = data.taskFieldsEnabled;
 	const taskFields = sanitizeTaskFields(data.taskFields);
 	if (taskFields) s.taskFields = taskFields;
+	// File icons (Iconic / Iconize)
+	if (typeof data.customFileIcons === "boolean")
+		s.customFileIcons = data.customFileIcons;
+	const iconizeProperty = str(data.iconizeIconProperty)?.trim();
+	if (iconizeProperty) s.iconizeIconProperty = iconizeProperty;
+
 	// Operon
 	if (typeof data.operonIntegration === "boolean") {
 		s.operonIntegration = data.operonIntegration;
 	}
+	// Restored faithfully, both ways. The flag only decides what Hearth *asks*
+	// Operon for — the capability itself is granted or refused in Operon's own
+	// settings — so a restore cannot widen access on its own, and a backup that
+	// silently dropped the setting would be the worse failure.
+	if (typeof data.operonWrites === "boolean") s.operonWrites = data.operonWrites;
 }

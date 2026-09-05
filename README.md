@@ -116,7 +116,11 @@ The search field is keyboard-first, with four transparent modes:
   list its items; hide the ones you don't need.
 - **Recent files** appear in an empty, focused search field.
 - **New note** button creates a note in your default location — or sends the
-  query to DuckDuckGo instead, if you'd rather.
+  query to a web search instead, if you'd rather. That button carries a small
+  arrow: click it to search with **DuckDuckGo** (the default), **DuckDuckGo
+  without AI**, **Brave**, **Kagi**, **Google**, **Mojeek**, **Ecosia** or
+  **Qwant** for that one query. Which engine the button itself uses is
+  **Settings → Appearance → Online search engine**.
 - **Omnisearch engine** *(optional)* — swap the built-in engine for
   [Omnisearch](https://github.com/scambier/obsidian-omnisearch) under
   **Settings → Appearance → Search engine**.
@@ -238,8 +242,9 @@ from you.
 
 Everything is **live**: embeds and editable notes follow vault events without
 losing your cursor, data cards redraw on vault and metadata changes, and web
-cards refresh on a timer. Every card that reaches the network respects
-**Settings → Behaviour → Disable external calls**.
+cards refresh on a timer. Everything that reaches the network respects
+**Settings → Behaviour → Disable external calls** — every card, and a background
+image or title icon given as a web address.
 
 ## Integrations
 
@@ -287,7 +292,8 @@ network → Disable external calls**.
 | Jira Cloud / Server | Jira cards, over REST with bearer PAT auth | Yours, entered on the card; exports never include the PAT |
 | RSS / Atom feeds | RSS cards | None |
 | ICS / webcal feeds | Mini calendar subscriptions (Google, iCloud, Fastmail, Nextcloud…) | The feed URL |
-| DuckDuckGo | The search bar's optional web-search button | None |
+| DuckDuckGo, Brave, Kagi, Google, Mojeek, Ecosia, Qwant | The search bar's optional web-search button, whichever engine you pick for it | None |
+| Whatever host you name | A background image or title icon given as a web address; the bundled default wallpaper is one of these, served from `raw.githubusercontent.com` | None |
 
 ### Operon
 
@@ -357,7 +363,20 @@ Before you add one:
 - **Pinned cards** — pin a card to appear on every dashboard, sharing one
   definition and position.
 - **Fit to page** — lock the board to one screen or let it scroll.
-- **Import / export** — back up or share a board's layout as JSON.
+- **Import / export** — share one dashboard as a file that looks the same in
+  someone else's vault (wallpaper optionally carried inside it), signed with an
+  anonymous handle Hearth makes for you that nobody else can publish under, with
+  one switch to leave your note paths, calendar links and location out of it —
+  or back up every board and setting as JSON.
+- **Dashboard gallery** — browse boards other people have published, by
+  category, search or rating, install one in a click and leave a comment;
+  publish your own — with a picture of the board, its every word blanked out
+  before the screenshot is taken — from the same dialog you export from, with your paths and private feeds removed and
+  the file signed so nobody can publish under your handle. Every upvote you get
+  adds up on your profile. Nothing is fetched until you open the gallery and
+  nothing is sent until you publish, and clearing the address in settings turns
+  it off for good. Anybody can [run their own](docs/gallery-hosting.md): the
+  server is in this repository and starts with one Docker command.
 
 ## Appearance
 
@@ -380,6 +399,12 @@ Before you add one:
 - **Card corner radius** — from the default 14 px down to sharp 0 px.
 - **Per-card colors** — an accent and a background tint for any card.
 - **Title, title icon and compact spacing** for the dashboard header.
+- **Its own search row and chrome** — a dashboard can set its own search
+  placeholder, its own button beside the search field (or none), its own filter
+  chips, whether it stacks into one column when narrow, whether the arrange
+  button and the switcher stay visible or fade in on hover, and whether the
+  painted sky drifts. Each follows the vault until the board says otherwise, and
+  each travels with the board when you export it.
 - **One title icon, four ways to set it** — the mark beside the board's heading
   takes a **Lucide icon** (searched from a picker rather than typed from
   memory), an **emoji or a couple of characters**, the **vault path of an
@@ -435,7 +460,9 @@ Per-card settings are edited from the card itself in arrange mode.
 Bindable under **Settings → Hotkeys**:
 
 - **Open home dashboard**
-- **Switch to dashboard 1…9**
+- **Switch to dashboard 1…9** — changes the active board
+- **Open dashboard 1…9** — changes it *and* brings Hearth up, so jumping to a
+  particular board from anywhere in the vault is one shortcut
 - **Switch to next / previous dashboard**
 
 In the search field: `↑`/`↓` to move, `Enter` to open, `Esc` to dismiss.

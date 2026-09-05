@@ -18,6 +18,7 @@ export const zh: Translations = {
 		openDailyNote: "打开今天的日记",
 		runSetup: "设置 Hearth（首次运行向导）",
 		switchDashboard: (n: number) => `切换到面板 ${n}`,
+		openDashboard: (n: number) => `打开面板 ${n}`,
 		nextDashboard: "下一个面板",
 		previousDashboard: "上一个面板",
 	},
@@ -66,11 +67,10 @@ export const zh: Translations = {
 		newNoteTemplaterMissing:
 			"Hearth：“新建笔记”按钮指向一个 Templater 模板，但 Templater 未启用 — " +
 			"改为创建空白笔记。",
+		exported: "Hearth：已导出。",
 		layoutExported: "Hearth：布局已导出。",
 		layoutImported: "Hearth：布局已导入。",
 		layoutImportError: (error: string) => `Hearth：${error}`,
-		settingsExported: "Hearth：设置已导出。",
-		settingsImported: "Hearth：设置已导入。",
 		exportedToVault: (file: string) => `Hearth：已将 ${file} 保存到仓库根目录。`,
 		exportFailed: "Hearth：无法保存导出文件。",
 		cardCopied: "卡片已复制到面板。",
@@ -87,6 +87,8 @@ export const zh: Translations = {
 		newNoteAria: "新建笔记",
 		searchOnline: "在线搜索",
 		searchOnlineAria: "用当前关键词搜索网络",
+		searchOnlinePickAria: "选择搜索引擎",
+		searchEngineDefault: (name: string) => `${name}（默认）`,
 	},
 	search: {
 		placeholder: "搜索仓库",
@@ -455,6 +457,8 @@ export const zh: Translations = {
 		phonePreviewOff: "退出手机预览",
 		moveCardUp: "上移卡片",
 		moveCardDown: "下移卡片",
+		hideOnNarrow: "在窄屏布局中隐藏",
+		showOnNarrow: "在窄屏布局中显示",
 	},
 
 	// ---- Dashboard switcher & per-dashboard settings -------------------
@@ -466,6 +470,8 @@ export const zh: Translations = {
 		menu: {
 			settings: "面板设置…",
 			duplicate: "复制",
+			exportBoard: "导出仪表板…",
+			importBoard: "导入仪表板…",
 			delete: "删除",
 		},
 		deleteTitle: "删除面板？",
@@ -533,6 +539,52 @@ export const zh: Translations = {
 				"在此面板上显示或隐藏搜索与命令栏及其结果和筛选按钮。覆盖全局设置。",
 			searchVisibilityShow: "显示搜索",
 			searchVisibilityHide: "隐藏搜索",
+			searchPlaceholder: "搜索占位文字",
+			searchPlaceholderDesc: "本仪表板搜索框中的灰色提示文字。留空则使用内置文案。",
+			newNoteButton: "搜索框旁的按钮",
+			newNoteButtonDesc: "显示或隐藏本仪表板搜索框旁边的按钮。",
+			newNoteButtonStateOn: "显示",
+			newNoteButtonStateOff: "隐藏",
+			newNoteButtonMode: "该按钮的作用",
+			newNoteButtonModeDesc: "新建笔记，或用搜索框中的内容进行网页搜索。",
+			newNoteButtonModeOptions: {
+				newNote: "新建笔记",
+				searchOnline: "在线搜索",
+			},
+			newNoteButtonLabel: "按钮文字",
+			newNoteButtonLabelDesc: "本仪表板上该按钮的文字。留空则使用内置文案。",
+			hiddenFilters: "筛选标签",
+			hiddenFiltersDesc:
+				"选择本仪表板在搜索栏下显示哪些文件类型标签，而不跟随全库设置。",
+			hiddenFiltersFollowing: (count: number) =>
+				count === 0 ? "跟随全库设置（未隐藏任何标签）。" : `跟随全库设置（已隐藏 ${count} 个）。`,
+			stackOnNarrow: "变窄时堆叠",
+			stackOnNarrowDesc:
+				"当窗格窄到无法容纳自由布局时（手机，或窄分栏），将本仪表板重排为单列全宽。",
+			stackOnNarrowStateOn: "堆叠",
+			stackOnNarrowStateOff: "保持布局",
+			stackOnNarrowOptionOn: "堆叠为单列",
+			stackOnNarrowOptionOff: "保持缩放后的布局",
+			arrangeVisibility: "排列按钮",
+			arrangeVisibilityDesc: "本仪表板上的“排列”按钮是始终可见，还是悬停时淡入。",
+			switcherVisibility: "仪表板切换器",
+			switcherVisibilityDesc:
+				"显示本仪表板时，切换器是始终可见，还是悬停时淡入。",
+			chromeOptions: {
+				always: "始终可见",
+				hover: "悬停时显示",
+			},
+			chromeStates: {
+				always: "始终可见",
+				hover: "悬停时显示",
+			},
+			skyAnimate: "天空动画",
+			skyAnimateDesc:
+				"让本仪表板绘制的天气飘动、落下与闪烁。性能档位与读者的“减少动态效果”设置仍可将其静止。",
+			skyAnimateStateOn: "动画",
+			skyAnimateStateOff: "静止",
+			skyAnimateOptionOn: "启用动画",
+			skyAnimateOptionOff: "保持静止",
 			visibilityDefaultPlugin: (state: string) => `插件视图面板的默认值（${state}）`,
 			visibilityShown: "显示",
 			visibilityHidden: "隐藏",
@@ -617,6 +669,7 @@ export const zh: Translations = {
 			default: "使用全局默认",
 			none: "无",
 			hdefault: "Hearth 默认",
+			animated: "Hearth 动态 GIF",
 			color: "纯色",
 			image: "仓库图片",
 			url: "图片 URL",
@@ -774,6 +827,10 @@ export const zh: Translations = {
 				"搜索栏旁的按钮做什么：新建笔记，或用搜索框中的内容搜索网络。",
 			newNoteButtonModeNewNote: "新建笔记",
 			newNoteButtonModeSearchOnline: "在线搜索",
+			webSearchEngine: "在线搜索引擎",
+			webSearchEngineDesc:
+				"“在线搜索”按钮打开哪个引擎。按钮旁的箭头可以用其他引擎搜索一次，" +
+				"而不会改变这里的选择。",
 			newNoteHeading: "“新建笔记”按钮",
 			newNoteHeadingDesc:
 				"它创建什么、创建在哪里。同一组设置同时驱动搜索栏旁的按钮、" +
@@ -869,6 +926,9 @@ export const zh: Translations = {
 			valueColorDesc: "一个 CSS 颜色值，例如 #1e1e2e 或 rgb(30,30,46)。",
 			valueImageDesc: "仓库内的图片路径，例如 Attachments/bg.png。",
 			valueUrlDesc: "图片的直链 URL。",
+			externalCallsDisabled:
+				"“行为”中的“禁用对外调用”已开启，因此不会显示：该背景需要从网络获取。" +
+				"请改用仓库内的图片，或关闭该设置。",
 			opacity: "不透明度",
 			opacityDesc: "背景透出的程度。数值越低越含蓄。",
 			blur: "模糊",
@@ -890,6 +950,7 @@ export const zh: Translations = {
 			bannerFullWidthDesc: "让横幅横贯窗口两端，而不是与下方内容对齐。",
 			labels: {
 				default: "Hearth 默认",
+				animated: "Hearth 动态 GIF",
 				none: "无",
 				color: "纯色",
 				image: "仓库图片",
@@ -952,8 +1013,9 @@ export const zh: Translations = {
 			mobileTierMatch: "与桌面一致",
 			disableExternalCalls: "禁用对外调用",
 			disableExternalCallsDesc:
-				"阻止 Hearth 发出的所有对外网络请求，包括 Jira、外部日历、RSS 源" +
-				"以及计算器的汇率查询。",
+				"阻止 Hearth 发出的所有对外网络请求，包括 Jira、外部日历、RSS 源、" +
+				"计算器的汇率查询，以及以网址给出的背景图片和标题图标——它们会" +
+				"分别回退为不显示图片和 Hearth 水晶。",
 			openIn: "笔记打开位置",
 			openInDesc:
 				"从 Hearth 打开笔记时它去哪里。“当前标签页”会替换主页视图，" +
@@ -1324,29 +1386,23 @@ export const zh: Translations = {
 		},
 		layout: {
 			heading: "导入 / 导出",
-			headingDesc:
-				"以 JSON 文件备份或分享您的面板布局（卡片、网格、收藏）— 或全部 Hearth 设置。",
+			headingDesc: "以 JSON 文件分享单个仪表板，或备份您的整套配置。",
+			exportDashboard: "导出当前仪表板",
+			exportDashboardDesc:
+				"把您正在使用的仪表板保存为他人可导入的文件。它的外观会一并带走，并可选择是否包含壁纸。",
+			exportDashboardButton: "导出仪表板…",
+			importAny: "导入",
+			importAnyDesc:
+				"打开一个 Hearth 文件——单个仪表板、一份布局或一份完整备份。在任何改动之前会先告诉您文件内容；单个仪表板会添加到您现有面板旁边，而不会替换任何内容。",
 			export: "导出布局",
-			exportDesc: "将当前面板布局下载为 JSON 文件。",
+			exportDesc: "将所有仪表板以及网格和布局设置下载为 JSON 文件。",
 			exportButton: "导出文件",
 			exportMobileTooltip: "在移动端，文件会保存到仓库的根目录。",
-			import: "导入布局",
-			importDesc: "选择一个之前导出的布局文件。这会替换您当前的所有面板。",
 			importButton: "导入文件",
-			importTitle: "导入布局？",
-			importMessage:
-				"这会替换您当前的面板、固定卡片和布局设置。此操作无法撤销。",
 			exportSettings: "导出设置",
 			exportSettingsDesc:
 				"将全部 Hearth 设置 — 完整布局加上顶部、背景、行为、外观和 TaskNotes 选项 — " +
 				"下载为 JSON 备份文件。",
-			importSettings: "导入设置",
-			importSettingsDesc:
-				"选择一个之前导出的设置文件。这会替换您所有的 Hearth 设置。",
-			importSettingsTitle: "导入设置？",
-			importSettingsMessage:
-				"这会替换您所有的 Hearth 设置 — 面板、布局、顶部、背景、行为和外观。" +
-				"此操作无法撤销。",
 		},
 	},
 
@@ -2224,6 +2280,9 @@ export const zh: Translations = {
 		favorites: {
 			heading: "收藏",
 			headingDesc: "每张收藏卡片显示的笔记。",
+			ownList: "为这张卡片单独设置列表",
+			ownListOn: "这张卡片显示自己的笔记，不再使用全库列表。关闭后将重新跟随全库收藏，下面的列表会被丢弃。",
+			ownListOff: "这张卡片跟随全库收藏，和其他收藏卡片一样。开启后可为它单独设置一份列表，初始内容就是它当前显示的。",
 			moveUp: "上移",
 			moveDown: "下移",
 			remove: "移除",
@@ -3382,6 +3441,314 @@ export const zh: Translations = {
 		presentations: "幻灯片",
 		threeD: "3D",
 		other: "其他",
+	},
+
+	// ---- 导出 / 导入（可移植包） ----------------------------------------
+	portable: {
+		exportModal: {
+			title: "分享仪表板",
+			saveFile: "保存为文件",
+			publishRemovesTitle: "离开这个库之前会被移除",
+			publishRemovesTune: "下方的详情会按同样的分组列出具体的值，也可以在那里调整移除的范围。",
+			publishRemoves: [
+				"笔记与文件夹路径——面板在你库中指向的一切",
+				"日历订阅源、内网主机，以及你的所在地",
+				"你在面板上写的文字——文本卡片的内容、计算器最后一次的算式",
+				"凭据——Jira 令牌，以及卡片可能保存的其他凭据",
+			],
+			publishKeeps:
+				"会保留的是面板本身：布局、样式、配色、图片、卡片设置、搜索与查询，以及它展示的公开页面或订阅源。展开下方的详情可以看到具体的值，也可以调整移除的范围。",
+			intro: "将这一个仪表板保存为文件。它的外观会一并带走，因此在其他库中也会呈现相同的样子。",
+			name: "名称",
+			nameDesc: "文件中该仪表板的名称。默认使用面板自身的名称。",
+			description: "描述",
+			descriptionDesc: "可选。用一两句话说明这个仪表板的用途。",
+			snapshot: "这个面板的截图",
+			snapshotDesc:
+				"截取面板当前的样子——会滚动截取，长面板也能完整拍下。卡片内部的内容会先被涂掉；标题栏、工具栏和每张卡片自己的标题会保留，像时钟这样完全不含你的信息的卡片也会原样保留。",
+			snapshotCheck: "发布前请先看一眼。图里你能读到的东西，所有人都能读到——点击可查看大图。",
+			snapshotTake: "截图",
+			snapshotRetake: "重新截图",
+			snapshotWorking: "正在截图……",
+			snapshotEnlarge: "查看大图",
+			snapshotTaken: (kb: number) => `${kb} KB——这就是将要发布的图片，也是所有浏览画廊的人看到的样子。`,
+			snapshotFailed: "Hearth 无法截取面板图片。",
+			snapshotRequired: "画廊条目需要一张面板截图。请先截图——发布前你可以先检查它。",
+			snapshotUnavailable:
+				"发布需要一张面板截图，而当前版本无法截图——截图需要桌面版应用。你仍然可以把仪表板保存为文件，再从桌面端的库发布。",
+			snapshotNotActive:
+				"发布需要一张面板截图，而 Hearth 只能拍摄当前打开的面板。请先切换到这个仪表板，再发布它。",
+			theme: "推荐搭配我的主题",
+			themeDesc: (name: string) =>
+				`标明这个面板适合在 ${name}（你正在使用的主题）下查看。这只是给安装者的提示——不会在对方那边安装或更改任何东西。`,
+			themeNone:
+				"你正在使用 Obsidian 的默认外观，因此没有可推荐的主题。如果这个面板是为某个社区主题设计的，请先切换过去。",
+			tags: "标签",
+			tagsDesc: "可选，用逗号分隔。若仪表板会被公开浏览，标签会很有用。",
+			tagsPlaceholder: "写作, 极简, 深色",
+
+			// ---- 身份 ----
+			identity: "发布身份",
+			identityDesc:
+				"由一把始终留在本库中的密钥生成。你发布的所有内容都使用同一个代号，" +
+				"它不会透露你是谁；而且每个文件都用该密钥签名，因此别人无法冒用。" +
+				"复制密钥即可把这个代号带到另一处安装。",
+			identityNew:
+				"你还没有代号。它由一把永不离开本库的密钥生成，完全匿名——不需要账号、邮箱，也不涉及你的任何身份信息。",
+			identityCreate: "生成我的代号",
+			identityCreated: (handle: string) =>
+				`你的发布身份是 ${handle}。请复制恢复密钥并妥善保存——这是找回这个代号的唯一方式。`,
+			identityCopy: "复制我的恢复密钥",
+			identityUnsaved:
+				"请在需要之前就把恢复密钥保存到安全的地方。它只存在于本库中，一旦丢失就无法重置、也无处可问——" +
+				"这个代号以及你以它发布的一切都会随之消失。",
+			identityCopied: "恢复密钥已复制。请妥善保存——这是找回该代号的唯一方式。",
+			identityCopyFailed: (key: string) => `你的恢复密钥：${key}`,
+			identityRestore: "使用来自其他安装的密钥",
+			identityReplaceTitle: "要替换你的代号吗？",
+			identityReplaceWarning:
+				"你还没有复制当前的恢复密钥，而粘贴另一把密钥覆盖它的操作无法撤销——本库是唯一的保存处。你已用当前代号发布的内容会继续存在，但你将再也无法以它的身份发布。如果以后可能还需要，请先复制密钥。",
+			identityReplaceConfirm: "替换",
+			identityRestoreLabel: "恢复密钥",
+			identityRestored: (name: string) => `现在你的发布身份是 ${name}。`,
+			identityRestoreFailed: "这不是一把 Hearth 恢复密钥。",
+
+			// ---- 包含哪些内容 ----
+			contents: "包含哪些内容",
+			embedAssets: "包含壁纸与图片",
+			embedAssetsDesc:
+				"把面板的背景图片、图片图标以及幻灯片中明确指定的图片一起放进文件，这样在从未见过这些文件的库中也能正确显示。文件会变大。若只是备份自己的库，可以关闭——图片本来就在那里。",
+			referenceNote: (paths: number, feeds: number) => {
+				const parts: string[] = [];
+				if (paths > 0) parts.push(`${paths} 个本库路径`);
+				if (feeds > 0) parts.push(`${feeds} 个日历订阅地址`);
+				return `按当前设置，该文件将包含 ${parts.join(" 和 ")}。这正是它能作为你自己备份的原因——若要公开分享，打开上面的开关即可移除它们。`;
+			},
+			stripPrivate: "不包含我的私人信息",
+			stripPrivateDesc:
+				"移除这个面板中关于你、而非关于设计的部分：它指向的笔记与文件夹路径、日历订阅链接、你的位置，以及你在文本卡片上写下的内容。面板的外观完全不变——只是这些卡片到达时不指向任何东西，而下载的人本来也要自己填。若是备份自己的面板，请保持关闭：它需要这些路径才能继续工作。",
+
+			// ---- 详情 ----
+			detailsSummary: "查看并调整具体带走哪些内容",
+			flatten: "把本库的外观设置写入该仪表板",
+			flattenDesc:
+				"面板外观的大部分——网格、间距、卡片表面、背景、标题——都是全库设置，面板只保存自己覆盖的部分。开启后会把解析出的实际数值写入仪表板自身，使它在别人的库中保持同样的样子，而不是套用对方的设置。关闭后，面板只带走自己的覆盖项，并适应它所落地的地方。",
+			stripIntro: "下列每一组都会从文件中移除。每组下面列出的就是将被移除的实际内容，直接读取自这个面板。",
+			carriedIntro:
+				"当前没有移除任何内容，以下是文件中所有指向外部的信息。开启上面的“不包含我的私人信息”即可移除前三组。",
+			carriedNothing: "这个面板没有指向任何外部内容。",
+			groups: {
+				paths: "移除笔记与文件夹路径",
+				private: "移除日历订阅、内部主机与你的位置",
+				content: "移除你在面板上写下的文字",
+				queries: "移除搜索与 Dataview 查询",
+				plugins: "移除命令 ID 与视图类型",
+			},
+			groupPinned: "发布时始终会移除。",
+			groupDesc: {
+				paths: "该面板在你库中指向的一切，以及每张内嵌图片的来源文件夹。若上面的壁纸开关是打开的，图片本身仍会随文件一起带走——被移除的只是它们所在的文件夹。",
+				private: "ICS 日历链接（拿到链接的人即可读取该日历）、内部 Jira 主机，以及天气卡片设定的地点。",
+				content: "文本卡片的正文与计算器最后一次输入——你随手写在自己仪表板上的内容。",
+				queries: "默认关闭：没有查询的面板将无事可做。若查询中出现私密文件夹名，值得开启。",
+				plugins: "默认关闭：它们指向插件而非你本人。移除后，运行它们的按钮将不起作用。",
+			},
+			groupEmpty: "该面板中没有这类内容。",
+			stripTotal: (n: number) =>
+				n === 0 ? "该面板不会移除任何内容。" : `将移除 ${n} 项内容。`,
+			stripResidual: (n: number) =>
+				`已导出，但仍有 ${n} 项内容看起来像库路径。分享之前值得打开文件确认一下。`,
+
+			signFailed: "已导出，但未能签名，因此导入时不会显示作者。你的恢复密钥可能已损坏——请尝试重新粘贴。",
+			exportButton: "导出",
+			assetsSkipped: (paths: string) =>
+				`已导出，但以下图片未包含（过大，或已不在库中）：${paths}`,
+		},
+		importModal: {
+			title: "导入",
+			kinds: {
+				dashboard: "一个仪表板",
+				layout: "一份仪表板布局",
+				settings: "一份完整设置备份",
+			},
+			by: (author: string) => `作者：${author}`,
+			signatureInvalid:
+				"该文件声明了作者，但签名校验不通过——可能是签名之后被修改过，" +
+				"也可能是有人把别人的代号放在了上面。因此它以“无作者”显示。导入的其他部分不受影响。",
+			madeWith: (version: string) => `Hearth ${version}`,
+			cardCount: (n: number) => `${n} 种卡片`,
+			assetCount: (n: number) => `随附 ${n} 张图片`,
+			pathCount: (n: number) => `指向 ${n} 个库内路径`,
+			needsPlugins: (plugins: string) => `需要这些插件：${plugins}`,
+			mode: "如何导入",
+			modeDesc: "选择“添加”不会改动你自己的任何设置。",
+			modeAdd: "作为新仪表板添加",
+			modeAddBoards: "把它的仪表板添加到我的库",
+			modeReplaceBoard: (name: string) => `就地更新“${name}”`,
+			modeReplaceAll: "替换我的全部设置",
+			replaceAllWarning: "这会用文件中的内容替换你的仪表板和每一项 Hearth 设置，且无法撤销。",
+			heads: "需要留意",
+			missingPlugins: (plugins: string) =>
+				`此处未安装或未启用：${plugins}。在启用之前，这些卡片会是空的。`,
+			missingPaths: (n: number, sample: string) =>
+				`该面板指向的 ${n} 个笔记或文件夹不在你的库中（${sample}${n > 3 ? "，…" : ""}）。`,
+			remoteContent: (n: number) => `打开时它会从互联网加载 ${n} 项内容。`,
+			missingFine: "这些都不会阻止导入——卡片会照常导入，你可以把它们指向自己的笔记。",
+			importButton: "导入",
+			addedOne: (name: string) => `已添加“${name}”。`,
+			addedMany: (n: number) => `已添加 ${n} 个仪表板。`,
+			replacedOne: (name: string) => `已更新“${name}”。`,
+			restored: "设置已恢复。",
+			assetsWritten: (n: number) => `已将 ${n} 张图片保存到你的库中。`,
+			warnMissingPaths: (n: number) => `有 ${n} 个引用路径在此处找不到。`,
+			warnMissingPlugins: (n: number) => `它需要的 ${n} 个插件未启用。`,
+			warnTaskFields:
+				"它的任务卡片使用了自定义字段——请在“设置 → 集成”中开启任务字段自定义才能看到。",
+			warnUnknownCards: "部分卡片需要更新版本的 Hearth，已被略过。",
+			warnAssets: "文件中缺少它的部分图片。",
+		},
+	},
+
+	// ---- 仪表板画廊 ------------------------------------------------------
+	gallery: {
+		categories: {
+			productivity: "高效执行",
+			planning: "计划与日历",
+			study: "学习与研究",
+			writing: "写作与日志",
+			work: "工作与项目",
+			personal: "个人与生活",
+			minimal: "极简",
+			dense: "信息密集",
+			other: "其他",
+		},
+		sorts: {
+			trending: "热门",
+			top: "评分最高",
+			new: "最新",
+			downloads: "安装最多",
+		},
+		browse: {
+			title: "仪表板画廊",
+			openLabel: "画廊",
+			openAria: "浏览仪表板画廊",
+			searchPlaceholder: "搜索仪表板……",
+			all: "全部仪表板",
+			mine: "我发布的",
+			sortLabel: "排序方式",
+			refresh: "刷新",
+			publish: "发布仪表板",
+			loading: "加载中……",
+			empty: "这里还什么都没有。",
+			emptySearch: (query: string) => `没有与“${query}”匹配的内容。`,
+			emptyMine: "你还没有发布过任何内容。发布一个面板后就会出现在这里。",
+			results: (shown: number, total: number) =>
+				total > shown ? `${shown} / ${total}` : `${shown} 个仪表板`,
+			more: "显示更多",
+			byAuthor: (handle: string) => `作者 ${handle}`,
+			anonymous: "无法确认作者",
+			downloads: (n: number) => `${n} 次安装`,
+			score: (n: number) => `${n > 0 ? "+" : ""}${n}`,
+			cardCount: (n: number) => `${n} 张卡片`,
+			pluginBoard: "承载插件视图",
+			noPicture: "没有图片",
+			needsIdentity:
+				"浏览和安装无需代号，但投票和发布需要。Hearth 会用一把永不离开本库的密钥为你生成一个匿名代号。",
+			needsIdentityVote:
+				"投票需要一个代号。Hearth 会用一把永不离开本库的密钥为你生成匿名代号——不需要账号，也不涉及你的任何身份信息。现在就生成吗？",
+		},
+		detail: {
+			install: "安装",
+			installing: "下载中……",
+			installAria: (name: string) => `安装 ${name}`,
+			enlarge: "查看大图",
+			profile: (handle: string) => `查看 ${handle} 的全部作品`,
+			upvoteAria: "赞成",
+			downvoteAria: "反对",
+			published: (when: string) => `发布于 ${when}`,
+			updated: (when: string) => `更新于 ${when}`,
+			version: (v: string) => `作者版本 ${v}`,
+			theme: (name: string) => `推荐搭配 ${name} 主题`,
+			madeWith: (v: string) => `使用 Hearth ${v} 制作`,
+			contents: "这个面板上有什么",
+			requires: "它需要什么",
+			requiresPlugins: "插件",
+			requiresViews: "承载的视图",
+			requiresSettings: "设置",
+			nothingRequired: "除 Hearth 本身外无需其他。",
+			size: (kb: number) => `${kb} KB`,
+			remote: (n: number) => `这个面板上有 ${n} 处内容来自互联网。`,
+			noRemote: "这个面板不会从互联网加载任何内容。",
+			unverified: "这个面板没有可校验的签名，无法确认由谁制作。",
+			tags: "标签",
+		},
+		profile: {
+			title: (handle: string) => handle,
+			subtitle:
+				"一个由签名密钥推导出的匿名 handle。它不会透露任何人的身份，只说明这些作品出自同一双手。",
+			karma: "Karma",
+			karmaHint: "他们发布的所有内容收到的全部赞减去全部踩。",
+			totalDownloads: "安装数",
+			published: (n: number) => `${n} 个仪表板`,
+			firstSeen: (when: string) => `首次发布于 ${when}`,
+			empty: "这个 handle 下没有发布过内容。",
+		},
+		comments: {
+			heading: (n: number) => `${n} 条评论`,
+			headingEmpty: "评论",
+			none: "还没有评论。来说第一句吧。",
+			placeholder: "提个问题，或说说你的使用体验……",
+			post: "发布",
+			remove: "删除这条评论",
+		},
+		publish: {
+			title: "发布到画廊",
+			intro: "把这个仪表板放进画廊，任何使用这个 Hearth 画廊的人都能找到并安装它。",
+			category: "分类",
+			categoryDesc: "这个面板是做什么用的。别人靠它找到你。",
+			button: "发布",
+			publishing: "发布中……",
+			warning:
+				"这个面板将会公开：任何使用这个画廊的人都能找到并安装它。你随时可以撤下它，不过已经安装的人仍然保留自己的副本。",
+			needsName: "发布前请先给仪表板起个名字。",
+			residual: (n: number) =>
+				`已暂缓：移除后仍有 ${n} 处值看起来像你库中的路径。发布前请查看详情部分。`,
+			done: (name: string) => `已将“${name}”发布到画廊。`,
+			doneHeld: (name: string) =>
+				`画廊已收到“${name}”，但先暂缓列出——其中仍有内容看起来像你库中的路径。等对方查看之后才会出现在列表中。`,
+			doneUpdate: (name: string) => `已更新画廊中的“${name}”。`,
+			unpublish: "从画廊移除",
+			unpublishConfirm: (name: string) =>
+				`要把“${name}”从画廊移除吗？已经安装的人仍然保留副本，但新的人再也找不到它。`,
+			unpublished: "已从画廊移除。",
+		},
+		settings: {
+			heading: "仪表板画廊",
+			host: "画廊地址",
+			hostDesc:
+				"Hearth 浏览与发布仪表板的画廊。打开画廊之前不会拉取任何内容，发布之前也不会发送任何内容。清空此项即可彻底关闭画廊，并且会一直保持关闭。只接受 https（自建画廊也可用 localhost 上的 http）。",
+			hostPlaceholder: "https://gallery.example.com",
+			hostInvalid: "这不是 Hearth 会连接的地址。请使用 https，或 localhost 上的 http。",
+			hostCleared: "已关闭画廊。",
+			hostSet: (host: string) => `画廊已设为 ${host}。`,
+			browse: "浏览画廊",
+			browseDesc: "别人发布的仪表板，以及你自己发布的。",
+			browseButton: "打开画廊",
+		},
+		errors: {
+			noHost: "尚未设置画廊。请在 Hearth 设置的“仪表板画廊”中填写画廊地址。",
+			externalCallsOff:
+				"画廊是互联网上的服务器，而此库启用了“禁用外部调用”。要浏览或发布，请先关闭该设置。",
+			offline: "无法连接画廊。它可能已下线，或此设备当前离线。",
+			badResponse: "该地址有响应，但不像是一个 Hearth 画廊。",
+			unauthorized: "画廊没有接受这个库的身份。",
+			forbidden: "画廊不允许这个库的身份执行该操作。",
+			rateLimited: "画廊请求你放慢速度。请几分钟后再试。",
+			tooLarge: "这个仪表板对该画廊来说太大了。请关闭壁纸，或将它缩小。",
+			rejected: (why: string) => `画廊拒绝了它：${why}`,
+			notFound: "画廊里没有这个内容。",
+			server: "画廊在处理该请求时出错了。",
+			unsigned: "Hearth 无法为文件签名，因此没有发布——未签名的面板无法证明作者是谁。",
+		},
 	},
 
 	// ---- Layout import errors ------------------------------------------

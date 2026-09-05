@@ -9,9 +9,11 @@ import {
 import type { HomeView } from "./view";
 import {
 	type BackgroundConfig,
+	backgroundPaintable,
 	effectiveBackground,
 	effectiveFullWidth,
 	effectiveMaxWidth,
+	effectiveSkyAnimate,
 	motionAllowed,
 	skyDensity,
 } from "./types";
@@ -47,7 +49,9 @@ export function applyBackground(
 	component: Component,
 ): void {
 	const bg = effectiveBackground(view.plugin.settings);
-	if (!paintable(bg)) return;
+	// Nothing to paint: no background, a kind with no value, or a picture from
+	// the web that "Disable external calls" won't let Hearth fetch (#281).
+	if (!backgroundPaintable(bg, view.plugin.settings.disableExternalCalls)) return;
 
 	paintBackground(view, root.createDiv("hearth-bg"), bg, component);
 }
@@ -72,7 +76,7 @@ export function renderBanner(
 ): HTMLElement | null {
 	const bg = effectiveBackground(view.plugin.settings);
 	if (bg.layout !== "banner") return null;
-	if (!paintable(bg)) return null;
+	if (!backgroundPaintable(bg, view.plugin.settings.disableExternalCalls)) return null;
 
 	const banner = parent.createDiv("hearth-banner");
 	banner.style.height = `${bg.bannerHeight}px`;
@@ -101,7 +105,6 @@ function paintable(bg: BackgroundConfig): boolean {
 	if (bg.kind === "none") return false;
 	return bg.kind === "default" || bg.kind === "animated" || !!bg.value;
 }
-
 /**
  * Paint a resolved background into `layer`. Shared by the wallpaper and the
  * banner: the two differ only in where that layer sits and how big it is, so
@@ -127,13 +130,19 @@ function paintBackground(
 		return;
 	}
 
+	// A picture from the web is an outbound request whoever it was configured by,
+	// so "Disable external calls" blocks both remote kinds — the bundled default
+	// included, which is served from GitHub rather than from the plugin folder.
+	// `paintable` normally means we are never called for one; this is the check
+	// at the point the request would actually be made.
+	const blocked = view.plugin.settings.disableExternalCalls;
 	let url: string | null = null;
 	if (bg.kind === "default") {
-		url = DEFAULT_BG_URL;
+		url = blocked ? null : DEFAULT_BG_URL;
 	} else if (bg.kind === "animated") {
-		url = ANIMATED_BG_URL;
+		url = blocked ? null : ANIMATED_BG_URL;
 	} else if (bg.kind === "url") {
-		url = bg.value;
+		url = blocked ? null : bg.value;
 	} else if (bg.kind === "image") {
 		const file = view.app.vault.getAbstractFileByPath(bg.value);
 		if (file instanceof TFile) url = view.app.vault.getResourcePath(file);
@@ -182,7 +191,7 @@ function applyWeatherSky(
 	const sky = parseSkyValue(bg.value);
 	if (!sky) return;
 	const settings = view.plugin.settings;
-	const animate = settings.backgroundSkyAnimate !== false && motionAllowed(settings);
+	const animate = effectiveSkyAnimate(settings) && motionAllowed(settings);
 	const density = skyDensity(settings);
 
 	// A fixed sky is the whole feature for anyone who wants one weather and

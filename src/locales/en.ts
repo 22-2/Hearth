@@ -23,6 +23,7 @@ export const en = {
 		openDailyNote: "Open today's daily note",
 		runSetup: "Set up Hearth (first-run wizard)",
 		switchDashboard: (n: number) => `Switch to dashboard ${n}`,
+		openDashboard: (n: number) => `Open dashboard ${n}`,
 		nextDashboard: "Next dashboard",
 		previousDashboard: "Previous dashboard",
 	},
@@ -80,11 +81,10 @@ export const en = {
 		newNoteTemplaterMissing:
 			"Hearth: the “New note” button is set to a Templater template, but " +
 			"Templater isn’t enabled — making a blank note instead.",
+		exported: "Hearth: exported.",
 		layoutExported: "Hearth: layout exported.",
 		layoutImported: "Hearth: layout imported.",
 		layoutImportError: (error: string) => `Hearth: ${error}`,
-		settingsExported: "Hearth: settings exported.",
-		settingsImported: "Hearth: settings imported.",
 		exportedToVault: (file: string) =>
 			`Hearth: saved ${file} to your vault's root folder.`,
 		exportFailed: "Hearth: couldn't save the export file.",
@@ -102,6 +102,8 @@ export const en = {
 		newNoteAria: "Create new note",
 		searchOnline: "Search online",
 		searchOnlineAria: "Search the web for the current query",
+		searchOnlinePickAria: "Choose a search engine",
+		searchEngineDefault: (name: string) => `${name} (default)`,
 	},
 	search: {
 		placeholder: "Search the vault",
@@ -488,6 +490,8 @@ export const en = {
 		phonePreviewOff: "Leave phone preview",
 		moveCardUp: "Move card up",
 		moveCardDown: "Move card down",
+		hideOnNarrow: "Hide on a narrow board",
+		showOnNarrow: "Show on a narrow board",
 	},
 
 	// ---- Dashboard switcher & per-dashboard settings -------------------
@@ -499,6 +503,8 @@ export const en = {
 		menu: {
 			settings: "Dashboard settings…",
 			duplicate: "Duplicate",
+			exportBoard: "Export dashboard…",
+			importBoard: "Import dashboard…",
 			delete: "Delete",
 		},
 		deleteTitle: "Delete dashboard?",
@@ -568,6 +574,59 @@ export const en = {
 				"Show or hide the search and command bar with its results and filter buttons on this dashboard. Overrides the global setting.",
 			searchVisibilityShow: "Show search",
 			searchVisibilityHide: "Hide search",
+			searchPlaceholder: "Search placeholder",
+			searchPlaceholderDesc:
+				"The greyed-out text in this board's search field. Leave the field empty for the built-in wording.",
+			newNoteButton: "Button beside search",
+			newNoteButtonDesc:
+				"Show or hide the button next to this board's search field.",
+			newNoteButtonStateOn: "shown",
+			newNoteButtonStateOff: "hidden",
+			newNoteButtonMode: "What that button does",
+			newNoteButtonModeDesc:
+				"Make a new note, or web-search whatever is typed in the search field.",
+			newNoteButtonModeOptions: {
+				newNote: "New note",
+				searchOnline: "Search online",
+			},
+			newNoteButtonLabel: "Button label",
+			newNoteButtonLabelDesc:
+				"The text on that button on this board. Leave it empty for the built-in wording.",
+			hiddenFilters: "Filter chips",
+			hiddenFiltersDesc:
+				"Choose which file-type chips this board shows under the search bar, instead of following the vault-wide choice.",
+			hiddenFiltersFollowing: (count: number) =>
+				count === 0
+					? "Following the vault, which hides none."
+					: `Following the vault, which hides ${count}.`,
+			stackOnNarrow: "Stack when narrow",
+			stackOnNarrowDesc:
+				"Reflow this board into one full-width column once the pane is too narrow for the free-form layout — a phone, or a narrow split.",
+			stackOnNarrowStateOn: "stack",
+			stackOnNarrowStateOff: "keep the layout",
+			stackOnNarrowOptionOn: "Stack into one column",
+			stackOnNarrowOptionOff: "Keep the scaled layout",
+			arrangeVisibility: "Arrange button",
+			arrangeVisibilityDesc:
+				"Whether the Arrange button stays visible on this board or fades in on hover.",
+			switcherVisibility: "Dashboard switcher",
+			switcherVisibilityDesc:
+				"Whether the dashboard switcher stays visible while this board is showing, or fades in on hover.",
+			chromeOptions: {
+				always: "Always visible",
+				hover: "Show on hover",
+			},
+			chromeStates: {
+				always: "always visible",
+				hover: "on hover",
+			},
+			skyAnimate: "Animate the sky",
+			skyAnimateDesc:
+				"Let this board's painted weather drift, fall and twinkle. The performance tier and the reader's reduced-motion setting can still hold it still.",
+			skyAnimateStateOn: "animated",
+			skyAnimateStateOff: "still",
+			skyAnimateOptionOn: "Animate",
+			skyAnimateOptionOff: "Hold still",
 			visibilityDefaultPlugin: (state: string) =>
 				`Default on a plugin board (${state})`,
 			visibilityShown: "shown",
@@ -832,6 +891,11 @@ export const en = {
 				"search the web for the current search-field contents.",
 			newNoteButtonModeNewNote: "New note",
 			newNoteButtonModeSearchOnline: "Search online",
+			webSearchEngine: "Online search engine",
+			webSearchEngineDesc:
+				"Which engine the “Search online” button opens. The arrow beside " +
+				"the button searches with any of the others for one query, without " +
+				"changing this choice.",
 			newNoteHeading: "The “New note” button",
 			newNoteHeadingDesc:
 				"What the button makes, and where. The same settings drive the " +
@@ -939,6 +1003,10 @@ export const en = {
 			valueColorDesc: "A CSS color, e.g. #1e1e2e or rgb(30,30,46).",
 			valueImageDesc: "A vault image path, e.g. Attachments/bg.png.",
 			valueUrlDesc: "A direct image URL.",
+			externalCallsDisabled:
+				"Not shown while \u201cDisable external calls\u201d is on in Behaviour: " +
+				"this background is fetched from the web. Pick a vault image instead, " +
+				"or turn the setting off.",
 			opacity: "Opacity",
 			opacityDesc:
 				"How much the background shows through. Lower is more subtle.",
@@ -1038,7 +1106,9 @@ export const en = {
 			disableExternalCalls: "Disable external calls",
 			disableExternalCallsDesc:
 				"Block all outbound network requests Hearth makes, including Jira, " +
-				"external calendars, RSS feeds, and the calculator's currency-rate lookup.",
+				"external calendars, RSS feeds, the calculator's currency-rate lookup, " +
+				"and background images and title icons given as a web address — those " +
+				"fall back to no picture and the Hearth crystal.",
 			openIn: "Open notes in",
 			openInDesc:
 				"Where a note goes when you open one from Hearth. \"Current tab\" replaces " +
@@ -1452,31 +1522,25 @@ export const en = {
 		layout: {
 			heading: "Import / export",
 			headingDesc:
-				"Back up or share your dashboard layout (cards, grid, favorites) — or every " +
-				"Hearth setting — as a JSON file.",
+				"Share one dashboard, or back up your whole setup, as a JSON file.",
+			exportDashboard: "Export this dashboard",
+			exportDashboardDesc:
+				"Save the dashboard you're on as a file others can import. Everything about how it looks travels with it, and you can choose whether to include its wallpaper.",
+			exportDashboardButton: "Export dashboard…",
+			importAny: "Import",
+			importAnyDesc:
+				"Open a Hearth file — one dashboard, a layout, or a full backup. It tells you what's in it before anything changes, and a single dashboard is added alongside your own rather than replacing anything.",
 			export: "Export layout",
-			exportDesc: "Download the current dashboard layout as a JSON file.",
+			exportDesc:
+				"Download every dashboard plus the grid and layout settings as a JSON file.",
 			exportButton: "Export file",
 			exportMobileTooltip:
 				"On mobile the file is saved to your vault's root folder.",
-			import: "Import layout",
-			importDesc:
-				"Choose a previously exported layout file. This replaces your current dashboards.",
 			importButton: "Import file",
-			importTitle: "Import layout?",
-			importMessage:
-				"This replaces your current dashboards, pinned cards and layout settings. This can't be undone.",
 			exportSettings: "Export settings",
 			exportSettingsDesc:
 				"Download every Hearth setting — the full layout plus header, background, " +
 				"behaviour, appearance and TaskNotes options — as a JSON backup file.",
-			importSettings: "Import settings",
-			importSettingsDesc:
-				"Choose a previously exported settings file. This replaces all your Hearth settings.",
-			importSettingsTitle: "Import settings?",
-			importSettingsMessage:
-				"This replaces all your Hearth settings — dashboards, layout, header, " +
-				"background, behaviour and appearance. This can't be undone.",
 		},
 	},
 
@@ -2425,6 +2489,11 @@ export const en = {
 		favorites: {
 			heading: "Favorites",
 			headingDesc: "Notes shown by every favorites card.",
+			ownList: "Give this card its own list",
+			ownListOn:
+				"This card shows its own notes and ignores the vault-wide list. Turn it off to follow the vault's favorites again — the list below is dropped.",
+			ownListOff:
+				"This card follows the vault-wide favorites, like every other favorites card. Turn it on to give it a list of its own, starting from the one it shows now.",
 			moveUp: "Move up",
 			moveDown: "Move down",
 			remove: "Remove",
@@ -3613,6 +3682,377 @@ export const en = {
 		presentations: "Slides",
 		threeD: "3D",
 		other: "Other",
+	},
+
+	// ---- Export / import (portable packages) ---------------------------
+	portable: {
+		exportModal: {
+			title: "Share dashboard",
+			saveFile: "Save a file",
+			publishRemovesTitle: "Taken out before it leaves this vault",
+			/** Points at the disclosure below, which lists the same groups with
+			 * the actual values under each — so the two read as one thing rather
+			 * than as two lists that might disagree. */
+			publishRemovesTune:
+				"The details below list these same groups, with the exact values under each, and let you change what goes.",
+			/** Named one by one rather than summarised. "Your private
+			 * information is removed" is a promise; this is a list somebody can
+			 * check, and the details section below lists the actual values. */
+			// Worded to match `groups` below one for one, because they are the
+			// same four things and somebody reading both should be able to tell.
+			publishRemoves: [
+				"Note and folder paths — everything the board points at in your vault",
+				"Calendar feeds, private hosts and your location",
+				"Text you typed on the board — a text card's body, a calculator's last sum",
+				"Credentials — a Jira token, and anything else a card can hold",
+			],
+			publishKeeps:
+				"Kept, because they're what the board is: the layout, the styling, the colours, the pictures, the card settings, searches and queries, and any public page or feed it shows. Open the details below to see the exact values, and to change what goes.",
+			intro:
+				"Saves this one dashboard as a file. Everything about how it looks travels with it, so it draws the same in another vault.",
+			name: "Name",
+			nameDesc: "What this dashboard is called in the file. Defaults to the board's own name.",
+			description: "Description",
+			descriptionDesc: "Optional. A line or two about what this dashboard is for.",
+			snapshot: "Picture of this board",
+			snapshotDesc:
+				"A screenshot of the board as it looks now — scrolled through, so a long board is captured whole. What's inside your cards is blanked out first; the header, the toolbar and each card's own title stay, and so does a card with nothing of yours in it, like a clock.",
+			/** Shown once there is a picture. The one thing being asked of the
+			 * author, said as the thing it is: look at it. */
+			snapshotCheck:
+				"Look at it before you publish. Anything you can read in it, everyone can — click it to see it full size.",
+			snapshotTake: "Take the picture",
+			snapshotRetake: "Take it again",
+			snapshotWorking: "Taking the picture…",
+			snapshotEnlarge: "Open the picture full size",
+			snapshotTaken: (kb: number) =>
+				`${kb} KB — this is exactly what gets published, and what everyone browsing the gallery sees.`,
+			snapshotFailed: "Hearth couldn't take a picture of the board.",
+			snapshotRequired:
+				"A gallery entry needs a picture of the board. Take one first — you can look at it before it goes.",
+			snapshotUnavailable:
+				"Publishing needs a picture of the board, and this build can't take one — screenshots need the desktop app. You can still save the dashboard as a file and publish it from a desktop vault.",
+			snapshotNotActive:
+				"Publishing needs a picture of the board, and Hearth can only photograph the board that's open. Switch to this dashboard first, then publish it.",
+			theme: "Recommended with my theme",
+			themeDesc: (name: string) =>
+				`Say the board is meant to be seen under ${name}, the theme you're using. It's a note for whoever installs it — nothing is installed or changed on their side.`,
+			themeNone:
+				"You're on Obsidian's default look, so there's no theme to recommend. Switch to a community theme first if the board is built for one.",
+			tags: "Tags",
+			tagsDesc: "Optional, comma separated. Useful if the dashboard is going somewhere it can be browsed.",
+			tagsPlaceholder: "writing, minimal, dark",
+
+			// ---- Identity ----
+			identity: "Published as",
+			identityDesc:
+				"Made for you from a key that stays in this vault. It's the same handle on everything " +
+				"you publish, it says nothing about who you are, and because each file is signed with " +
+				"that key, nobody else can publish under it. Copy the key to carry the handle to " +
+				"another install.",
+			identityNew:
+				"You don't have one yet. It's an anonymous handle made from a key that never leaves " +
+				"this vault — no account, no email, nothing about who you are.",
+			identityCreate: "Create my handle",
+			identityCreated: (handle: string) =>
+				`You publish as ${handle}. Copy your recovery key and keep it somewhere safe — it's the only way to get this handle back.`,
+			identityCopy: "Copy my recovery key",
+			identityUnsaved:
+				"Save your recovery key somewhere safe before you need it. It's held nowhere but this " +
+				"vault, so if you lose it there's no reset and nobody to ask — the handle, and everything " +
+				"you published under it, would be gone.",
+			identityCopied:
+				"Recovery key copied. Keep it somewhere safe — it's the only way to get this handle back.",
+			identityCopyFailed: (key: string) => `Your recovery key: ${key}`,
+			identityRestore: "Use a key from another install",
+			identityReplaceTitle: "Replace your handle?",
+			identityReplaceWarning:
+				"You haven't copied your current recovery key yet, and pasting another one over it can't be undone — this vault holds the only copy. Anything you've already published under the current handle would stay published, but you could never post as it again. Copy the key first if you might want it back.",
+			identityReplaceConfirm: "Replace it",
+			identityRestoreLabel: "Recovery key",
+			identityRestored: (name: string) => `You're now publishing as ${name}.`,
+			identityRestoreFailed: "That isn't a Hearth recovery key.",
+
+			// ---- What travels ----
+			contents: "What to include",
+			embedAssets: "Include the wallpaper and images",
+			embedAssetsDesc:
+				"Carries the board's background picture, any image icons and any explicit slideshow pictures inside the file, so it looks right in a vault that has never seen them. Makes the file bigger. Turn it off for a backup of your own vault, where the pictures are already in place.",
+			referenceNote: (paths: number, feeds: number) => {
+				const parts: string[] = [];
+				if (paths > 0) {
+					parts.push(paths === 1 ? "1 path from this vault" : `${paths} paths from this vault`);
+				}
+				if (feeds > 0) {
+					parts.push(feeds === 1 ? "1 calendar feed URL" : `${feeds} calendar feed URLs`);
+				}
+				return `As it stands, this file will mention ${parts.join(" and ")}. That's what makes it work as your own backup — and what the switch above takes out for a board you're publishing.`;
+			},
+			stripPrivate: "Leave out my private information",
+			stripPrivateDesc:
+				"Removes the parts of this board that are about you rather than about the design: the note and folder paths it points at, calendar feed links, your location, and anything you typed on a text card. The board still looks exactly the same — the cards just arrive pointing at nothing, which whoever downloads it has to fill in anyway. Leave it off for a copy of your own board, which needs its paths to keep working.",
+
+			// ---- The details disclosure ----
+			detailsSummary: "See and tune exactly what travels",
+			flatten: "Copy this vault's appearance settings onto the dashboard",
+			flattenDesc:
+				"Most of what a board looks like — the grid, spacing, card surfaces, background, header — is a vault-wide setting, and the board only stores what it overrides. This writes the resolved values onto the dashboard itself, so it looks the same in someone else's vault instead of picking up theirs. Turn it off and the board carries only its own overrides and adapts to wherever it lands.",
+			/** Said on each pinned row, where the switch cannot be moved. */
+			groupPinned: "Always removed when publishing.",
+			stripIntro:
+				"Each group below comes out of the file. What it will remove is listed under it — that is the actual list, read from this board.",
+			carriedIntro:
+				"Nothing is being left out, so this is everything in the file that points outside it. Turn on “Leave out my private information” above to remove the first three groups.",
+			carriedNothing: "This board points at nothing outside itself.",
+			// The same four names the publish summary above uses, plus the two
+			// it doesn't remove. A reader comparing the two lists should be able
+			// to line them up without wondering whether they mean the same thing.
+			// Named as the *action*, not as the subject. "Note and folder paths"
+			// beside a switch that is on reads just as easily as "include note
+			// and folder paths", which is the opposite of what it does — and
+			// nobody should have to infer the direction of a privacy control
+			// from a heading two rows above it.
+			groups: {
+				paths: "Remove note and folder paths",
+				private: "Remove calendar feeds, private hosts and your location",
+				content: "Remove text you typed on the board",
+				queries: "Remove searches and Dataview queries",
+				plugins: "Remove command ids and view types",
+			},
+			groupDesc: {
+				paths: "Everything this board points at in your vault, and the folder each embedded picture came from. The pictures themselves still travel when the wallpaper switch above is on — it's the folder they lived in that goes.",
+				private: "ICS calendar links (anyone holding one can read that calendar), an internal Jira host, and the place a weather card is set to.",
+				content: "A text card's body and a calculator's last input — whatever you happened to jot on your own dashboard.",
+				queries: "Off by default: a board without its queries stops doing anything. Worth turning on if a query names a private folder.",
+				plugins: "Off by default: these name plugins, not you. Removing them leaves the buttons that ran them doing nothing.",
+			},
+			groupEmpty: "Nothing on this board.",
+			stripTotal: (n: number) =>
+				n === 0
+					? "Nothing would be removed from this board."
+					: n === 1
+						? "1 value will be removed."
+						: `${n} values will be removed.`,
+			stripResidual: (n: number) =>
+				`Exported, but ${n} value${n === 1 ? "" : "s"} still look like vault paths. Worth opening the file before you share it.`,
+
+			signFailed:
+				"Exported, but it couldn't be signed, so it will import without an author. Your recovery key may be damaged — try pasting it in again.",
+			exportButton: "Export",
+			assetsSkipped: (paths: string) =>
+				`Exported, but these pictures were left out (too large, or no longer in the vault): ${paths}`,
+		},
+		importModal: {
+			title: "Import",
+			kinds: {
+				dashboard: "One dashboard",
+				layout: "A dashboard layout",
+				settings: "A full settings backup",
+			},
+			by: (author: string) => `by ${author}`,
+			signatureInvalid:
+				"This file claims an author, but its signature doesn't check out — it was either edited " +
+				"after it was signed, or somebody put another maker's handle on it. It's shown without " +
+				"an author. Everything else about the import is unaffected.",
+			madeWith: (version: string) => `Hearth ${version}`,
+			cardCount: (n: number) => (n === 1 ? "1 kind of card" : `${n} kinds of card`),
+			assetCount: (n: number) =>
+				n === 1 ? "Brings 1 picture with it" : `Brings ${n} pictures with it`,
+			pathCount: (n: number) =>
+				n === 1 ? "Points at 1 path in a vault" : `Points at ${n} paths in a vault`,
+			needsPlugins: (plugins: string) => `Wants these plugins: ${plugins}`,
+			mode: "How to import it",
+			modeDesc: "Adding leaves every one of your own settings alone.",
+			modeAdd: "Add as a new dashboard",
+			modeAddBoards: "Add its dashboards to mine",
+			modeReplaceBoard: (name: string) => `Update “${name}” in place`,
+			modeReplaceAll: "Replace all my settings",
+			replaceAllWarning:
+				"This replaces your dashboards and every Hearth setting with the ones in this file. It can't be undone.",
+			heads: "Worth knowing",
+			missingPlugins: (plugins: string) =>
+				`Not installed or not enabled here: ${plugins}. Those cards will be empty until they are.`,
+			missingPaths: (n: number, sample: string) =>
+				`${n} note${n === 1 ? "" : "s"} or folder${n === 1 ? "" : "s"} this board points at aren't in your vault (${sample}${n > 3 ? ", …" : ""}).`,
+			remoteContent: (n: number) =>
+				n === 1
+					? "It loads 1 thing from the internet when you open it."
+					: `It loads ${n} things from the internet when you open it.`,
+			missingFine:
+				"None of this stops the import — the cards come through and you can point them at your own notes.",
+			importButton: "Import",
+			addedOne: (name: string) => `Added “${name}”.`,
+			addedMany: (n: number) => `Added ${n} dashboards.`,
+			replacedOne: (name: string) => `Updated “${name}”.`,
+			restored: "Settings restored.",
+			assetsWritten: (n: number) =>
+				n === 1 ? "1 picture saved to your vault." : `${n} pictures saved to your vault.`,
+			warnMissingPaths: (n: number) =>
+				`${n} referenced path${n === 1 ? "" : "s"} not found here.`,
+			warnMissingPlugins: (n: number) =>
+				`${n} plugin${n === 1 ? " it wants isn't" : "s it wants aren't"} enabled.`,
+			warnTaskFields:
+				"Its task cards use custom fields — turn on task field customization in Settings → Integrations to see them.",
+			warnUnknownCards: "Some cards need a newer Hearth and were left out.",
+			warnAssets: "Some of its pictures were missing from the file.",
+		},
+	},
+
+	// ---- Dashboard gallery ---------------------------------------------
+	gallery: {
+		/** The closed list in `src/gallery/categories.ts`. Ids are stored, so a
+		 * name may be reworded freely but an id may never be. */
+		categories: {
+			productivity: "Getting things done",
+			planning: "Planning & calendar",
+			study: "Study & research",
+			writing: "Writing & journaling",
+			work: "Work & projects",
+			personal: "Personal & home",
+			minimal: "Minimal",
+			dense: "Information-dense",
+			other: "Everything else",
+		},
+		sorts: {
+			trending: "Trending",
+			top: "Top rated",
+			new: "Newest",
+			downloads: "Most installed",
+		},
+		browse: {
+			title: "Dashboard gallery",
+			openLabel: "Gallery",
+			openAria: "Browse the dashboard gallery",
+			searchPlaceholder: "Search dashboards…",
+			all: "All dashboards",
+			mine: "Published by me",
+			sortLabel: "Sort by",
+			refresh: "Refresh",
+			publish: "Publish a dashboard",
+			loading: "Loading…",
+			empty: "Nothing here yet.",
+			emptySearch: (query: string) => `Nothing matches “${query}”.`,
+			emptyMine:
+				"You haven't published anything yet. Publish a board and it shows up here.",
+			results: (shown: number, total: number) =>
+				total > shown ? `${shown} of ${total}` : `${shown} dashboard${shown === 1 ? "" : "s"}`,
+			more: "Show more",
+			byAuthor: (handle: string) => `by ${handle}`,
+			anonymous: "unattributed",
+			downloads: (n: number) => `${n} install${n === 1 ? "" : "s"}`,
+			score: (n: number) => `${n > 0 ? "+" : ""}${n}`,
+			cardCount: (n: number) => `${n} card${n === 1 ? "" : "s"}`,
+			pluginBoard: "Hosts a plugin view",
+			noPicture: "No picture",
+			needsIdentity:
+				"You can browse and install without one, but voting and publishing need a handle. Hearth makes you an anonymous one from a key that never leaves this vault.",
+			needsIdentityVote:
+				"Voting needs a handle. Hearth will make you an anonymous one from a key that never leaves this vault — no account, and nothing about who you are. Make one now?",
+		},
+		detail: {
+			install: "Install",
+			installing: "Downloading…",
+			installAria: (name: string) => `Install ${name}`,
+			enlarge: "Open the picture full size",
+			profile: (handle: string) => `See everything by ${handle}`,
+			upvoteAria: "Upvote",
+			downvoteAria: "Downvote",
+			published: (when: string) => `Published ${when}`,
+			updated: (when: string) => `Updated ${when}`,
+			version: (v: string) => `Author's version ${v}`,
+			theme: (name: string) => `Recommended with the ${name} theme`,
+			madeWith: (v: string) => `Made with Hearth ${v}`,
+			contents: "What's on this board",
+			requires: "What it needs",
+			requiresPlugins: "Plugins",
+			requiresViews: "Hosted views",
+			requiresSettings: "Settings",
+			nothingRequired: "Nothing beyond Hearth itself.",
+			size: (kb: number) => `${kb} KB`,
+			remote: (n: number) =>
+				n === 1
+					? "One thing on this board is loaded from the internet."
+					: `${n} things on this board are loaded from the internet.`,
+			noRemote: "Nothing on this board is loaded from the internet.",
+			unverified:
+				"This board arrived without a checkable signature, so who made it can't be established.",
+			tags: "Tags",
+		},
+		profile: {
+			title: (handle: string) => handle,
+			subtitle:
+				"An anonymous handle, derived from a signing key. It says nothing about who somebody is — only that the same hand made all of this.",
+			karma: "Karma",
+			karmaHint: "Every upvote across everything they've published, minus every downvote.",
+			totalDownloads: "Installs",
+			published: (n: number) => `${n} dashboard${n === 1 ? "" : "s"}`,
+			firstSeen: (when: string) => `First published ${when}`,
+			empty: "Nothing published under this handle.",
+		},
+		comments: {
+			heading: (n: number) => (n === 1 ? "1 comment" : `${n} comments`),
+			headingEmpty: "Comments",
+			none: "Nothing yet. Say the first thing.",
+			placeholder: "Ask something, or say how it worked for you…",
+			post: "Post",
+			remove: "Remove this comment",
+		},
+		publish: {
+			title: "Publish to the gallery",
+			intro:
+				"Puts this dashboard in the gallery, where anyone using this Hearth gallery can find and install it.",
+			category: "Category",
+			categoryDesc: "What this board is for. It's how people find it.",
+			button: "Publish",
+			publishing: "Publishing…",
+			/** Said before the upload, not after: a published board is copied by
+			 * strangers, and neither an unpublish nor an edit reaches the copies. */
+			warning:
+				"This board becomes public: anyone using this gallery can find and install it. You can withdraw it at any time, though people who already installed it keep their copy.",
+			needsName: "Give the dashboard a name before publishing it.",
+			residual: (n: number) =>
+				`Held back: ${n} value${n === 1 ? "" : "s"} still look like paths from your vault after the strip. Check the details section before publishing.`,
+			done: (name: string) => `Published “${name}” to the gallery.`,
+			/** The gallery took it but is holding it back — its own check saw
+			 * something that still looks like a path from your vault. */
+			doneHeld: (name: string) =>
+				`The gallery took “${name}” but is holding it for review — something in it still looks like a path from your vault. It won't be listed until somebody there has looked.`,
+			doneUpdate: (name: string) => `Updated “${name}” in the gallery.`,
+			unpublish: "Remove from the gallery",
+			unpublishConfirm: (name: string) =>
+				`Remove “${name}” from the gallery? People who already installed it keep their copy; nobody new can find it.`,
+			unpublished: "Removed from the gallery.",
+		},
+		settings: {
+			heading: "Dashboard gallery",
+			host: "Gallery address",
+			hostDesc:
+				"The gallery Hearth browses and publishes to. Nothing is fetched until you open it and nothing is sent until you publish. Clear this field to turn the gallery off entirely — it stays off. https only (or http on localhost, for a gallery you run yourself).",
+			hostPlaceholder: "https://gallery.example.com",
+			hostInvalid: "That isn't an address Hearth will talk to. Use https, or http on localhost.",
+			hostCleared: "Gallery turned off.",
+			hostSet: (host: string) => `Gallery set to ${host}.`,
+			browse: "Browse the gallery",
+			browseDesc: "Dashboards other people have published, and the ones you've published yourself.",
+			browseButton: "Open gallery",
+		},
+		errors: {
+			noHost:
+				"No gallery is set up. Put a gallery address in Hearth's settings, under Dashboard gallery.",
+			externalCallsOff:
+				"The gallery is a server on the internet, and this vault has \u201cDisable external calls\u201d turned on. Turn that off to browse or publish.",
+			offline: "Couldn't reach the gallery. It may be down, or this device may be offline.",
+			badResponse: "That address answered, but not like a Hearth gallery.",
+			unauthorized: "The gallery didn't accept this vault's identity.",
+			forbidden: "The gallery wouldn't let this vault's identity do that.",
+			rateLimited: "The gallery is asking you to slow down. Try again in a few minutes.",
+			tooLarge: "That dashboard is too large for this gallery. Turn off the wallpaper, or shrink it.",
+			rejected: (why: string) => `The gallery refused it: ${why}`,
+			notFound: "The gallery doesn't have that.",
+			server: "The gallery had a problem with that request.",
+			unsigned:
+				"Hearth couldn't sign the file, so it wasn't published — an unsigned board has no provable author.",
+		},
 	},
 
 	// ---- Layout import errors ------------------------------------------
