@@ -97,12 +97,24 @@ export interface GalleryEntryDetail extends GalleryEntrySummary {
 	remoteRefs: number;
 	/** Bytes of the package file, so a 14 MB wallpaper is not a surprise. */
 	sizeBytes: number;
+	/**
+	 * The board's own published id — `meta.id`, the `sourceId` the author's
+	 * vault keeps on the dashboard.
+	 *
+	 * Sent only to the author of the entry, and absent for everybody else. It
+	 * is what lets their vault find the board this entry was published from, so
+	 * the detail view can offer to publish it again over the top rather than
+	 * beside it. A vault that no longer has that board gets nothing back from
+	 * the lookup, which is the honest answer.
+	 */
+	sourceId?: string;
 }
 
 /**
  * The longest comment a gallery will take.
  *
- * The same figure the server enforces (`server/src/comments.ts`), applied on
+ * The same figure the server enforces (`src/comments.ts` in the gallery-server
+ * repository), applied on
  * this side too so the compose box stops at it rather than letting somebody
  * write four paragraphs and be told no afterwards. A comment is a remark; past
  * this it is a document, and a document about somebody else's dashboard belongs
@@ -325,6 +337,10 @@ export function readEntryDetail(raw: unknown): GalleryEntryDetail | null {
 		theme: text(src.theme, 60),
 		remoteRefs: num(src.remoteRefs, 0, 10000),
 		sizeBytes: num(src.sizeBytes, 0, 1e10),
+		// Read through `readId` like any other id from a host: it is matched
+		// against ids in this vault, and a host that sends something else is
+		// sending something no board here can match anyway.
+		sourceId: readId(src.sourceId) ?? undefined,
 	};
 }
 

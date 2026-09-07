@@ -368,7 +368,8 @@ function paintLines(region: HTMLElement): HTMLElement | null {
 			bar.style.height = `${rect.height}px`;
 			if (++drawn >= MAX_BARS) break;
 		}
-		range.detach();
+		// No `range.detach()`: it is a no-op in every current engine and is
+		// deprecated. The range is a local that goes with the iteration.
 	}
 
 	if (drawn === 0) {
@@ -379,8 +380,14 @@ function paintLines(region: HTMLElement): HTMLElement | null {
 	return overlay;
 }
 
-
-function redact(root: HTMLElement): Redaction {
+/**
+ * Blank a board for the shutter, and hand back the way to put it back.
+ *
+ * Exported for `test/snapshotredact.test.ts`, which is the only part of the
+ * capture that can be tested without Electron — and the part where getting it
+ * wrong writes to somebody's vault or publishes their notes.
+ */
+export function redact(root: HTMLElement): Redaction {
 	const originals: [Text, string][] = [];
 	const wrapped: HTMLElement[] = [];
 	const blanked: HTMLElement[] = [];
@@ -449,6 +456,10 @@ function redact(root: HTMLElement): Redaction {
 				// drawn: a soft rounded bar in the theme's own ink reads as
 				// "text lives here", where a row of hard glyphs reads as a
 				// rendering fault.
+				// `createElement`, not Obsidian's `createSpan`: the helpers on a
+				// Node *append to that node*, and appending to a Document throws
+				// — which took the whole capture down. The span is placed by the
+				// `insertBefore` below.
 				const span = text.ownerDocument.createElement("span");
 				span.className = REDACTED_CLASS;
 				text.parentNode?.insertBefore(span, text);
@@ -752,6 +763,8 @@ async function stitch(
 	const height = Math.round(last.y * ratio) + last.image.getSize().height;
 
 	const scale = Math.min(1, MAX_WIDTH / first.width);
+	// Detached and thrown away after the draw; Obsidian's `createEl` is for
+	// elements that go into the page.
 	const canvas = document.createElement("canvas");
 	canvas.width = Math.max(1, Math.round(first.width * scale));
 	canvas.height = Math.max(1, Math.round(height * scale));
