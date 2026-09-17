@@ -73,6 +73,7 @@ export const de: Translations = {
 		enableDailyNotes: "Hearth: Aktiviere das Kern-Plugin Tägliche Notizen.",
 		couldNotOpenDaily: "Hearth: Heutige Tagesnotiz konnte nicht geöffnet werden.",
 		couldNotOpenPeriodic: "Hearth: Periodic Notes konnte diese Notiz nicht erstellen.",
+		couldNotCreateJournalNote: "Hearth: Journals konnte diese Notiz nicht erstellen.",
 		commandNotFound: (id: string) => `Hearth: Befehl nicht gefunden: ${id}`,
 		couldNotCreateNoteForDay: (day: string) =>
 			`Hearth: Notiz für ${day} konnte nicht erstellt werden.`,
@@ -618,6 +619,7 @@ export const de: Translations = {
 			stackOnNarrowStateOff: "Layout behalten",
 			stackOnNarrowOptionOn: "In eine Spalte stapeln",
 			stackOnNarrowOptionOff: "Skaliertes Layout behalten",
+			narrowWidth: "Schmal unterhalb",
 			arrangeVisibility: "Anordnen-Schaltfläche",
 			arrangeVisibilityDesc:
 				"Ob die Anordnen-Schaltfläche auf diesem Board sichtbar bleibt oder bei Hover eingeblendet wird.",
@@ -1104,6 +1106,12 @@ export const de: Translations = {
 				"Bereich auf dem Desktop - zeige die Karten stattdessen als eine Spalte in voller Breite " +
 				"an. Dein Layout bleibt unberührt und kehrt bei voller Breite zurück. " +
 				"Jede Karte kann für diese Spalte in ihren eigenen Einstellungen ausgeblendet, umsortiert, in der Größe geändert oder eingeklappt werden.",
+			narrowWidth: "Schmal unterhalb von",
+			narrowWidthDesc:
+				"Die Breite in Pixeln, ab der das Board als schmal gilt. Erhöhe sie, " +
+				"damit ein halbbreites Fenster ins schmale Layout wechselt; verringere " +
+				"sie, um das freie Layout auch in engen Bereichen zu behalten. " +
+				"Einzelne Dashboards können dies überschreiben.",
 			mobilePerformanceTier: "Leistungsstufe auf Mobilgeräten",
 			mobilePerformanceTierDesc:
 				"Die Stufe für Smartphones und Tablets, wo der animierte Himmel und " +
@@ -1264,6 +1272,14 @@ export const de: Translations = {
 						"Die Periodische-Notiz-Karte zeigt die Notiz dieser Woche, dieses Monats, Quartals oder " +
 						"Jahres, aufgelöst - und aus deiner eigenen Vorlage erstellt - durch " +
 						"Periodic Notes selbst.",
+				},
+				journals: {
+					name: "Journals",
+					desc:
+						"Dieselbe Karte liest auch aus Journals: Wähle eines deiner Journale, " +
+						"und sie zeigt dessen aktuelle Notiz - aufgelöst und, mit eigener " +
+						"Vorlage und eigenen Abfragen, erstellt über die eigene API des " +
+						"Journals-Plugins.",
 				},
 				git: {
 					name: "Git",
@@ -1596,7 +1612,7 @@ export const de: Translations = {
 			embed: "Einbetten (Notiz / Bild / base)",
 			slideshow: "Diashow",
 			daily: "Tagesnotiz (heute)",
-			periodic: "Periodische Notiz (Woche / Monat / Jahr)",
+			periodic: "Periodische Notiz / Journal",
 			web: "Webseite (iframe)",
 			bookmarks: "Lesezeichen",
 			favorites: "Favoriten",
@@ -1796,6 +1812,18 @@ export const de: Translations = {
 				"Die heutige Notiz wird aus Datumsformat und Ordner des Kern-Plugins für Tagesnotizen aufgelöst. Die Karte aktualisiert sich live, während du bearbeitest.",
 		},
 		periodic: {
+			source: "Quelle",
+			sourceDesc: "Aus welchem Plugin diese Karte ihre Notiz bezieht.",
+			sources: {
+				periodicNotes: "Periodic Notes",
+				journals: "Journals",
+			},
+			journal: "Journal",
+			journalDesc:
+				"Welchem Journal diese Karte folgt. Sie zeigt immer dessen aktuelle " +
+				"Notiz, sodass die Karte von selbst weitergeht, wenn der Zeitraum endet.",
+			chooseJournal: "Journal wählen",
+			noJournals: "Noch keine Journale",
 			granularity: "Zeitraum",
 			granularityDesc:
 				"Welche periodische Notiz diese Karte zeigt. Es ist immer die aktuelle, sodass " +
@@ -1820,6 +1848,14 @@ export const de: Translations = {
 			missingDesc:
 				"Diese Karte braucht das Community-Plugin Periodic Notes. Installiere und aktiviere " +
 				"es und schalte dann hier den gewünschten Notiztyp ein.",
+			journalsInfo: "Journals",
+			journalsInfoDesc:
+				"Die Notiz wird aus Ordner, Namensschema und Vorlage des Journals " +
+				"aufgelöst, und eine fehlende wird von Journals selbst erstellt - samt " +
+				"Abfragen. Die Karte aktualisiert sich live, während du bearbeitest.",
+			journalsMissingDesc:
+				"Diese Karte braucht das Community-Plugin Journals. Installiere und " +
+				"aktiviere es und lege dann ein Journal an, dem sie folgen soll.",
 		},
 		web: {
 			url: "URL",
@@ -2976,6 +3012,7 @@ export const de: Translations = {
 			embedInstallExcalidraw: "Installiere das Excalidraw-Plugin, um Zeichnungen einzubetten",
 			dailyEnable: "Aktiviere das Kern-Plugin für Tagesnotizen",
 			periodicInstall: "Installiere das Periodic Notes-Plugin",
+			journalsInstall: "Installiere das Journals-Plugin",
 			scheduleNoSources:
 				"Aktiviere das Kern-Plugin für Tagesnotizen oder abonniere einen Kalender in den Einstellungen dieser Karte",
 			webNoUrl: "Lege eine Web-URL in den Einstellungen fest",
@@ -3282,6 +3319,12 @@ export const de: Translations = {
 			open: (period: string) => `Notiz für ${period} öffnen`,
 			notEnabled: (granularity: string) =>
 				`Schalte ${granularity}-Notizen in Periodic Notes ein`,
+			loading: "Notiz des Journals wird gesucht\u2026",
+			pickJournal: "Wähle in den Einstellungen dieser Karte ein Journal",
+			noSuchJournal: (journal: string) => `Kein Journal namens \u201e${journal}\u201c`,
+			noJournalNoteYet: (journal: string) => `Noch keine aktuelle Notiz in ${journal}`,
+			createJournalNote: "Erstellen",
+			openJournalNote: (journal: string) => `Aktuelle Notiz von ${journal} öffnen`,
 		},
 		heatmap: {
 			less: "Weniger",
@@ -3557,6 +3600,7 @@ export const de: Translations = {
 		canvas: "Eingebettetes Canvas",
 		daily: "Tagesnotiz (heute)",
 		periodic: "Periodische Notiz",
+		journal: "Journalnotiz",
 		web: "Webseite (iframe)",
 		bookmarks: "Lesezeichen",
 		favorites: "Favoriten",
@@ -3600,6 +3644,7 @@ export const de: Translations = {
 		canvas: "Ein Canvas, in dem du direkt schwenken kannst",
 		daily: "Immer die heutige Notiz, beim ersten Klick erstellt",
 		periodic: "Die Notiz dieser Woche, dieses Monats oder Jahres, aus Periodic Notes",
+		journal: "Die aktuelle Notiz eines Journals, aus dem Journals-Plugin",
 		web: "Eine Webseite in einem iframe, per Timer aktualisiert",
 		bookmarks: "Deine Obsidian-Lesezeichen, einen Klick entfernt",
 		favorites: "Die Notizen, die du in Hearth markiert hast",
