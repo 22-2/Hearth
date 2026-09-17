@@ -3208,7 +3208,10 @@ export function effectiveBackground(s: HomeSettings): ResolvedBackground {
  * what it draws is drawn locally either way (see background.ts), so it still
  * paints something. */
 export function backgroundIsRemote(kind: BackgroundKind): boolean {
-	return kind === "url" || kind === "default";
+	// The animated wallpaper is also fetched from GitHub; keeping it in this
+	// predicate makes the external-call kill switch cover every web-served
+	// built-in background, not just the current default.
+	return kind === "url" || kind === "default" || kind === "animated";
 }
 
 /**
@@ -3227,7 +3230,10 @@ export function backgroundPaintable(
 ): boolean {
 	if (bg.kind === "none") return false;
 	if (externalCallsDisabled && backgroundIsRemote(bg.kind)) return false;
-	return bg.kind === "default" || !!bg.value;
+	// `animated` has no value field because its URL is fixed in background.ts;
+	// treating it like a value-based kind makes the selected GIF silently vanish
+	// before the renderer gets a chance to assign that URL.
+	return bg.kind === "default" || bg.kind === "animated" || !!bg.value;
 }
 
 /** Whether the active board paints its backdrop as a banner rather than as a

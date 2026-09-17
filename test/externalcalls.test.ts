@@ -38,6 +38,8 @@ describe("backgroundIsRemote", () => {
 		expect(backgroundIsRemote("url")).toBe(true);
 		// The bundled default is not bundled: it is served from GitHub.
 		expect(backgroundIsRemote("default")).toBe(true);
+		// The legacy animated wallpaper is also served from a pinned GitHub URL.
+		expect(backgroundIsRemote("animated")).toBe(true);
 	});
 
 	it("leaves the local kinds alone", () => {
@@ -62,8 +64,9 @@ describe("backgroundPaintable", () => {
 		expect(backgroundPaintable(bg("none"), false)).toBe(false);
 	});
 
-	it("needs a value for every kind but the default", () => {
+	it("handles built-in kinds without a value field", () => {
 		expect(backgroundPaintable(bg("default"), false)).toBe(true);
+		expect(backgroundPaintable(bg("animated"), false)).toBe(true);
 		expect(backgroundPaintable(bg("url"), false)).toBe(false);
 		expect(backgroundPaintable(bg("url", "https://example.com/bg.png"), false)).toBe(true);
 		expect(backgroundPaintable(bg("color", "#123456"), false)).toBe(true);
@@ -72,6 +75,7 @@ describe("backgroundPaintable", () => {
 	it("drops the remote kinds once external calls are off", () => {
 		expect(backgroundPaintable(bg("url", "https://example.com/bg.png"), true)).toBe(false);
 		expect(backgroundPaintable(bg("default"), true)).toBe(false);
+		expect(backgroundPaintable(bg("animated"), true)).toBe(false);
 	});
 
 	it("keeps the local kinds when external calls are off", () => {
