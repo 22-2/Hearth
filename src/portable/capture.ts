@@ -47,6 +47,7 @@ import {
 	effectiveHeaderTitleScale,
 	effectiveHiddenFilters,
 	effectiveMaxWidth,
+	effectiveNarrowWidth,
 	effectiveNewNoteButtonLabel,
 	effectiveNewNoteButtonMode,
 	effectiveRowHeight,
@@ -136,6 +137,7 @@ export function flattenBoardLook(s: HomeSettings, dash: Dashboard): Dashboard {
 	out.newNoteButtonLabel = effectiveNewNoteButtonLabel(snap);
 	out.hiddenFilters = [...effectiveHiddenFilters(snap)];
 	out.stackOnNarrow = effectiveStackOnNarrow(snap);
+	out.narrowWidth = effectiveNarrowWidth(snap);
 	out.arrangeButtonVisibility = effectiveArrangeButtonVisibility(snap);
 	out.dashboardSwitcherVisibility = effectiveSwitcherVisibility(snap);
 
@@ -321,6 +323,11 @@ function requirementsFor(
 		}
 		if (card.kind === "tasks" && card.tasks?.source === "kanban") {
 			plugins.add("obsidian-kanban");
+		}
+		// Likewise a periodic card, which reads from either Periodic Notes or
+		// Journals but never both (#318).
+		if (card.kind === "periodic") {
+			plugins.add(card.periodic?.source === "journals" ? "journals" : "periodic-notes");
 		}
 		const viewType = card.leafView?.viewType?.trim();
 		if (viewType) viewTypes.add(viewType);

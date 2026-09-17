@@ -59,6 +59,7 @@ export const en = {
 		enableDailyNotes: "Hearth: enable the core Daily notes plugin.",
 		couldNotOpenDaily: "Hearth: couldn't open today's daily note.",
 		couldNotOpenPeriodic: "Hearth: Periodic Notes couldn't make that note.",
+		couldNotCreateJournalNote: "Hearth: Journals couldn't make that note.",
 		commandNotFound: (id: string) => `Hearth: command not found: ${id}`,
 		couldNotCreateNoteForDay: (day: string) =>
 			`Hearth: couldn't create a note for ${day}.`,
@@ -606,6 +607,7 @@ export const en = {
 			stackOnNarrowStateOff: "keep the layout",
 			stackOnNarrowOptionOn: "Stack into one column",
 			stackOnNarrowOptionOff: "Keep the scaled layout",
+			narrowWidth: "Narrow below",
 			arrangeVisibility: "Arrange button",
 			arrangeVisibilityDesc:
 				"Whether the Arrange button stays visible on this board or fades in on hover.",
@@ -1097,6 +1099,12 @@ export const en = {
 				"instead. Your layout is untouched and comes back at full width. " +
 				"Each card can be hidden, reordered, resized or collapsed for this " +
 				"column from its own settings.",
+			narrowWidth: "Narrow below",
+			narrowWidthDesc:
+				"The width, in pixels, at which the board counts as narrow. Raise it " +
+				"to have a half-screen window switch to the narrow layout; lower it " +
+				"to keep the free-form layout in tighter panes. Individual " +
+				"dashboards can override this.",
 			mobilePerformanceTier: "Performance tier on mobile",
 			mobilePerformanceTierDesc:
 				"The tier to use on phones and tablets, where the animated sky and " +
@@ -1257,6 +1265,14 @@ export const en = {
 						"The Periodic note card shows this week's, month's, quarter's or " +
 						"year's note, resolved — and created, from your own template — by " +
 						"Periodic Notes itself.",
+				},
+				journals: {
+					name: "Journals",
+					desc:
+						"The same card reads from Journals too: pick one of your journals " +
+						"and it shows that journal's current note, resolved — and created, " +
+						"with its own template and prompts — through the Journals plugin's " +
+						"own API.",
 				},
 				git: {
 					name: "Git",
@@ -1591,7 +1607,7 @@ export const en = {
 			embed: "Embed (note / image / base)",
 			slideshow: "Slideshow",
 			daily: "Daily note (today)",
-			periodic: "Periodic note (week / month / year)",
+			periodic: "Periodic note / journal",
 			web: "Web page (iframe)",
 			bookmarks: "Bookmarks",
 			favorites: "Favorites",
@@ -1789,6 +1805,18 @@ export const en = {
 				"Today's note is resolved from the core Daily notes plugin's date format and folder. The card updates live as you edit.",
 		},
 		periodic: {
+			source: "Source",
+			sourceDesc: "Which plugin this card gets its note from.",
+			sources: {
+				periodicNotes: "Periodic Notes",
+				journals: "Journals",
+			},
+			journal: "Journal",
+			journalDesc:
+				"Which journal this card follows. It always shows that journal's " +
+				"current note, so the card moves on by itself when the period ends.",
+			chooseJournal: "Choose a journal",
+			noJournals: "No journals yet",
 			granularity: "Period",
 			granularityDesc:
 				"Which periodic note this card shows. It is always the current one, so " +
@@ -1813,6 +1841,14 @@ export const en = {
 			missingDesc:
 				"This card needs the Periodic Notes community plugin. Install and enable " +
 				"it, then turn on the note type you want here.",
+			journalsInfo: "Journals",
+			journalsInfoDesc:
+				"The note is resolved from the journal's own folder, name template and " +
+				"note template, and a missing one is created by Journals itself — " +
+				"prompts and all. The card updates live as you edit.",
+			journalsMissingDesc:
+				"This card needs the Journals community plugin. Install and enable it, " +
+				"then create a journal to follow here.",
 		},
 		web: {
 			url: "URL",
@@ -2973,6 +3009,7 @@ export const en = {
 			embedInstallExcalidraw: "Install the Excalidraw plugin to embed drawings",
 			dailyEnable: "Enable the core Daily notes plugin",
 			periodicInstall: "Install the Periodic Notes plugin",
+			journalsInstall: "Install the Journals plugin",
 			scheduleNoSources:
 				"Enable the core Daily notes plugin, or subscribe to a calendar in this card's settings",
 			webNoUrl: "Set a web URL in settings",
@@ -3280,6 +3317,12 @@ export const en = {
 			open: (period: string) => `Open ${period}'s note`,
 			notEnabled: (granularity: string) =>
 				`Turn on ${granularity} notes in Periodic Notes`,
+			loading: "Looking up the journal\u2019s note\u2026",
+			pickJournal: "Choose a journal in this card\u2019s settings",
+			noSuchJournal: (journal: string) => `No journal named \u201c${journal}\u201d`,
+			noJournalNoteYet: (journal: string) => `No current note in ${journal} yet`,
+			createJournalNote: "Create it",
+			openJournalNote: (journal: string) => `Open ${journal}\u2019s current note`,
 		},
 		heatmap: {
 			less: "Less",
@@ -3556,6 +3599,7 @@ export const en = {
 		canvas: "Embedded canvas",
 		daily: "Daily note (today)",
 		periodic: "Periodic note",
+		journal: "Journal note",
 		web: "Web page (iframe)",
 		bookmarks: "Bookmarks",
 		favorites: "Favorites",
@@ -3599,6 +3643,7 @@ export const en = {
 		canvas: "A canvas you can pan around in place",
 		daily: "Always today's note, created on first click",
 		periodic: "This week's, month's or year's note, from Periodic Notes",
+		journal: "A journal's current note, from the Journals plugin",
 		web: "A web page in an iframe, refreshed on a timer",
 		bookmarks: "Your Obsidian bookmarks, one click away",
 		favorites: "The notes you starred in Hearth",

@@ -15,6 +15,55 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 
 ### Added
 
+- **Choose the width at which the board goes narrow.** *Narrow below*, under
+  **Settings → Hearth → Mobile → Layout**, sets the board width at or below
+  which Hearth switches to the narrow layout — the single full-width column,
+  where *Stack cards on narrow screens* is on. It was fixed at 600 pixels,
+  which is a phone in landscape but leaves a half-screen desktop window on the
+  free-form layout; the slider covers 320 to 1200, so the column can start
+  wherever your board stops being readable. Each dashboard can override it from
+  *Dashboard settings → Layout → Narrow below*, because a dense board wants the
+  column sooner than a two-card one. (#316)
+
+  The switch follows the window as you drag it: crossing the threshold in
+  either direction rebuilds the board right then, and changing the threshold
+  re-judges the board at its current width. Your stored layout is untouched
+  either way and comes back as it was at full width.
+
+- **The Periodic note card reads from Journals.** The card gained a *Source*
+  setting: leave it on Periodic Notes, or point it at the
+  [Journals](https://github.com/srg-kostyrko/obsidian-journal) plugin, which
+  covers the same ground — a note per day, week, month, quarter or year from
+  your own folder, name template and note template. Existing cards are
+  untouched and keep reading from Periodic Notes. *Journal note* is in the
+  "Add card" picker too, as the same card with the source preset. (#318)
+
+  On Journals the card asks for a **journal by name** rather than a period,
+  because a vault can hold several journals of the same cadence — a personal
+  daily and a work daily — and the journal already knows what period it writes.
+  That covers journals on a custom cadence, like every two weeks, with nothing
+  extra to choose.
+
+  The note is resolved, and a missing one created, through the Journals
+  plugin's own API, so its folder, templates and creation prompts apply exactly
+  as they do from Journals itself — the same rule the rest of Hearth's
+  integrations follow. Everything else about the card is unchanged: the
+  read-only, editable and live-preview modes, the open button, and the live
+  update as you type.
+
+- **Descriptions on checkbox tasks.** Lines indented under a `- [ ]` checkbox
+  now show as muted sub-bullets under the task, the same block a Kanban card's
+  description has always drawn, with no setting to turn on. The description
+  stops at the first nested checkbox, so a sub-task still reads as its own task
+  instead of appearing twice.
+
+  The description is editable too, in the quick view and *Edit details*, the
+  same plain-text field a Kanban card has — one sub-bullet written under the
+  checkbox per line typed. The write is kept narrow: only those description
+  lines are replaced, and only when the description actually changed, so a
+  sub-task, anything nested under it, and a description you didn't touch keep
+  exactly the shape the note gave them.
+
 - **Filter tasks by tag.** *Filter tasks* gains a Tags row, built from the tags
   the card's own tasks carry — a TaskNotes task note's tags (frontmatter and
   inline), and the hashtags written in a checkbox or Kanban card's line. Pick
@@ -42,6 +91,19 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   card carries. Columns stay put and thin out, so a column emptied by a filter
   is still there to drag a card into — and a filter set in one layout means the
   same thing after switching to the other.
+
+### Fixed
+
+- **The Git card no longer gets stuck asking you to enable a plugin you already
+  have.** On a cold start, obsidian-git builds its git manager after Obsidian's
+  layout is ready — probing the git binary takes long enough on desktop that a
+  restored Hearth tab can render first. The card read that half-started plugin
+  as no plugin at all and settled on *Enable the Git plugin*, where it stayed
+  until something forced a re-render. It now recognises a plugin that is still
+  starting, shows the same temporary not-ready state it shows while obsidian-git
+  is looking for the repository, and fills itself in as soon as the plugin is
+  usable ([#315](https://github.com/ondreu/Hearth/issues/315)).
+
 
 ## [3.1.0]
 

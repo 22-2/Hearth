@@ -96,6 +96,9 @@ set of these messages, and what each means:
 | --- | --- |
 | *Install the Excalidraw plugin to embed drawings* | Install and enable Excalidraw |
 | *Install the Periodic Notes plugin* | Install and enable Periodic Notes |
+| *Install the Journals plugin* | Install and enable Journals |
+| *Choose a journal in this card's settings* | Journals is there, but the card doesn't follow one yet |
+| *No journal named "…"* | The journal was renamed or deleted in Journals; pick it again in the card's settings |
 | *Enable the Templater plugin to create notes from templates* | Install and enable Templater. The card keeps its configuration meanwhile |
 | *Enable the Dataview plugin to run queries* | Install and enable Dataview |
 | *Enable the Datacore plugin to run queries* | Install and enable Datacore |
@@ -251,12 +254,15 @@ full-width column. Your stored layout is untouched and returns at full width.
 
 If you would rather it did not, turn off *Stack cards on narrow screens* under
 **Settings → Hearth → Mobile → Layout**, or set *Stack when narrow* to *Keep the
-scaled layout* on that one board.
+scaled layout* on that one board. The 600 is a setting too — *Narrow below*, in
+the same place — if the column should start sooner or later than that.
 
 ### A narrow split pane on my desktop is stacking too
 
 That is the same feature: the threshold is the measured width of the board, not
 the platform. It is also how you preview your phone layout — drag a pane narrow.
+Set *Narrow below* lower if you want that pane to keep the free-form layout, or
+higher if a half-screen window should stack as well.
 
 ### One card ruins the phone layout
 
