@@ -32,6 +32,125 @@ const ANIMATED_BG_URL =
 	"https://raw.githubusercontent.com/ondreu/Hearth/e75c84f515580a44b0cf69329cab663c26c40ab2/assets/default-bg.gif";
 
 /**
+ * Keep the first decode alive across view rebuilds. Hearth recreates the view
+ * layer when settings or vault data change, and starting a new fade for an
+ * already-decoded GIF would make an ordinary redraw look like a second load.
+ */
+type BackgroundImageLoad = {
+	status: "loading" | "loaded" | "failed";
+	promise: Promise<boolean>;
+};
+
+const backgroundImageLoads = new Map<string, BackgroundImageLoad>();
+
+/** Start one browser-side preload for a background URL and share its result. */
+function preloadBackgroundImage(url: string): BackgroundImageLoad {
+	const cached = backgroundImageLoads.get(url);
+	if (cached) return cached;
+
+	const load: BackgroundImageLoad = {
+		status: "loading",
+		// The promise is replaced immediately below; the placeholder lets the
+		// state object be captured by the completion handler without a second map.
+		promise: Promise.resolve(false),
+	};
+	load.promise = new Promise<boolean>((resolve) => {
+		const image = new Image();
+		let settled = false;
+		const finish = (loaded: boolean): void => {
+			if (settled) return;
+			settled = true;
+			resolve(loaded);
+		};
+
+		image.onload = () => {
+			// `decode()` makes the reveal wait for a decoded frame, which avoids
+			// presenting the background and decoding the first GIF frame in the
+			// same paint. The load event remains the safe fallback for older
+			// Obsidian/Electron versions that do not expose decode().
+			if (typeof image.decode !== "function") {
+				finish(true);
+				return;
+			}
+			try {
+				void image.decode().then(
+					() => finish(true),
+					() => finish(image.naturalWidth > 0),
+				);
+			} catch {
+				// A few embedded Chromium versions can throw synchronously here
+				// when a resource is already complete; the load event still tells
+				// us whether a usable image arrived.
+				finish(image.naturalWidth > 0);
+			}
+		};
+		image.onerror = () => finish(false);
+		image.decoding = "async";
+		image.src = url;
+	}).then((loaded) => {
+		load.status = loaded ? "loaded" : "failed";
+		return loaded;
+	});
+	backgroundImageLoads.set(url, load);
+	return load;
+}
+
+/** Escape a URL before putting it inside a CSS `url("…")` literal. */
+function cssBackgroundImage(url: string): string {
+	const safe = url.replace(/["\\]/g, "\\$&");
+	return `url("${safe}")`;
+}
+
+/**
+ * Set a remote image only after it is decoded, then reveal it on the next
+ * frame. The separate frame is intentional: it gives the browser a painted
+ * zero-opacity layer before the opacity transition begins.
+ */
+function paintLoadedBackground(
+	layer: HTMLElement,
+	url: string,
+	opacity: number,
+	component: Component,
+): void {
+	const load = preloadBackgroundImage(url);
+	if (load.status === "loaded") {
+		layer.style.backgroundImage = cssBackgroundImage(url);
+		return;
+	}
+	if (load.status === "failed") return;
+
+	layer.addClass("is-bg-loading");
+	let destroyed = false;
+	component.register(() => {
+		destroyed = true;
+	});
+
+	void load.promise.then((loaded) => {
+		if (destroyed) return;
+		if (!loaded) {
+			// Keep the configured opacity when a failed request leaves no image;
+			// the theme surface underneath remains a calm fallback instead of a
+			// layer that stays transparent forever.
+			layer.style.opacity = String(opacity);
+			layer.removeClass("is-bg-loading");
+			return;
+		}
+
+		layer.style.backgroundImage = cssBackgroundImage(url);
+		const reveal = (): void => {
+			if (destroyed) return;
+			layer.style.opacity = String(opacity);
+			layer.removeClass("is-bg-loading");
+		};
+		if (typeof window.requestAnimationFrame === "function") {
+			window.requestAnimationFrame(reveal);
+		} else {
+			reveal();
+		}
+	});
+}
+
+/**
  * Apply the optional, customizable background as a separate layer behind the
  * content so opacity/blur don't affect the foreground. Uses the active
  * dashboard's override when set, otherwise the global default.
@@ -149,10 +268,10 @@ function paintBackground(
 	}
 
 	if (url) {
-		// Escape characters that would break out of the CSS url("...") literal.
-		// cover/center sizing lives in styles.css (.hearth-bg).
-		const safe = url.replace(/["\\]/g, "\\$&");
-		layer.style.backgroundImage = `url("${safe}")`;
+		// The built-in backgrounds are remote GIFs. Preloading every resolved URL
+		// also gives custom web wallpapers the same graceful first paint, while
+		// local resources still benefit from the browser's image cache.
+		paintLoadedBackground(layer, url, bg.opacity, component);
 	}
 }
 
