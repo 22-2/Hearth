@@ -255,6 +255,7 @@ export function exportSettingsPayload(s: HomeSettings): Record<string, unknown> 
 		lowPowerBackgroundColor: s.lowPowerBackgroundColor,
 		pauseWhenUnfocused: s.pauseWhenUnfocused,
 		backgroundSkyAnimate: s.backgroundSkyAnimate,
+		backgroundSkyDesign: s.backgroundSkyDesign,
 
 		// Behaviour
 		openOnStartup: s.openOnStartup,
@@ -1263,6 +1264,7 @@ function sanitizeWeather(r: Record<string, unknown>): WeatherConfig {
 		if (typeof r[flag] === "boolean") cfg[flag] = r[flag];
 	}
 	if (r.moonLayout === "full" || r.moonLayout === "clean") cfg.moonLayout = r.moonLayout;
+	if (r.design === "classic" || r.design === "expressive") cfg.design = r.design;
 	if (typeof r.hourlyCount === "number") cfg.hourlyCount = clampNum(r.hourlyCount, 0, 48, 6);
 	if (typeof r.dailyCount === "number") cfg.dailyCount = clampNum(r.dailyCount, 0, 16, 4);
 	if (typeof r.refreshMin === "number") cfg.refreshMin = clampNum(r.refreshMin, 0, 24 * 60, 30);
@@ -1730,6 +1732,8 @@ export function sanitizeDashboard(
 	}
 	if (typeof r.backgroundSkyAnimate === "boolean")
 		dash.backgroundSkyAnimate = r.backgroundSkyAnimate;
+	if (r.backgroundSkyDesign === "classic" || r.backgroundSkyDesign === "expressive")
+		dash.backgroundSkyDesign = r.backgroundSkyDesign;
 	// Only "plugin" is carried: anything else — including a mode from a newer
 	// Hearth this build can't render — is left off, so the board imports as the
 	// cards board it also is. Its `cards` came through above either way.
@@ -2140,6 +2144,10 @@ export function applySettings(s: HomeSettings, data: Record<string, unknown>): v
 	if (typeof data.backgroundSkyAnimate === "boolean") {
 		s.backgroundSkyAnimate = data.backgroundSkyAnimate ? undefined : false;
 	}
+	// Absent leaves the vault's choice alone; classic, the default, is stored as
+	// absence.
+	if (data.backgroundSkyDesign === "expressive") s.backgroundSkyDesign = "expressive";
+	else if (data.backgroundSkyDesign === "classic") s.backgroundSkyDesign = undefined;
 	const lowPowerColor = str(data.lowPowerBackgroundColor)?.trim();
 	if (lowPowerColor) s.lowPowerBackgroundColor = lowPowerColor;
 	if (typeof data.pauseWhenUnfocused === "boolean") {

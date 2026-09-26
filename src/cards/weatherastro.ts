@@ -11,6 +11,7 @@ import {
 	wallClockAt,
 } from "../astro";
 import { t } from "../i18n";
+import { shapePath, wavePath } from "../shapes";
 import { starField } from "../sky";
 import {
 	formatDayDate,
@@ -30,12 +31,16 @@ import {
 // sunset. Both read the *location's* clock, not the reader's, so a card set to
 // Tokyo shows Tokyo's moonrise and Tokyo's evening.
 //
-// They are drawn in the Material 3 Expressive manner rather than the painted
-// sky's: flat tonal fills from one palette per style (declared as tokens in
-// styles.css, light and dark), the shape library's soft polygons — a nine-lobed
-// "cookie" behind the moon, an eight-pointed "sunny" for the sun — a thick wavy
-// active track and a flat inactive one, and a slider with a pill handle. No
-// gradients and no blur: every colour here is a class the stylesheet fills.
+// Each comes in two designs. Expressive (the default for these two) is Material
+// 3 Expressive: flat tonal fills from one palette per style (declared as tokens
+// in styles.css, light and dark), the shape library's soft polygons — a
+// nine-lobed "cookie" behind the moon, an eight-pointed "sunny" for the sun — a
+// thick wavy active track and a flat inactive one, and a slider with a pill
+// handle. Classic is the painted manner of the rest of the weather card: a
+// shaded moon with a soft terminator and a glowing halo, a gradient track for
+// the month, and a rayed sun trailing a gradient along a dashed arc. The two
+// share their layout and their DOM; the drawings differ, and the stylesheet
+// scopes each look to `is-expressive` or `is-classic` on the card.
 
 
 /** What both styles need from the card that paints them. */
@@ -54,6 +59,8 @@ export interface AstroOptions {
 	/** The moon style's pared-down layout: the moon and the month's slider, on
 	 * the card's own surface, and nothing else. */
 	clean: boolean;
+	/** Draw in the Expressive design rather than the Classic one. */
+	expressive: boolean;
 	/** The current conditions as a glyph and a temperature, or null to leave
 	 * them off. */
 	now: { icon: string; temp: string } | null;
@@ -94,63 +101,38 @@ function daysBetween(from: string, to: string): number {
 const SVG_NS = { xmlns: "http://www.w3.org/2000/svg" };
 
 /** An `svg` element with a viewBox, in the SVG namespace. */
-function svgRoot(parent: HTMLElement, cls: string, viewBox: string, aspect = "xMidYMid meet"): SVGSVGElement {
+function svgRoot(
+	parent: HTMLElement,
+	// An array for more than one class: createSvg hands `cls` to classList.add(),
+	// which rejects a token containing a space (see drawCloud in sky.ts).
+	cls: string | string[],
+	viewBox: string,
+	aspect = "xMidYMid meet",
+): SVGSVGElement {
 	return parent.createSvg("svg", {
 		cls,
 		attr: { ...SVG_NS, viewBox, preserveAspectRatio: aspect, "aria-hidden": "true" },
 	});
 }
 
-
-// ---- Shapes -------------------------------------------------------------
-
-/**
- * A soft polygon from Material's shape library, as a path: a circle whose
- * radius swells and dips `lobes` times round, by `depth` of the radius. Nine
- * shallow lobes is the "cookie", eight deeper ones the "sunny". The first lobe
- * points straight up. Exported for the tests.
- */
-export function shapePath(cx: number, cy: number, r: number, lobes: number, depth: number): string {
-	const steps = Math.max(lobes, 3) * 12;
-	const points: string[] = [];
-	for (let i = 0; i < steps; i++) {
-		const a = (i / steps) * Math.PI * 2;
-		const radius = r * (1 + depth * Math.cos(lobes * a));
-		const x = cx + radius * Math.sin(a);
-		const y = cy - radius * Math.cos(a);
-		points.push(`${x.toFixed(2)} ${y.toFixed(2)}`);
+/** A gradient in `defs`, for the Classic drawings. */
+function gradient(
+	defs: SVGElement,
+	kind: "linearGradient" | "radialGradient",
+	id: string,
+	attr: Record<string, string>,
+	stops: [string, string, number?][],
+): void {
+	const g = defs.createSvg(kind, { attr: { id, ...attr } });
+	for (const [offset, color, opacity] of stops) {
+		g.createSvg("stop", {
+			attr: {
+				offset,
+				"stop-color": color,
+				...(opacity === undefined ? {} : { "stop-opacity": String(opacity) }),
+			},
+		});
 	}
-	return `M ${points.join(" L ")} Z`;
-}
-
-/**
- * A polyline as a wave that runs along it: every point pushed off the line
- * along its normal by a sine of the distance travelled. Material's wavy
- * progress track, bent to follow the sun's arc. Exported for the tests.
- */
-export function wavePath(
-	points: { x: number; y: number }[],
-	amplitude: number,
-	wavelength: number,
-): string {
-	if (points.length < 2) return "";
-	let travelled = 0;
-	const out: string[] = [];
-	for (let i = 0; i < points.length; i++) {
-		const p = points[i];
-		if (i > 0) travelled += Math.hypot(p.x - points[i - 1].x, p.y - points[i - 1].y);
-		// The normal from the neighbours on either side, so a bend doesn't kink.
-		const a = points[Math.max(i - 1, 0)];
-		const b = points[Math.min(i + 1, points.length - 1)];
-		const dx = b.x - a.x;
-		const dy = b.y - a.y;
-		const len = Math.hypot(dx, dy) || 1;
-		const offset = amplitude * Math.sin((travelled / wavelength) * Math.PI * 2);
-		const x = p.x + (-dy / len) * offset;
-		const y = p.y + (dx / len) * offset;
-		out.push(`${x.toFixed(1)} ${y.toFixed(1)}`);
-	}
-	return `M ${out.join(" L ")}`;
 }
 
 
@@ -198,23 +180,21 @@ const CRATERS: [number, number, number][] = [
 	[-0.6, -0.22, 0.05],
 ];
 
-/** The moon itself: the unlit disc, the lit part with a crisp terminator, and
- * its seas and craters on the lit side only. With `shape`, a cookie turns
- * slowly behind it. */
-function drawMoonDisc(parent: HTMLElement, phase: MoonPhase, southern: boolean, shape: boolean): void {
+/** The moon itself, on a cookie that turns slowly behind it: the unlit disc,
+ * the lit part with a crisp terminator, and its seas and craters on the lit
+ * side only. Both layouts draw it the same. */
+function drawMoonDisc(parent: HTMLElement, phase: MoonPhase, southern: boolean): void {
 	const svg = svgRoot(parent, "hearth-moon-svg", "0 0 100 100");
 	const defs = svg.createSvg("defs");
 	const clip = uid("moon-clip");
 	const litClip = uid("moon-litclip");
-	const R = shape ? 33 : 44;
+	const R = 33;
 
-	if (shape) {
-		// Its own group, so the turn and the entrance don't fight over transform.
-		svg.createSvg("g", { cls: "hearth-moon-shape-wrap" }).createSvg("path", {
-			cls: "hearth-moon-shape",
-			attr: { d: shapePath(50, 50, 46, 9, 0.055) },
-		});
-	}
+	// Its own group, so the turn and the entrance don't fight over transform.
+	svg.createSvg("g", { cls: "hearth-moon-shape-wrap" }).createSvg("path", {
+		cls: "hearth-moon-shape",
+		attr: { d: shapePath(50, 50, 46, 9, 0.055) },
+	});
 
 	defs.createSvg("clipPath", { attr: { id: clip } }).createSvg("circle", {
 		attr: { cx: "50", cy: "50", r: String(R) },
@@ -275,6 +255,123 @@ function cycleSlider(parent: HTMLElement, phase: MoonPhase): void {
 	slider.createDiv("hearth-moon-slider-handle").style.insetInlineStart = `${pct.toFixed(2)}%`;
 }
 
+/** The Classic moon's seas, as tilted ellipses in fractions of the radius —
+ * cx, cy, rx, ry, tilt — softened by a blur, and its rimmed craters. */
+const CLASSIC_MARIA: [number, number, number, number, number][] = [
+	[-0.28, -0.34, 0.3, 0.22, -20],
+	[0.12, -0.18, 0.24, 0.3, 15],
+	[0.36, 0.08, 0.18, 0.16, 0],
+	[-0.08, 0.2, 0.2, 0.14, 30],
+	[-0.46, 0.12, 0.14, 0.26, 10],
+	[0.2, 0.46, 0.12, 0.09, 0],
+];
+const CLASSIC_CRATERS: [number, number, number][] = [
+	[0.1, 0.66, 0.07],
+	[-0.55, -0.1, 0.05],
+	[0.52, -0.42, 0.06],
+	[-0.2, 0.52, 0.045],
+	[0.6, 0.3, 0.04],
+];
+
+/** The Classic moon: a halo that brightens with it, the dark disc under
+ * earthshine, a shaded lit part with a soft terminator, blurred seas and rimmed
+ * craters on the lit side, and limb darkening over the whole ball. */
+function drawClassicMoonDisc(parent: HTMLElement, phase: MoonPhase, southern: boolean): void {
+	const svg = svgRoot(parent, "hearth-moon-svg", "0 0 100 100");
+	const defs = svg.createSvg("defs");
+	const lit = uid("moon-lit");
+	const halo = uid("moon-halo");
+	const soft = uid("moon-soft");
+	const blur = uid("moon-blur");
+	const shade = uid("moon-shade");
+	const clip = uid("moon-clip");
+	const litClip = uid("moon-litclip");
+	const R = 36;
+
+	gradient(defs, "radialGradient", lit, { cx: "40%", cy: "36%", r: "72%" }, [
+		["0%", "#fffdf6"],
+		["60%", "#efe8d4"],
+		["100%", "#cbc1a7"],
+	]);
+	gradient(defs, "radialGradient", halo, { cx: "50%", cy: "50%", r: "50%" }, [
+		["55%", "#fff6d8", 0.35],
+		["100%", "#fff6d8", 0],
+	]);
+	// Limb darkening: the disc is a ball, so its edge is dimmer than its face.
+	gradient(defs, "radialGradient", shade, { cx: "50%", cy: "50%", r: "50%" }, [
+		["70%", "#000", 0],
+		["100%", "#000", 0.28],
+	]);
+	const soften = (id: string, deviation: string): void => {
+		defs.createSvg("filter", {
+			attr: { id, x: "-20%", y: "-20%", width: "140%", height: "140%" },
+		}).createSvg("feGaussianBlur", { attr: { stdDeviation: deviation } });
+	};
+	soften(soft, "0.9");
+	soften(blur, "1.6");
+	defs.createSvg("clipPath", { attr: { id: clip } }).createSvg("circle", {
+		attr: { cx: "50", cy: "50", r: String(R) },
+	});
+	const mirror = southern ? "translate(100 0) scale(-1 1)" : null;
+	const litShape = defs.createSvg("clipPath", { attr: { id: litClip } }).createSvg("path", {
+		attr: { d: litPath(phase, 50, 50, R) },
+	});
+	if (mirror) litShape.setAttribute("transform", mirror);
+
+	// The halo brightens with the moon: a new moon has none to speak of.
+	const glow = svg.createSvg("circle", {
+		cls: "hearth-moon-halo",
+		attr: { cx: "50", cy: "50", r: "50", fill: `url(#${halo})` },
+	});
+	glow.style.opacity = String(0.2 + phase.illumination * 0.8);
+
+	const body = svg.createSvg("g", { cls: "hearth-moon-body", attr: { "clip-path": `url(#${clip})` } });
+	body.createSvg("circle", { cls: "hearth-moon-dark", attr: { cx: "50", cy: "50", r: String(R) } });
+	const litEl = body.createSvg("path", {
+		cls: "hearth-moon-lit",
+		attr: { d: litPath(phase, 50, 50, R), fill: `url(#${lit})`, filter: `url(#${soft})` },
+	});
+	if (mirror) litEl.setAttribute("transform", mirror);
+
+	const surface = body.createSvg("g", { attr: { "clip-path": `url(#${litClip})` } });
+	const maria = surface.createSvg("g", { cls: "hearth-moon-maria", attr: { filter: `url(#${blur})` } });
+	for (const [x, y, rx, ry, tilt] of CLASSIC_MARIA) {
+		const cx = (50 + x * R).toFixed(2);
+		const cy = (50 + y * R).toFixed(2);
+		maria.createSvg("ellipse", {
+			attr: {
+				cx,
+				cy,
+				rx: (rx * R).toFixed(2),
+				ry: (ry * R).toFixed(2),
+				transform: `rotate(${tilt} ${cx} ${cy})`,
+			},
+		});
+	}
+	const craters = surface.createSvg("g", { cls: "hearth-moon-craters" });
+	for (const [x, y, r] of CLASSIC_CRATERS) {
+		craters.createSvg("circle", {
+			attr: { cx: (50 + x * R).toFixed(2), cy: (50 + y * R).toFixed(2), r: (r * R).toFixed(2) },
+		});
+	}
+	body.createSvg("circle", { attr: { cx: "50", cy: "50", r: String(R), fill: `url(#${shade})` } });
+	svg.createSvg("circle", { cls: "hearth-moon-rim", attr: { cx: "50", cy: "50", r: String(R) } });
+}
+
+/** The Classic month: a track dark at both new moons and bright at the full
+ * one in the middle, ticks at the quarters, and a glowing marker at tonight. */
+function cycleTrack(parent: HTMLElement, phase: MoonPhase): void {
+	const cycle = parent.createDiv({
+		cls: "hearth-moon-cycle",
+		attr: { role: "img", "aria-label": `${t().cards.weather.moon.cycle}: ${moonSummary(Date.now())}` },
+	});
+	const track = cycle.createDiv("hearth-moon-track");
+	for (const at of [0.25, 0.5, 0.75]) {
+		track.createDiv("hearth-moon-tick").style.insetInlineStart = `${at * 100}%`;
+	}
+	track.createDiv("hearth-moon-marker").style.insetInlineStart = `${phase.phase * 100}%`;
+}
+
 /** One fact under the moon: an icon in a round tonal badge, a label, a value
  * and an optional note. */
 function moonFact(
@@ -333,18 +430,21 @@ export function paintMoon(wrap: HTMLElement, snapshot: WeatherSnapshot, opts: As
 	wrap.toggleClass("is-animated", opts.animate);
 	wrap.toggleClass("is-intro", opts.intro && opts.animate);
 	wrap.toggleClass("is-clean", opts.clean);
+	wrap.toggleClass("is-expressive", opts.expressive);
+	wrap.toggleClass("is-classic", !opts.expressive);
+	const disc = opts.expressive ? drawMoonDisc : drawClassicMoonDisc;
+	const month = opts.expressive ? cycleSlider : cycleTrack;
 
 	if (opts.clean) {
 		// Nothing is written on the card, so the phase is the hover text: the
 		// drawing says it, the tooltip names it.
-		const disc = wrap.createDiv({ cls: "hearth-moon-disc", attr: { title: moonSummary(ms) } });
-		drawMoonDisc(disc, phase, opts.lat < 0, false);
-		cycleSlider(wrap, phase);
+		disc(wrap.createDiv({ cls: "hearth-moon-disc", attr: { title: moonSummary(ms) } }), phase, opts.lat < 0);
+		month(wrap, phase);
 		return;
 	}
 
 	// A few stars behind everything, in the palette's own tone.
-	const sky = svgRoot(wrap, "hearth-moon-stars hearth-weather-stars", "0 0 200 120", "xMidYMid slice");
+	const sky = svgRoot(wrap, ["hearth-moon-stars", "hearth-weather-stars"], "0 0 200 120", "xMidYMid slice");
 	for (const star of starField(22, 200, 120, 0x3007, 0.5)) {
 		const c = sky.createSvg("circle", {
 			attr: { cx: String(star.x), cy: String(star.y), r: String(star.r * 0.6) },
@@ -353,7 +453,7 @@ export function paintMoon(wrap: HTMLElement, snapshot: WeatherSnapshot, opts: As
 	}
 
 	const main = wrap.createDiv("hearth-moon-main");
-	drawMoonDisc(main.createDiv("hearth-moon-disc"), phase, opts.lat < 0, true);
+	disc(main.createDiv("hearth-moon-disc"), phase, opts.lat < 0);
 	const text = main.createDiv("hearth-moon-text");
 	if (opts.place) text.createDiv({ cls: "hearth-moon-place", text: opts.place });
 	text.createDiv({ cls: "hearth-moon-name", text: strings.phases[phase.key] });
@@ -365,7 +465,7 @@ export function paintMoon(wrap: HTMLElement, snapshot: WeatherSnapshot, opts: As
 		].join(" · "),
 	});
 
-	cycleSlider(wrap, phase);
+	month(wrap, phase);
 
 	// Searched from the start of the location's day, so a full moon that fell
 	// this morning still says "Today" rather than a month from now.
@@ -492,6 +592,9 @@ export function paintDaylight(
 
 	wrap.toggleClass("is-animated", opts.animate);
 	wrap.toggleClass("is-night", !isDay);
+	wrap.toggleClass("is-expressive", opts.expressive);
+	wrap.toggleClass("is-classic", !opts.expressive);
+	const classic = !opts.expressive;
 
 	// ---- The headline: the next horizon crossing and how long until it ----
 	const head = wrap.createDiv("hearth-sun-head");
@@ -539,15 +642,57 @@ export function paintDaylight(
 		.createSvg("clipPath", { attr: { id: aheadClip } })
 		.createSvg("rect", { attr: { x: "0", y: "0", width: "0", height: "0" } });
 
+	// The Classic drawing's gradients: the day already had, the trail, the sun.
+	const grad = { area: uid("sun-area"), trail: uid("sun-trail"), core: uid("sun-core"), glow: uid("sun-glow") };
+	if (classic) {
+		gradient(defs, "linearGradient", grad.area, { x1: "0", y1: "0", x2: "0", y2: "1" }, [
+			["0%", "#ffb347", 0.38],
+			["100%", "#ffb347", 0.02],
+		]);
+		gradient(defs, "linearGradient", grad.trail, { x1: "0", y1: "0", x2: "1", y2: "0" }, [
+			["0%", "#ff8a3d"],
+			["50%", "#ffc247"],
+			["100%", "#ff7a59"],
+		]);
+		gradient(defs, "radialGradient", grad.core, { cx: "40%", cy: "38%", r: "65%" }, [
+			["0%", "#fff6c9"],
+			["60%", "#ffd257"],
+			["100%", "#ff9f2e"],
+		]);
+		gradient(defs, "radialGradient", grad.glow, { cx: "50%", cy: "50%", r: "50%" }, [
+			["0%", "#ffc54d", 0.55],
+			["100%", "#ffc54d", 0],
+		]);
+	}
+
 	// Everything that depends on the box lives in here and is redrawn on resize.
 	const layer = svg.createSvg("g");
+	// Classic drops a plumb line from the sun to the horizon to mark "now".
+	const plumb = classic ? svg.createSvg("line", { cls: "hearth-sun-plumb" }) : null;
 	const sun = svg.createSvg("g", { cls: "hearth-sun-body" });
-	sun.createSvg("circle", { cls: "hearth-sun-glow", attr: { r: "20" } });
-	// The sunny shape turns in a group of its own; the body is moved by script.
-	sun.createSvg("g", { cls: "hearth-sun-spin" }).createSvg("path", {
-		cls: "hearth-sun-shape",
-		attr: { d: shapePath(0, 0, 12.5, 8, 0.12) },
-	});
+	if (classic) {
+		sun.createSvg("circle", { cls: "hearth-sun-glow", attr: { r: "20", fill: `url(#${grad.glow})` } });
+		const rays = sun.createSvg("g", { cls: "hearth-sun-rays" });
+		for (let i = 0; i < 8; i++) {
+			const a = (i / 8) * Math.PI * 2;
+			rays.createSvg("line", {
+				attr: {
+					x1: (Math.cos(a) * 10).toFixed(2),
+					y1: (Math.sin(a) * 10).toFixed(2),
+					x2: (Math.cos(a) * 13.5).toFixed(2),
+					y2: (Math.sin(a) * 13.5).toFixed(2),
+				},
+			});
+		}
+		sun.createSvg("circle", { cls: "hearth-sun-core", attr: { r: "7", fill: `url(#${grad.core})` } });
+	} else {
+		sun.createSvg("circle", { cls: "hearth-sun-glow", attr: { r: "20" } });
+		// The sunny shape turns in a group of its own; the body is moved by script.
+		sun.createSvg("g", { cls: "hearth-sun-spin" }).createSvg("path", {
+			cls: "hearth-sun-shape",
+			attr: { d: shapePath(0, 0, 12.5, 8, 0.12) },
+		});
+	}
 
 	let box = arcBox(300, 112);
 
@@ -586,21 +731,24 @@ export function paintDaylight(
 			const x1 = arcX(box, sunrise).toFixed(1);
 			const x2 = arcX(box, sunset).toFixed(1);
 			const top = (horizon - 2 * box.day).toFixed(1);
-			layer.createSvg("path", {
+			const area = layer.createSvg("path", {
 				cls: "hearth-sun-area",
 				attr: {
 					d: `M ${x1} ${horizon} Q ${((arcX(box, sunrise) + arcX(box, sunset)) / 2).toFixed(1)} ${top} ${x2} ${horizon} Z`,
 					"clip-path": `url(#${doneClip})`,
 				},
 			});
+			if (classic) area.setAttribute("fill", `url(#${grad.area})`);
 			layer.createSvg("path", {
 				cls: "hearth-sun-track",
 				attr: { d: line, "clip-path": `url(#${aheadClip})` },
 			});
-			layer.createSvg("path", {
+			// Expressive walks a wave behind the sun; Classic a gradient stroke.
+			const trail = layer.createSvg("path", {
 				cls: "hearth-sun-trail",
-				attr: { d: wavePath(points, 2.4, 26), "clip-path": `url(#${doneClip})` },
+				attr: { d: classic ? line : wavePath(points, 2.4, 26), "clip-path": `url(#${doneClip})` },
 			});
+			if (classic) trail.setAttribute("stroke", `url(#${grad.trail})`);
 		}
 		layer.createSvg("line", {
 			cls: "hearth-sun-horizon",
@@ -610,7 +758,7 @@ export function paintDaylight(
 			for (const minute of [sunrise, sunset]) {
 				layer.createSvg("circle", {
 					cls: "hearth-sun-mark",
-					attr: { cx: arcX(box, minute).toFixed(1), cy: horizon.toFixed(1), r: "4.5" },
+					attr: { cx: arcX(box, minute).toFixed(1), cy: horizon.toFixed(1), r: classic ? "2.6" : "4.5" },
 				});
 			}
 		}
@@ -626,6 +774,12 @@ export function paintDaylight(
 		doneRect.setAttribute("width", x.toFixed(1));
 		aheadRect.setAttribute("x", x.toFixed(1));
 		aheadRect.setAttribute("width", Math.max(box.w - x, 0).toFixed(1));
+		if (plumb) {
+			plumb.setAttribute("x1", x.toFixed(1));
+			plumb.setAttribute("x2", x.toFixed(1));
+			plumb.setAttribute("y1", y.toFixed(1));
+			plumb.setAttribute("y2", box.horizon.toFixed(1));
+		}
 	};
 
 	/** The "in 3 h 12 min" under the headline. */
