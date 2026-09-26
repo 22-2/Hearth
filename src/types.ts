@@ -1149,13 +1149,19 @@ export interface WeatherPlace {
  * - `forecast` — an hourly temperature curve with a daily strip under it.
  * - `artistic` — an edge-to-edge painted sky that follows the real conditions
  *   and the time of day, with drifting clouds, rain, snow and stars.
+ * - `moon`     — tonight's moon, drawn in its real phase on a night sky, with
+ *   the next full and new moon and when it rises and sets.
+ * - `daylight` — the sun on its arc from sunrise to sunset, with the time of the
+ *   next one and how long until it.
  */
 export type WeatherStyle =
 	| "minimal"
 	| "compact"
 	| "detailed"
 	| "forecast"
-	| "artistic";
+	| "artistic"
+	| "moon"
+	| "daylight";
 
 /** Temperature unit for a weather card. Default "c". */
 export type TemperatureUnit = "c" | "f";
@@ -1217,10 +1223,15 @@ export interface WeatherConfig {
 	/** How many days the daily strip covers. 0 hides it. Default 4. */
 	dailyCount?: number;
 
-	// ---- Artistic style ----
-	/** Animate the painted sky (drifting clouds, falling rain, twinkling stars).
-	 * Default true; forced off from the `reduced` tier down. */
+	// ---- Artistic, moon and daylight styles ----
+	/** Animate the painted sky (drifting clouds, falling rain, twinkling stars),
+	 * the moon's glow, or the sun's walk along its arc. Default true; forced off
+	 * from the `reduced` tier down. */
 	animate?: boolean;
+	/** The moon style's layout: "full" is the moon on a night sky with its
+	 * name, the month's track and the next full and new moon; "clean" is just
+	 * the moon and the track, on the card's own surface. Default "full". */
+	moonLayout?: "full" | "clean";
 
 	// ---- Refresh ----
 	/** Auto-refresh interval in minutes. 0 means "only when opened or refreshed
