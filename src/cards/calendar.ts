@@ -16,13 +16,14 @@ import {
 	openDailyNote,
 	renderEventRow,
 	showDayMenu,
+	checkboxTasksSourceEditor,
 	taskNotesSourceEditor,
 	type IcsContext,
 } from "../calendarsource";
 import { formatRelativeDate } from "../dates";
 import { taskNotesEnabled, taskNotesMeta } from "../tasknotes";
 import { t } from "../i18n";
-import { type DashboardCard } from "../types";
+import { type DashboardCard, effectiveCardDesign } from "../types";
 import { makeClickable } from "../ui";
 import { type HomeView } from "../view";
 import { type CardDefinition, type CardEditorContext } from "./definition";
@@ -51,11 +52,13 @@ export function renderCalendar(
 	const options = dailyNotesOptions(view);
 	const cfg = card.calendar ?? {};
 	const sources = (cfg.sources ?? []).filter((s) => s.url.trim() && s.enabled !== false);
-	const useTaskNotes = cfg.taskNotes?.enabled === true && taskNotesEnabled(view.app);
+	const useTasks =
+		(cfg.taskNotes?.enabled === true && taskNotesEnabled(view.app)) ||
+		cfg.checkboxTasks?.enabled === true;
 
 	// The card needs a reason to exist: daily notes (for the note grid), an
-	// external calendar to overlay, or TaskNotes as a source.
-	if (!options && sources.length === 0 && !useTaskNotes) {
+	// external calendar to overlay, or a task source (TaskNotes, checkboxes).
+	if (!options && sources.length === 0 && !useTasks) {
 		emptyState(body, "calendar-days", t().cards.empty.dailyEnable);
 		return;
 	}
@@ -64,7 +67,13 @@ export function renderCalendar(
 	// Activity counts are only needed for the heatmap tint.
 	const activity = cfg.heatmap ? activityByDay(view.app, cfg.heatmapMetric ?? "modified") : null;
 
-	const ics = buildIcsContext(view, cfg, sources, component);
+	const ics = buildIcsContext(
+		view,
+		cfg,
+		sources,
+		component,
+		effectiveCardDesign(view.plugin.settings, card.design) === "expressive",
+	);
 	const operon = buildOperonOverlay(view, cfg, component);
 	if (cfg.view === "agenda") {
 		const days = cfg.agendaDays && cfg.agendaDays > 0 ? Math.min(cfg.agendaDays, 60) : 14;
@@ -588,6 +597,7 @@ export function calendarEditor(ctx: CardEditorContext, containerEl: HTMLElement)
 	// The chips ride on agenda entries; the month grid draws dots instead.
 	if (cfg.view === "agenda") calendarChipsEditor(ctx, containerEl, cfg);
 	taskNotesSourceEditor(ctx, containerEl, cfg);
+	checkboxTasksSourceEditor(ctx, containerEl, cfg);
 	calendarSourcesEditor(ctx, containerEl, cfg);
 }
 
@@ -622,5 +632,6 @@ export const calendarCard: CardDefinition<"calendar"> = {
 					: undefined,
 			};
 	},
+	expressive: true,
 	liveness: { mode: "vault" },
 };

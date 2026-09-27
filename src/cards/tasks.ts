@@ -2,8 +2,6 @@ import {
 	ButtonComponent,
 	ExtraButtonComponent,
 	MarkdownView,
-	Menu,
-	Modal,
 	Notice,
 	setIcon,
 	Setting,
@@ -12,6 +10,7 @@ import {
 	TFolder,
 	type App,
 } from "obsidian";
+import { hearthMenu, HearthModal } from "../uidesign";
 import { emptyState, moment } from "../cardbodies";
 import { formatRelativeDate, parseNaturalDate } from "../dates";
 import { addResetButton } from "../editors";
@@ -57,6 +56,7 @@ import {
 	taskFieldValues,
 } from "../taskfields";
 import { inTaskScope, tasksEventRelevant } from "../taskscope";
+import { readEmojiField, stripTaskMetadata, TASK_EMOJI_CLASS } from "../checkboxtasks";
 import {
 	applyInlineTags,
 	filterHashtagLabel,
@@ -74,6 +74,7 @@ import {
 } from "../taskfilter";
 import {
 	type DashboardCard,
+	effectiveCardDesign,
 	type HomeSettings,
 	type TaskDueFilter,
 	type TaskFieldDef,
@@ -88,7 +89,7 @@ import {
 	type TaskSortRule,
 } from "../types";
 import { openInTaskNotes, readTaskNotesSetup, TASKNOTES_PLUGIN_ID } from "../tasknotes";
-import { confirmAction, makeClickable } from "../ui";
+import { confirmAction, dressModal, makeClickable } from "../ui";
 import { type HomeView } from "../view";
 import { type CardDefinition, type CardEditorContext } from "./definition";
 
@@ -167,6 +168,9 @@ interface TaskHit {
 	/** Checkbox source: the raw checkbox status symbol (the char inside `- [ ]`),
 	 * used to group the task into its status column on the Kanban board. */
 	checkboxStatus?: string;
+	/** Checkbox source: the label of {@link checkboxStatus} (To do, In progress,
+	 * …), the value the status filter and status sort compare. */
+	checkboxLabel?: string;
 	/** TaskNotes source: context tags from frontmatter (e.g. home, errands). */
 	contexts?: string[];
 	/** TaskNotes source: linked project names from frontmatter. */
@@ -199,8 +203,22 @@ function checkboxStatuses(cfg: TasksConfig): { symbol: string; label: string; do
 }
 
 
+/**
+ * Which task cards are drawn in the Expressive design, keyed by the config the
+ * card renders from — the one thing every dialog opener in this file already
+ * holds — so a task, the filter or the sort opens looking like its card
+ * without threading the card through every helper on the way.
+ */
+const expressiveConfigs = new WeakMap<TasksConfig, boolean>();
+
+/** Whether dialogs opened for this config should wear the Expressive design. */
+function tasksExpressive(cfg: TasksConfig): boolean {
+	return expressiveConfigs.get(cfg) === true;
+}
+
 export function renderTasks(view: HomeView, card: DashboardCard, body: HTMLElement): void {
 	const cfg = card.tasks ?? {};
+	expressiveConfigs.set(cfg, effectiveCardDesign(view.plugin.settings, card.design) === "expressive");
 	const container = body.createDiv("hearth-tasks-wrap");
 	const refresh = () => void loadAndRenderTasks(view, cfg, container, refresh);
 	refresh();
@@ -666,7 +684,7 @@ async function writeTaskFieldValue(
  * beside it cover what people actually pick — today, tomorrow, next week — and
  * Clear removes the date entirely.
  */
-class TaskDatePickerModal extends Modal {
+class TaskDatePickerModal extends HearthModal {
 	private value: string;
 
 	constructor(
@@ -735,7 +753,7 @@ class TaskDatePickerModal extends Modal {
 
 /** Ask for a value the vault hasn't seen yet — the only way to introduce, say,
  * a first "blocked" status without editing the note by hand. */
-class TaskValuePromptModal extends Modal {
+class TaskValuePromptModal extends HearthModal {
 	private value: string;
 
 	constructor(
@@ -808,7 +826,7 @@ async function openTaskValuePicker(
 	// A date is picked from a calendar, not from a list of everything the vault
 	// happens to contain.
 	if (keyIsDate(key)) {
-		new TaskDatePickerModal(view.app, current, set).open();
+		dressModal(new TaskDatePickerModal(view.app, current, set), tasksExpressive(cfg)).open();
 		return;
 	}
 
@@ -819,7 +837,7 @@ async function openTaskValuePicker(
 	const found = await discoverSourceValues(view, cfg, key.source);
 	const rest = found.filter((v) => !seen.has(v.trim().toLowerCase()));
 
-	const menu = new Menu();
+	const menu = hearthMenu();
 	const item = (value: string, label: string) =>
 		menu.addItem((mi) =>
 			mi
@@ -838,7 +856,10 @@ async function openTaskValuePicker(
 			.setTitle(labels.valueCustom)
 			.setIcon("pencil")
 			.onClick(() => {
-				new TaskValuePromptModal(view.app, labels.valueCustomTitle, current, (v) => set(v)).open();
+				dressModal(
+					new TaskValuePromptModal(view.app, labels.valueCustomTitle, current, (v) => set(v)),
+					tasksExpressive(cfg),
+				).open();
 			}),
 	);
 	menu.addItem((mi) =>
@@ -1333,7 +1354,7 @@ function renderTaskSortControl(
 	if (active !== "smart" || current.reverse) btn.addClass("is-active");
 	btn.addEventListener("click", (e) => {
 		e.stopPropagation();
-		const menu = new Menu();
+		const menu = hearthMenu();
 		for (const key of TASK_SORT_KEYS) {
 			menu.addItem((item) =>
 				item
@@ -1395,7 +1416,7 @@ function renderTaskListSortControl(
 
 	btn.addEventListener("click", (e) => {
 		e.stopPropagation();
-		const menu = new Menu();
+		const menu = hearthMenu();
 		for (const key of TASK_SORT_KEYS) {
 			menu.addItem((item) =>
 				item
@@ -1430,10 +1451,11 @@ function renderTaskListSortControl(
 				.setChecked(custom)
 				.setIcon("list-ordered")
 				.onClick(() => {
-					new TaskSortModal(view.app, cfg.sortRules ?? [], availableStatuses, (rules) => {
+					const modal = new TaskSortModal(view.app, cfg.sortRules ?? [], availableStatuses, (rules) => {
 						cfg.sortRules = rules.length ? rules : undefined;
 						persist();
-					}).open();
+					});
+					dressModal(modal, tasksExpressive(cfg)).open();
 				}),
 		);
 		menu.showAtMouseEvent(e);
@@ -1446,7 +1468,7 @@ function renderTaskListSortControl(
  * in sequence, plus add / reorder / remove controls. Mirrors the filter modal —
  * edits apply on "Apply", "Clear" empties the list, "Cancel" discards them.
  */
-class TaskSortModal extends Modal {
+class TaskSortModal extends HearthModal {
 	private rules: TaskSortRule[];
 	private body: HTMLElement | null = null;
 
@@ -1583,12 +1605,11 @@ class TaskSortModal extends Modal {
 
 // ---- List filter ---------------------------------------------------------
 
-/** The status-like value a task exposes for filtering: the TaskNotes status or
- * the Kanban column, whichever the source provides (checkbox tasks have neither
- * and so aren't offered status chips). */
 /** Build distinct filter chip choices from every task the card loaded, so the
- * options don't shift as the filter narrows the visible list. */
-function collectTaskFilterChoices(hits: TaskHit[], source: string): TaskFilterChoices {
+ * options don't shift as the filter narrows the visible list. `statusOrder`
+ * lists status values in their configured order (checkbox states), so their
+ * chips follow it instead of the order the tasks happen to be sorted in. */
+function collectTaskFilterChoices(hits: TaskHit[], source: string, statusOrder?: string[]): TaskFilterChoices {
 	const statuses: string[] = [];
 	const contexts: string[] = [];
 	const projects: string[] = [];
@@ -1626,6 +1647,13 @@ function collectTaskFilterChoices(hits: TaskHit[], source: string): TaskFilterCh
 		}
 	}
 	tags.sort((a, b) => a.localeCompare(b));
+	if (statusOrder) {
+		const rank = (v: string) => {
+			const i = statusOrder.findIndex((s) => s.toLowerCase() === v.toLowerCase());
+			return i < 0 ? statusOrder.length : i;
+		};
+		statuses.sort((a, b) => rank(a) - rank(b));
+	}
 	return { source, statuses, contexts, projects, tags };
 }
 
@@ -1648,11 +1676,12 @@ function renderTaskFilterControl(
 	if (isTaskFilterActive(cfg.taskFilter)) btn.addClass("is-active");
 	btn.addEventListener("click", (e) => {
 		e.stopPropagation();
-		new TaskFilterModal(view.app, cfg.taskFilter ?? {}, filterChoices, (next) => {
+		const modal = new TaskFilterModal(view.app, cfg.taskFilter ?? {}, filterChoices, (next) => {
 			cfg.taskFilter = isTaskFilterActive(next) ? next : undefined;
 			void view.plugin.saveData(view.plugin.settings);
 			refresh();
-		}).open();
+		});
+		dressModal(modal, tasksExpressive(cfg)).open();
 	});
 }
 
@@ -1672,7 +1701,7 @@ function setChipState(chip: HTMLElement, on: boolean): void {
 /** The filter modal: quick presets across the top, then editable criteria
  * (due, priority, status, text). Edits are applied on "Apply"; "Cancel"
  * discards them and "Clear" empties every field. */
-class TaskFilterModal extends Modal {
+class TaskFilterModal extends HearthModal {
 	private working: TaskFilterConfig;
 	private body: HTMLElement | null = null;
 	/** Re-reads each preset chip's on/off state from `working`. Kept so a chip
@@ -1996,7 +2025,11 @@ async function loadAndRenderTasks(
 
 	// Distinct filter values present, offered as chips (computed from all hits
 	// so the choices don't shift as the filter narrows the list or the board).
-	const filterChoices = collectTaskFilterChoices(hits, source);
+	const filterChoices = collectTaskFilterChoices(
+		hits,
+		source,
+		source === "checkbox" ? checkboxStatuses(cfg).map((s) => s.label) : undefined,
+	);
 
 	if (cfg.layout === "kanban") {
 		// The board filters the same way the list does — the columns stay, their
@@ -2858,7 +2891,7 @@ function buildTaskDetailFields(
 
 /** A modal to edit a Kanban card's dates, priority and description via {@link
  * buildTaskDetailFields}, prefilled from the card; submits the new values. */
-class TaskMetadataModal extends Modal {
+class TaskMetadataModal extends HearthModal {
 	private read: (() => { meta: TaskMeta; description: string }) | null = null;
 	constructor(
 		app: App,
@@ -2900,7 +2933,7 @@ class TaskMetadataModal extends Modal {
  * offers to open the full note or delete the task. When the task's metadata is
  * managed (checkbox extended / Kanban extended) the fields are editable and a
  * Save button writes them back; otherwise the metadata is shown read-only. */
-class TaskDetailModal extends Modal {
+class TaskDetailModal extends HearthModal {
 	private read: (() => { meta: TaskMeta; description: string }) | null = null;
 	/** For a linked card, the editable description textarea (its content is
 	 * written back to the note body on save). */
@@ -3079,6 +3112,7 @@ class TaskDetailModal extends Modal {
 						title: t().cards.tasks.deleteTask,
 						message: t().cards.tasks.deleteTaskConfirm,
 						confirmText: t().cards.tasks.deleteTask,
+						expressive: tasksExpressive(cfg),
 						onConfirm: () => {
 							void deleteKanbanCard(view, hit).then((ok) => {
 								if (!ok) new Notice(t().notices.taskChangedOnDisk);
@@ -3134,6 +3168,8 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 			const raw = match[2].trim();
 			if (!raw) return; // ignore empty checkboxes ("- [ ]")
 			const done = st ? !!st.done : symbol.toLowerCase() === "x";
+			// A blank/done mark missing from a custom status set still gets a label.
+			const checkboxLabel = st ? st.label : done ? t().cards.tasks.done : t().cards.tasks.toDo;
 			// Lines nested under the task are its description, shown as sub-bullets
 			// exactly as a Kanban card's are. Structure, not metadata, so it is read
 			// in plain mode too.
@@ -3147,6 +3183,7 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 					text: raw,
 					done,
 					checkboxStatus: symbol,
+					checkboxLabel,
 					due: null,
 					dueRaw: null,
 					scheduled: null,
@@ -3176,6 +3213,7 @@ async function collectCheckboxTasks(view: HomeView, cfg: TasksConfig): Promise<T
 				text: stripInlineTags(stripTaskMetadata(raw)),
 				done,
 				checkboxStatus: symbol,
+				checkboxLabel,
 				due,
 				dueRaw,
 				scheduled: readEmojiDate(raw, "⏳") || null,
@@ -3297,6 +3335,7 @@ function asTaskFilterHit(hit: TaskHit): TaskFilterHit {
 		scheduled: hit.scheduled,
 		status: hit.status,
 		boardColumn: hit.boardColumn,
+		checkboxLabel: hit.checkboxLabel,
 		priority: hit.priority,
 		contexts: hit.contexts,
 		projects: hit.projects,
@@ -3741,11 +3780,6 @@ async function collectKanbanTasks(
 }
 
 
-/** Every Tasks-plugin metadata emoji marker, used to strip metadata from a
- * card's display text and to compare cards ignoring their metadata. */
-const TASK_EMOJI_CLASS = "📅⏳🛫🔁✅❌➕⏫🔼🔽🔺⏬";
-
-
 /** The subset of metadata emoji Hearth's editor manages (due/scheduled/start/
  * recurrence/priority). Completion (✅), created (➕) and cancelled (❌) markers
  * are left untouched when rewriting a card's metadata. */
@@ -3773,16 +3807,6 @@ function readEmojiDate(text: string, emoji: string): string {
 	const expr = readEmojiField(text, emoji);
 	if (!expr) return "";
 	return resolveDate(expr) ?? "";
-}
-
-
-/** Strip all Tasks-plugin emoji metadata (each marker and its trailing value up
- * to the next marker) from a task's text, collapsing leftover whitespace. Used
- * for clean Kanban card display and for stable text comparison on writeback
- * (idempotent, so a raw and an already-stripped text compare equal). */
-function stripTaskMetadata(text: string): string {
-	const re = new RegExp(`[${TASK_EMOJI_CLASS}][^\\n\\r${TASK_EMOJI_CLASS}]*`, "gu");
-	return text.replace(re, "").replace(/\s+/g, " ").trim();
 }
 
 
@@ -3866,6 +3890,34 @@ async function setLineRecurringInstanceDone(
 	lines[hit.line] = `${prefix}${body}`.trimEnd();
 	await view.app.vault.modify(hit.file, lines.join("\n"));
 	return true;
+}
+
+
+/** Complete (or reopen) a checkbox task from outside this card — the calendar
+ * cards' checkbox source — with exactly the write the list layout makes: a
+ * recurring task stamps ✅ and rolls its date forward, anything else flips the
+ * box and keeps its ✅ date in sync. `raw` is the line's text as read; the write
+ * bails (false) when the line no longer matches it. */
+export async function setCheckboxTaskDone(
+	view: HomeView,
+	file: TFile,
+	line: number,
+	raw: string,
+	done: boolean,
+): Promise<boolean> {
+	const recurrence = readEmojiField(raw, "🔁") ?? undefined;
+	const hit: TaskHit = {
+		file,
+		line,
+		text: raw,
+		done: !done,
+		due: null,
+		dueRaw: null,
+		scheduled: null,
+		created: file.stat.ctime,
+		recurrence,
+	};
+	return recurrence ? setLineRecurringInstanceDone(view, hit, done) : setKanbanCardDone(view, hit, done, true);
 }
 
 
@@ -4079,7 +4131,7 @@ function attachKanbanCardMenu(
 	el.addEventListener("contextmenu", (e) => {
 		e.preventDefault();
 		e.stopPropagation();
-		const menu = new Menu();
+		const menu = hearthMenu();
 		if (canEditMeta) {
 			menu.addItem((item) =>
 				item
@@ -4100,12 +4152,13 @@ function attachKanbanCardMenu(
 						// metadata (frontmatter) is editable here; a card or checkbox on a
 						// line of its own edits both.
 						const ownsLines = hit.line >= 0 && !hit.linkedFile;
-						new TaskMetadataModal(view.app, current, hit.description ?? "", ownsLines, (meta, description) => {
+						const modal = new TaskMetadataModal(view.app, current, hit.description ?? "", ownsLines, (meta, description) => {
 							void setKanbanCardMetadata(view, hit, meta, description).then((ok) => {
 								if (!ok) new Notice(t().notices.taskChangedOnDisk);
 								refresh();
 							});
-						}).open();
+						});
+						dressModal(modal, tasksExpressive(cfg)).open();
 					}),
 			);
 		}
@@ -4119,10 +4172,13 @@ function attachKanbanCardMenu(
 						.onClick(() => void convertKanbanCardToNote(view, cfg, hit).then(refresh)),
 				);
 			}
+			// Deleting stands apart from the rest, when there is a rest.
+			if (canEditMeta || !hit.linkedFile) menu.addSeparator();
 			menu.addItem((item) =>
 				item
 					.setTitle(t().cards.tasks.deleteCard)
 					.setIcon("trash-2")
+					.setWarning(true)
 					.onClick(() => {
 						void deleteKanbanCard(view, hit).then((ok) => {
 							if (!ok) new Notice(t().notices.taskChangedOnDisk);
@@ -4647,21 +4703,6 @@ function insertCardBlock(lines: string[], heading: string, block: string[]): boo
 }
 
 
-/** Read the value of a Tasks-plugin emoji field from a checkbox line, e.g.
- * `📅 tomorrow` or `📅 2024-01-15`. Returns the trimmed value up to the next
- * known emoji marker or end of line, or null when the marker isn't present. */
-function readEmojiField(text: string, emoji: string): string | null {
-	const idx = text.indexOf(emoji);
-	if (idx < 0) return null;
-	let rest = text.slice(idx + emoji.length);
-	// Stop at the next emoji marker (any of the Tasks-plugin conventions).
-	const next = rest.search(new RegExp(`[${TASK_EMOJI_CLASS}]`, "u"));
-	if (next >= 0) rest = rest.slice(0, next);
-	const value = rest.trim();
-	return value || null;
-}
-
-
 /** The checkbox marker at the start of a list item, capturing the state char so
  * only that bracket is flipped (never a stray "[x]" elsewhere in the text). The
  * state char may be any single character to support custom statuses. */
@@ -4967,7 +5008,7 @@ async function openTask(view: HomeView, cfg: TasksConfig, hit: TaskHit, refresh:
 	// keep opening in their own editor. Storing `taskQuickView: false` restores
 	// the old open-on-click behaviour.
 	if (hit.line >= 0 && (cfg.taskQuickView ?? true)) {
-		new TaskDetailModal(view, cfg, hit, refresh).open();
+		dressModal(new TaskDetailModal(view, cfg, hit, refresh), tasksExpressive(cfg)).open();
 		return;
 	}
 	await openTaskFile(view, hit);
@@ -5121,7 +5162,7 @@ function sourceLabel(source: string): string {
  * and below stay on screen throughout. Building a second field that mirrors the
  * first is the common case, and it needs both visible.
  */
-export class TaskFieldsModal extends Modal {
+export class TaskFieldsModal extends HearthModal {
 	private fields: TaskFieldDef[];
 	private body: HTMLElement | null = null;
 	private discovery: TaskFieldDiscovery = { properties: [], values: new Map() };
@@ -5575,7 +5616,7 @@ export class TaskFieldsModal extends Modal {
 		};
 		show();
 		const openPalette = () => {
-			const menu = new Menu();
+			const menu = hearthMenu();
 			for (const preset of TASK_COLOR_PRESETS) {
 				const value = presetColor(preset);
 				menu.addItem((item) =>
@@ -5666,7 +5707,7 @@ export class TaskFieldsModal extends Modal {
 				.setButtonText(labels.fieldValuesFound(suggestions.length))
 				.setTooltip(labels.fieldPickValue)
 				.onClick((e) => {
-					const menu = new Menu();
+					const menu = hearthMenu();
 					for (const value of suggestions) {
 						menu.addItem((item) =>
 							item.setTitle(value).onClick(() => {
@@ -5709,7 +5750,7 @@ export class TaskFieldsModal extends Modal {
 			.setButtonText(labels.fieldAddBuiltin)
 			.setTooltip(labels.fieldPickBuiltin)
 			.onClick((e) => {
-				const menu = new Menu();
+				const menu = hearthMenu();
 				for (const id of TASK_BUILTIN_SOURCES) {
 					if (used.has(builtinSource(id))) continue;
 					menu.addItem((item) =>
@@ -5725,7 +5766,7 @@ export class TaskFieldsModal extends Modal {
 			.setButtonText(labels.fieldAddProperty)
 			.setTooltip(labels.fieldPickProperty)
 			.onClick((e) => {
-				const menu = new Menu();
+				const menu = hearthMenu();
 				for (const property of available) {
 					menu.addItem((item) =>
 						item.setTitle(property).onClick(() => add(frontmatterSource(property))),
@@ -6228,6 +6269,7 @@ export const tasksCard: CardDefinition<"tasks"> = {
 					: undefined,
 			};
 	},
+	expressive: true,
 	liveness: {
 		mode: "vault",
 		shouldRedraw: (card, ev) => tasksEventRelevant(card.tasks, ev.file, ev.oldPath),

@@ -1,5 +1,7 @@
-import { Modal, setIcon } from "obsidian";
+import { setIcon } from "obsidian";
+import { groupSettingRows, HearthModal, X_GROUP_BREAK_CLASS, X_MODAL_CLASS } from "./uidesign";
 import { t } from "./i18n";
+import { scrollParent } from "./ui";
 
 /** One tab in a {@link HearthTabbedModal}'s ribbon. */
 export interface HearthModalTab {
@@ -26,7 +28,7 @@ export interface HearthModalTab {
  * must never name a method `open`/`close`/`onOpen`/`onClose`/`setTitle`/
  * `load`/`unload`/`render`-that-shadows-anything without checking.
  */
-export abstract class HearthTabbedModal extends Modal {
+export abstract class HearthTabbedModal extends HearthModal {
 	/** The tabs to show, in ribbon order. Read once per shell render, so tabs
 	 * may appear or disappear with state. */
 	protected abstract hearthTabs(): HearthModalTab[];
@@ -54,10 +56,13 @@ export abstract class HearthTabbedModal extends Modal {
 	/**
 	 * Build (or rebuild) the whole modal: ribbon, the active tab's body, and the
 	 * footer. Call from `onOpen`, and again after any state change that should
-	 * redraw — the active tab is preserved across rebuilds.
+	 * redraw — the active tab and the scroll position are preserved across
+	 * rebuilds; `keepScroll: false` (a tab switch) starts at the top instead.
 	 */
-	protected hearthRenderShell(): void {
+	protected hearthRenderShell(keepScroll = true): void {
 		const { contentEl } = this;
+		const scroller = scrollParent(contentEl);
+		const top = scroller?.scrollTop ?? 0;
 		contentEl.empty();
 		contentEl.addClass("hearth-tabbed-modal");
 
@@ -79,10 +84,46 @@ export abstract class HearthTabbedModal extends Modal {
 			body.empty();
 			this.hearthRenderTabError(body, label, err);
 		}
+		this.hearthGroupRows(body);
 
 		if (this.hearthRenderFooter) {
 			this.hearthRenderFooter(contentEl.createDiv("hearth-modal-footer"));
 		}
+
+		if (scroller) scroller.scrollTop = keepScroll ? top : 0;
+	}
+
+	/** Watches the shown tab's body for rows an editor adds after it has drawn,
+	 * so they are grouped too. One tab body at a time. */
+	private hearthGroupObserver: MutationObserver | null = null;
+
+	/** Whether this dialog is drawn in the Expressive design. */
+	protected hearthIsExpressive(): boolean {
+		return this.modalEl.classList.contains(X_MODAL_CLASS);
+	}
+
+	/**
+	 * Mark where one group of rows ends and the next begins, between runs that
+	 * have no heading to split them (see {@link groupSettingRows}). Only the
+	 * Expressive design groups rows, so a Classic dialog gets no marker.
+	 */
+	protected hearthGroupBreak(body: HTMLElement): void {
+		if (this.hearthIsExpressive()) body.createDiv(X_GROUP_BREAK_CLASS);
+	}
+
+	/** In the Expressive design, gather the tab's rows into tonal groups, and
+	 * keep gathering what an editor adds later. Classic keeps its ruled list. */
+	private hearthGroupRows(body: HTMLElement): void {
+		this.hearthGroupObserver?.disconnect();
+		this.hearthGroupObserver = null;
+		if (!this.hearthIsExpressive()) return;
+		groupSettingRows(body);
+		const observer = new MutationObserver(() => {
+			if (body.isConnected) groupSettingRows(body);
+			else observer.disconnect();
+		});
+		observer.observe(body, { childList: true });
+		this.hearthGroupObserver = observer;
 	}
 
 	/**
@@ -158,7 +199,7 @@ export abstract class HearthTabbedModal extends Modal {
 			btn.addEventListener("click", () => {
 				if (tab.id === active) return;
 				this.app.saveLocalStorage(this.hearthTabStorageKey(), tab.id);
-				this.hearthRenderShell();
+				this.hearthRenderShell(false);
 			});
 		}
 	}

@@ -1,5 +1,6 @@
 import { App, Modal, Setting } from "obsidian";
 import { t } from "./i18n";
+import { applyModalDesign, HearthModal } from "./uidesign";
 
 /**
  * Write `text` into `el` with the character ranges in `matches` wrapped in
@@ -44,7 +45,7 @@ export function makeClickable(el: HTMLElement, onActivate: () => void, label?: s
 }
 
 /** A minimal yes/no confirmation dialog used before destructive actions. */
-export class ConfirmModal extends Modal {
+export class ConfirmModal extends HearthModal {
 	private message: string;
 	private confirmText: string;
 	private onConfirm: () => void;
@@ -68,11 +69,14 @@ export class ConfirmModal extends Modal {
 		new Setting(this.contentEl)
 			.addButton((b) => b.setButtonText(t().confirm.cancel).onClick(() => this.close()))
 			.addButton((b) => {
-			// setWarning() is deprecated in favour of setDestructive(), but that
-			// API is @since 1.13.0 and our declared minAppVersion is 1.8.7, so we
-			// keep setWarning() to stay within the supported API surface.
+			// The warning style, set as the class setWarning() itself adds.
+			// setWarning() is deprecated in favour of setDestructive(), which is
+			// @since 1.13.0 — past our minAppVersion of 1.8.7 — and feature-
+			// detecting it trips `obsidianmd/no-unsupported-api`, which reads the
+			// call, not the guard around it. Switch to setDestructive() the
+			// release minAppVersion reaches 1.13.0.
+			b.buttonEl.addClass("mod-warning");
 			b.setButtonText(this.confirmText)
-				.setWarning()
 				.onClick(() => {
 					// Set before close() so onClose can tell a confirmed dialog
 					// from a dismissed one — close() runs first.
@@ -96,11 +100,37 @@ export interface ConfirmOptions {
 	onConfirm: () => void;
 	/** Optional: the dialog was closed without confirming. */
 	onDismiss?: () => void;
+	/** Draw the dialog in the Expressive design (true) or the Classic one
+	 * (false) — see {@link dressModal}. Left out, the dialog takes the design
+	 * of wherever it was opened from (see src/uidesign.ts). */
+	expressive?: boolean;
 }
 
 /** Convenience: open a confirm dialog. */
 export function confirmAction(app: App, opts: ConfirmOptions): void {
-	new ConfirmModal(app, opts).open();
+	const modal = new ConfirmModal(app, opts);
+	if (opts.expressive !== undefined) dressModal(modal, opts.expressive);
+	modal.open();
+}
+
+/**
+ * Put a dialog in the design of the card it was opened from, so a task, an
+ * event or a folder opens looking like the card it came from — overriding the
+ * design a Hearth dialog otherwise takes from wherever it was opened (see
+ * src/uidesign.ts). styles.css keys everything off the one class on `modalEl`
+ * (which the Modal constructor has already built). Returns the modal, to chain
+ * `open()`.
+ */
+export function dressModal<M extends Modal>(modal: M, expressive: boolean): M {
+	applyModalDesign(modal, expressive ? "expressive" : "classic");
+	return modal;
+}
+
+/** Whether `el` sits in a card drawn in the Expressive design — for a dialog
+ * opened from something the card drew, where the element is the one thing at
+ * hand that knows. */
+export function inExpressiveCard(el: Element | null | undefined): boolean {
+	return el?.closest(".hearth-card.is-expressive") != null;
 }
 
 /**
@@ -111,7 +141,7 @@ export function confirmAction(app: App, opts: ConfirmOptions): void {
  * the typed text, or `null` when the user cancelled, so "" (an empty answer the
  * user did confirm) stays distinguishable from "never mind".
  */
-export class PromptModal extends Modal {
+export class PromptModal extends HearthModal {
 	private label: string;
 	private initial: string;
 	private placeholder: string;
@@ -229,4 +259,51 @@ export function pickTextFile(accept = "application/json,.json"): Promise<string 
 		input.addEventListener("cancel", () => finish(null));
 		input.click();
 	});
+}
+
+/**
+ * The card's *Design* row: follow the vault's default, or pin Classic or
+ * Expressive. `fallback` is what the card draws while it follows — the vault's
+ * choice, or a style's own default — and is named in the first option so the
+ * reader sees what "default" means right now. `set(undefined)` means follow.
+ */
+export function designSetting(
+	containerEl: HTMLElement,
+	opts: {
+		name: string;
+		desc: string;
+		own: "classic" | "expressive" | undefined;
+		fallback: "classic" | "expressive";
+		set: (design: "classic" | "expressive" | undefined) => void;
+	},
+): Setting {
+	const strings = t().editors.design;
+	const label = { classic: strings.classic, expressive: strings.expressive };
+	return new Setting(containerEl)
+		.setName(opts.name)
+		.setDesc(opts.desc)
+		.addDropdown((d) => {
+			d.addOption("default", strings.followDefault(label[opts.fallback]));
+			d.addOption("classic", label.classic);
+			d.addOption("expressive", label.expressive);
+			d.setValue(opts.own ?? "default").onChange((v) => {
+				opts.set(v === "classic" || v === "expressive" ? v : undefined);
+			});
+		});
+}
+
+/** The nearest element at or above `el` that scrolls vertically — whatever
+ * actually scrolls a pane or modal, which differs by Obsidian version and theme.
+ *
+ * A pane rebuilt in place (`empty()` and draw again) collapses for an instant,
+ * which snaps its scroller to the top: a toggle halfway down threw the user back
+ * to the start. Callers read this scroller's `scrollTop` before rebuilding and
+ * restore it after. */
+export function scrollParent(el: HTMLElement): HTMLElement | null {
+	for (let node: HTMLElement | null = el; node; node = node.parentElement) {
+		const overflow = node.win.getComputedStyle(node).overflowY;
+		if ((overflow === "auto" || overflow === "scroll") && node.scrollHeight > node.clientHeight)
+			return node;
+	}
+	return null;
 }

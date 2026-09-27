@@ -14,18 +14,12 @@ import {
 	effectiveFullWidth,
 	effectiveMaxWidth,
 	effectiveSkyAnimate,
+	effectiveSkyDesign,
 	motionAllowed,
 	skyDensity,
 } from "./types";
+import { drawHarbour, drawWallpaper } from "./wallpaper";
 import { cachedWeather, loadWeather, type WeatherRequest } from "./weather";
-
-/**
- * URL of the bundled default background. Served straight from the main branch
- * on GitHub so it works without depending on a specific release asset being
- * attached. Update the file at assets/default-bg.gif to ship a new image.
- */
-const DEFAULT_BG_URL =
-	"https://raw.githubusercontent.com/ondreu/Hearth/refs/heads/main/assets/default-bg.gif";
 
 /** The earlier animated background preserved at its immutable Git commit. */
 const ANIMATED_BG_URL =
@@ -218,17 +212,11 @@ export function renderBanner(
 	return banner;
 }
 
-/** Whether a background config has anything to paint. Built-in backgrounds
- * provide their own image, so they need no value. */
-function paintable(bg: BackgroundConfig): boolean {
-	if (bg.kind === "none") return false;
-	return bg.kind === "default" || bg.kind === "animated" || !!bg.value;
-}
 /**
  * Paint a resolved background into `layer`. Shared by the wallpaper and the
  * banner: the two differ only in where that layer sits and how big it is, so
  * everything about *what* is drawn — the opacity, the blur, the colour, the
- * image URL, the live sky — lives here once.
+ * image URL, the live sky, Hearth's own wallpaper — lives here once.
  */
 function paintBackground(
 	view: HomeView,
@@ -249,16 +237,26 @@ function paintBackground(
 		return;
 	}
 
+	// Hearth's own wallpaper is drawn, not fetched, in the same design the
+	// weather sky uses (see wallpaper.ts).
+	if (bg.kind === "default") {
+		drawWallpaper(layer, effectiveSkyDesign(view.plugin.settings));
+		return;
+	}
+
+	// The harbour town is Expressive by nature, so it takes no design.
+	if (bg.kind === "harbour") {
+		drawHarbour(layer);
+		return;
+	}
+
 	// A picture from the web is an outbound request whoever it was configured by,
-	// so "Disable external calls" blocks both remote kinds — the bundled default
-	// included, which is served from GitHub rather than from the plugin folder.
-	// `paintable` normally means we are never called for one; this is the check
-	// at the point the request would actually be made.
+	// so "Disable external calls" blocks it. `paintable` normally means we are
+	// never called for one; this is the check at the point the request would
+	// actually be made.
 	const blocked = view.plugin.settings.disableExternalCalls;
 	let url: string | null = null;
-	if (bg.kind === "default") {
-		url = blocked ? null : DEFAULT_BG_URL;
-	} else if (bg.kind === "animated") {
+	if (bg.kind === "animated") {
 		url = blocked ? null : ANIMATED_BG_URL;
 	} else if (bg.kind === "url") {
 		url = blocked ? null : bg.value;
@@ -268,9 +266,8 @@ function paintBackground(
 	}
 
 	if (url) {
-		// The built-in backgrounds are remote GIFs. Preloading every resolved URL
-		// also gives custom web wallpapers the same graceful first paint, while
-		// local resources still benefit from the browser's image cache.
+		// The animated built-in and custom web wallpapers share the same gentle
+		// first paint; local resources benefit from the browser's image cache too.
 		paintLoadedBackground(layer, url, bg.opacity, component);
 	}
 }
@@ -312,6 +309,7 @@ function applyWeatherSky(
 	const settings = view.plugin.settings;
 	const animate = effectiveSkyAnimate(settings) && motionAllowed(settings);
 	const density = skyDensity(settings);
+	const design = effectiveSkyDesign(settings);
 
 	// A fixed sky is the whole feature for anyone who wants one weather and
 	// wants it kept: it is drawn once, from a condition the reader chose, and
@@ -323,6 +321,7 @@ function applyWeatherSky(
 			animate,
 			density,
 			spread: "board",
+			design,
 		});
 		return;
 	}
@@ -347,6 +346,7 @@ function applyWeatherSky(
 				animate,
 				density,
 				spread: "board",
+			design,
 			});
 			return;
 		}
@@ -360,6 +360,7 @@ function applyWeatherSky(
 			animate,
 			density,
 			spread: "board",
+			design,
 		});
 	};
 

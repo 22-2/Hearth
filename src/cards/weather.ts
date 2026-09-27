@@ -1,9 +1,12 @@
-import { type App, Component, Modal, setIcon, Setting } from "obsidian";
+import { type App, Component, setIcon, Setting } from "obsidian";
+import { HearthModal } from "../uidesign";
 import { emptyState } from "../cardbodies";
 import { t } from "../i18n";
 import {
+	type CardDesign,
 	type DashboardCard,
 	effectiveAutoRefreshMinutes,
+	effectiveCardDesign,
 	motionAllowed,
 	skyDensity,
 	type PrecipitationUnit,
@@ -37,13 +40,15 @@ import {
 } from "../weather";
 import { configuredPlaces, renderPlacePicker } from "../placepicker";
 import { drawSky } from "../sky";
-import { makeClickable } from "../ui";
+import { drawWeatherIcon } from "../weathericons";
+import { type AstroOptions, moonSummary, paintDaylight, paintMoon } from "./weatherastro";
+import { designSetting, dressModal, makeClickable } from "../ui";
 import { type CardDefinition, type CardEditorContext } from "./definition";
 
 
 // ---- Weather ------------------------------------------------------------
 //
-// One card, five styles, from a single number on a transparent card to a
+// One card, seven styles, from a single number on a transparent card to a
 // painted sky that follows the real conditions. They all draw the same
 // snapshot (src/weather.ts) and honour the same "what to display" toggles;
 // what changes is how much of it reaches the surface. See `paintStyle` for the
@@ -73,6 +78,11 @@ interface Resolved {
 	hourlyCount: number;
 	dailyCount: number;
 	animate: boolean;
+	/** The moon style's layout. */
+	moonLayout: "full" | "clean";
+	/** The Expressive design (flat glyphs, chips, tonal containers) rather than
+	 * the Classic one. The moon and daylight styles are always expressive. */
+	expressive: boolean;
 	/** Fraction of the painted sky's field to draw (see skyDensity in types.ts).
 	 * 1 on every tier but "balanced". */
 	density: number;
@@ -116,8 +126,20 @@ function resolveHour12(cfg: WeatherConfig): boolean | undefined {
 	return undefined;
 }
 
+/** The design a style is drawn in when the card doesn't say: the vault's
+ * card design, bar moon and daylight, which are always Expressive unless told
+ * otherwise. */
+function defaultDesign(style: WeatherStyle, vaultDesign: CardDesign): CardDesign {
+	return style === "moon" || style === "daylight" ? "expressive" : vaultDesign;
+}
+
 /** Apply every default, so the paint functions read one flat object. */
-export function resolveConfig(cfg: WeatherConfig, lowPower = false, density = 1): Resolved {
+export function resolveConfig(
+	cfg: WeatherConfig,
+	lowPower = false,
+	density = 1,
+	vaultDesign: CardDesign = "classic",
+): Resolved {
 	const style = cfg.style ?? "compact";
 	return {
 		style,
@@ -141,6 +163,10 @@ export function resolveConfig(cfg: WeatherConfig, lowPower = false, density = 1)
 		// A still tier stops every animation Hearth runs; the painted sky is no
 		// exception, and it is the most expensive one on the board.
 		animate: (cfg.animate ?? true) && !lowPower,
+		moonLayout: cfg.moonLayout ?? "full",
+		// Moon and daylight were drawn expressively first, and default to it;
+		// every other style follows the vault's card design.
+		expressive: (cfg.design ?? defaultDesign(style, vaultDesign)) === "expressive",
 		density,
 	};
 }
@@ -168,6 +194,23 @@ function glyph(parent: HTMLElement, icon: string, cls: string): HTMLElement {
 	const el = parent.createDiv(cls);
 	setIcon(el, icon);
 	return el;
+}
+
+/**
+ * The condition's glyph: a Lucide line icon in the Classic design, the flat
+ * Expressive drawing (src/weathericons.ts) otherwise. `hero` sets the big
+ * reading's glyph on a cookie in the accent's container tone.
+ */
+function conditionGlyph(
+	parent: HTMLElement,
+	code: number,
+	isDay: boolean,
+	cls: string,
+	r: Resolved,
+	hero = false,
+): void {
+	if (r.expressive) drawWeatherIcon(parent, code, isDay, cls, hero);
+	else glyph(parent, weatherIcon(code, isDay), cls);
 }
 
 /** One labelled value — the unit of the meta lines and the metric grid. */
@@ -265,6 +308,44 @@ function metaLine(parent: HTMLElement, bits: string[], cls = "hearth-weather-met
 	parent.createDiv({ cls, text: bits.join(" · ") });
 }
 
+/**
+ * A line of small readings. Classic joins them with bullets; Expressive sets
+ * each on a pill of its own — with its icon, when it has one.
+ */
+function readings(
+	parent: HTMLElement,
+	items: { text: string; icon?: string }[],
+	r: Resolved,
+	cls = "hearth-weather-meta",
+): void {
+	if (!items.length) return;
+	if (!r.expressive) {
+		metaLine(parent, items.map((item) => item.text), cls);
+		return;
+	}
+	const row = parent.createDiv(`${cls} hearth-weather-chips`);
+	for (const item of items) {
+		const chip = row.createDiv("hearth-weather-chip");
+		if (item.icon) setIcon(chip.createSpan("hearth-weather-chip-icon"), item.icon);
+		chip.createSpan({ text: item.text });
+	}
+}
+
+/** The headline readings as chips-or-bullets: feels like, and high / low. */
+function headline(parent: HTMLElement, snapshot: WeatherSnapshot, r: Resolved, cls?: string): void {
+	readings(parent, headlineBits(snapshot, r).map((text) => ({ text })), r, cls);
+}
+
+/** The switched-on metrics as one line (or row of chips). */
+function metricLine(parent: HTMLElement, snapshot: WeatherSnapshot, r: Resolved, cls: string): void {
+	readings(
+		parent,
+		metricsFor(snapshot, r).map((m) => ({ icon: m.icon, text: `${m.label} ${m.value}` })),
+		r,
+		`${cls} hearth-weather-meta-wrap`,
+	);
+}
+
 /** The place name (and, where there is room, its region). */
 function placeLine(parent: HTMLElement, cfg: WeatherConfig, cls: string): void {
 	const name = cfg.place?.name?.trim();
@@ -279,13 +360,14 @@ function hourlyStrip(parent: HTMLElement, hours: WeatherHour[], r: Resolved): vo
 	const strip = parent.createDiv("hearth-weather-hours");
 	hours.forEach((hour, i) => {
 		const col = strip.createDiv("hearth-weather-hour");
+		col.toggleClass("is-now", i === 0);
 		col.createDiv({
 			cls: "hearth-weather-hour-label",
 			// The first column is "now" rather than a time the reader has to
 			// compare against their own clock.
 			text: i === 0 ? t().cards.weather.now : formatHour(hour.time, r.hour12),
 		});
-		glyph(col, weatherIcon(hour.code, hour.isDay), "hearth-weather-hour-icon");
+		conditionGlyph(col, hour.code, hour.isDay, "hearth-weather-hour-icon", r);
 		col.createDiv({
 			cls: "hearth-weather-hour-temp",
 			text: formatTemp(hour.temp, r.tempUnit),
@@ -384,7 +466,7 @@ function dailyList(parent: HTMLElement, days: WeatherDay[], r: Resolved): void {
 			cls: "hearth-weather-day-label",
 			text: i === 0 ? t().cards.weather.todayLabel : formatWeekday(day.date),
 		});
-		glyph(row, weatherIcon(day.code, true), "hearth-weather-day-icon");
+		conditionGlyph(row, day.code, true, "hearth-weather-day-icon", r);
 		if (r.showPrecip) {
 			row.createDiv({
 				cls: "hearth-weather-day-precip",
@@ -445,7 +527,7 @@ function updatedLine(parent: HTMLElement, snapshot: WeatherSnapshot, r: Resolved
 /** Minimal: one glyph, one temperature. Anything else is opt-in. */
 function paintMinimal(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: WeatherConfig, r: Resolved): void {
 	const hero = wrap.createDiv("hearth-weather-hero");
-	glyph(hero, weatherIcon(snapshot.now.code, snapshot.now.isDay), "hearth-weather-glyph");
+	conditionGlyph(hero, snapshot.now.code, snapshot.now.isDay, "hearth-weather-glyph", r, true);
 	hero.createDiv({
 		cls: "hearth-weather-temp",
 		text: formatTemp(snapshot.now.temp, r.tempUnit),
@@ -461,7 +543,7 @@ function paintMinimal(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weather
 /** Compact: a single row — glyph, temperature, and the words beside them. */
 function paintCompact(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: WeatherConfig, r: Resolved): void {
 	const row = wrap.createDiv("hearth-weather-row");
-	glyph(row, weatherIcon(snapshot.now.code, snapshot.now.isDay), "hearth-weather-glyph");
+	conditionGlyph(row, snapshot.now.code, snapshot.now.isDay, "hearth-weather-glyph", r, true);
 	row.createDiv({
 		cls: "hearth-weather-temp",
 		text: formatTemp(snapshot.now.temp, r.tempUnit),
@@ -475,14 +557,9 @@ function paintCompact(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weather
 		});
 	}
 	if (r.showLocation) placeLine(text, cfg, "hearth-weather-place");
-	metaLine(text, headlineBits(snapshot, r));
+	headline(text, snapshot, r);
 
-	const metrics = metricsFor(snapshot, r);
-	metaLine(
-		wrap,
-		metrics.map((m) => `${m.label} ${m.value}`),
-		"hearth-weather-meta hearth-weather-meta-wrap",
-	);
+	metricLine(wrap, snapshot, r, "hearth-weather-meta");
 	hourlyStrip(wrap, upcomingHours(snapshot, r.hourlyCount), r);
 	dailyList(wrap, upcomingDays(snapshot, r.dailyCount), r);
 	updatedLine(wrap, snapshot, r);
@@ -492,7 +569,7 @@ function paintCompact(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weather
  * the forecast strips. The weather-station layout. */
 function paintDetailed(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: WeatherConfig, r: Resolved): void {
 	const head = wrap.createDiv("hearth-weather-head");
-	glyph(head, weatherIcon(snapshot.now.code, snapshot.now.isDay), "hearth-weather-glyph");
+	conditionGlyph(head, snapshot.now.code, snapshot.now.isDay, "hearth-weather-glyph", r, true);
 	const headText = head.createDiv("hearth-weather-headtext");
 	headText.createDiv({
 		cls: "hearth-weather-temp",
@@ -505,7 +582,7 @@ function paintDetailed(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weathe
 		});
 	}
 	if (r.showLocation) placeLine(headText, cfg, "hearth-weather-place");
-	metaLine(headText, headlineBits(snapshot, r));
+	headline(headText, snapshot, r);
 
 	metricGrid(wrap, metricsFor(snapshot, r));
 	hourlyStrip(wrap, upcomingHours(snapshot, r.hourlyCount), r);
@@ -517,7 +594,7 @@ function paintDetailed(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weathe
  * above it and the daily strip sits below. */
 function paintForecast(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: WeatherConfig, r: Resolved): void {
 	const row = wrap.createDiv("hearth-weather-row hearth-weather-row-tight");
-	glyph(row, weatherIcon(snapshot.now.code, snapshot.now.isDay), "hearth-weather-glyph");
+	conditionGlyph(row, snapshot.now.code, snapshot.now.isDay, "hearth-weather-glyph", r, true);
 	row.createDiv({
 		cls: "hearth-weather-temp",
 		text: formatTemp(snapshot.now.temp, r.tempUnit),
@@ -530,7 +607,7 @@ function paintForecast(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weathe
 		});
 	}
 	if (r.showLocation) placeLine(text, cfg, "hearth-weather-place");
-	metaLine(text, headlineBits(snapshot, r));
+	headline(text, snapshot, r);
 
 	const hours = upcomingHours(snapshot, r.hourlyCount || defaultHourlyCount("forecast"));
 	if (hours.length >= 2) {
@@ -564,6 +641,7 @@ function paintArtistic(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weathe
 		isDay: now.isDay,
 		animate: r.animate,
 		density: r.density,
+		design: r.expressive ? "expressive" : "classic",
 	});
 	const content = sky.createDiv("hearth-weather-art-content");
 
@@ -581,26 +659,51 @@ function paintArtistic(wrap: HTMLElement, snapshot: WeatherSnapshot, cfg: Weathe
 		cls: "hearth-weather-art-temp",
 		text: formatTemp(now.temp, r.tempUnit),
 	});
-	metaLine(bottom, headlineBits(snapshot, r), "hearth-weather-art-meta");
-	const metrics = metricsFor(snapshot, r);
-	metaLine(
-		bottom,
-		metrics.map((m) => `${m.label} ${m.value}`),
-		"hearth-weather-art-meta hearth-weather-meta-wrap",
-	);
+	headline(bottom, snapshot, r, "hearth-weather-art-meta");
+	metricLine(bottom, snapshot, r, "hearth-weather-art-meta");
 	hourlyStrip(bottom, upcomingHours(snapshot, r.hourlyCount), r);
 	dailyList(bottom, upcomingDays(snapshot, r.dailyCount), r);
 	updatedLine(bottom, snapshot, r);
 }
 
-/** Dispatch to the configured style. */
+/** What the moon and daylight styles need from the card (see weatherastro.ts). */
+function astroOptions(snapshot: WeatherSnapshot, cfg: WeatherConfig, r: Resolved, intro: boolean): AstroOptions {
+	return {
+		lat: cfg.place?.lat ?? 0,
+		lon: cfg.place?.lon ?? 0,
+		place: r.showLocation ? cfg.place?.name?.trim() ?? "" : "",
+		hour12: r.hour12,
+		animate: r.animate,
+		intro,
+		clean: r.moonLayout === "clean",
+		expressive: r.expressive,
+		now: r.showCondition
+			? {
+				icon: weatherIcon(snapshot.now.code, snapshot.now.isDay),
+				temp: formatTemp(snapshot.now.temp, r.tempUnit),
+			}
+			: null,
+		updated: r.showUpdated ? updatedText(snapshot, r) : "",
+	};
+}
+
+/**
+ * Dispatch to the configured style. Returns the daylight style's tick — the
+ * one style that moves with the clock between fetches — or null.
+ */
 function paintStyle(
 	wrap: HTMLElement,
 	snapshot: WeatherSnapshot,
 	cfg: WeatherConfig,
 	r: Resolved,
-): void {
+	intro = false,
+): ((ms: number) => boolean) | null {
 	switch (r.style) {
+		case "moon":
+			paintMoon(wrap, snapshot, astroOptions(snapshot, cfg, r, intro));
+			return null;
+		case "daylight":
+			return paintDaylight(wrap, snapshot, astroOptions(snapshot, cfg, r, intro));
 		case "minimal":
 			paintMinimal(wrap, snapshot, cfg, r);
 			break;
@@ -618,6 +721,7 @@ function paintStyle(
 			paintCompact(wrap, snapshot, cfg, r);
 			break;
 	}
+	return null;
 }
 
 
@@ -634,6 +738,7 @@ export function renderWeather(
 		cfg,
 		!motionAllowed(view.plugin.settings),
 		skyDensity(view.plugin.settings),
+		effectiveCardDesign(view.plugin.settings, undefined),
 	);
 	const req = requestFor(cfg, r);
 	if (!req) {
@@ -652,8 +757,11 @@ export function renderWeather(
 	// so a reading scales to the card's height as well as its width instead of
 	// being cut in half on a short card.
 	body.addClass("hearth-weather-host");
-	// The artistic sky is edge-to-edge; the others keep the card's own padding.
-	if (r.style === "artistic") body.addClass("hearth-weather-flush");
+	// The artistic sky and the moon's night are edge-to-edge; the others — the
+	// clean moon among them — keep the card's own padding.
+	if (r.style === "artistic" || (r.style === "moon" && r.moonLayout !== "clean")) {
+		body.addClass("hearth-weather-flush");
+	}
 
 	// Async loads may resolve after the card is torn down and rebuilt; ignore them.
 	let destroyed = false;
@@ -661,8 +769,16 @@ export function renderWeather(
 		destroyed = true;
 	});
 	let loading = false;
+	/** The entrance plays on the first reading only, not on every refresh. */
+	let introPlayed = false;
+	/** Walks the daylight style's sun on between repaints; null elsewhere. */
+	let tick: ((ms: number) => boolean) | null = null;
 
 	const wrap = body.createDiv(`hearth-weather is-${r.style}`);
+	wrap.toggleClass("is-expressive", r.expressive);
+	// The expressive glyphs have motion of their own (a turning sun), under the
+	// same switch as the painted sky's.
+	wrap.toggleClass("is-animated", r.animate);
 
 	/** Paint the snapshot, or the loading / offline / error state standing in
 	 * for it. A stale snapshot always beats a placeholder: yesterday's sky is
@@ -676,9 +792,11 @@ export function renderWeather(
 		if (snapshot) {
 			wrap.setAttribute("role", "button");
 			wrap.setAttribute("tabindex", "0");
-			paintStyle(wrap, snapshot, cfg, r);
+			tick = paintStyle(wrap, snapshot, cfg, r, !introPlayed);
+			introPlayed = true;
 			return;
 		}
+		tick = null;
 		wrap.removeAttribute("role");
 		wrap.removeAttribute("tabindex");
 		if (loading) emptyState(wrap, "cloud-sun", t().cards.weather.loading);
@@ -705,7 +823,7 @@ export function renderWeather(
 	 */
 	const openDetail = (): void => {
 		if (!cachedWeather(req)) return;
-		new WeatherDetailModal(view.app, {
+		const modal = new WeatherDetailModal(view.app, {
 			cfg,
 			r,
 			// Read, not captured, so a refresh from inside the dialog shows.
@@ -718,12 +836,23 @@ export function renderWeather(
 					await loadWeather(req, { ttlMs, disabled, force: true });
 					if (!destroyed) paint();
 				},
-		}).open();
+		});
+		dressModal(modal, r.expressive).open();
 	};
 	wrap.addEventListener("click", openDetail);
 	makeClickable(wrap, openDetail, t().cards.weather.detail.open);
 
 	load(false);
+
+	// The sun moves between fetches: walk it on once a minute, and repaint
+	// outright when it crosses the horizon or the day turns over.
+	if (r.style === "daylight") {
+		component.registerInterval(
+			window.setInterval(() => {
+				if (tick && !tick(Date.now())) paint();
+			}, 60_000),
+		);
+	}
 
 	// The TTL above still uses the configured interval; only the timer is
 	// suppressed on the minimal tier, so the card loads on open but never wakes
@@ -822,6 +951,7 @@ export function detailMetrics(snapshot: WeatherSnapshot, r: Resolved): Metric[] 
 			label: strings.sunset,
 			value: day ? formatHour(day.sunset, r.hour12) || "—" : "—",
 		},
+		{ icon: "moon", label: strings.moon.label, value: moonSummary(snapshot.fetched) },
 	];
 }
 
@@ -858,7 +988,7 @@ export function daySummary(day: WeatherDay, r: Resolved): string[] {
  * than patching it, which is cheap at this size and keeps one drawing path for
  * the first open, a day change and a refresh alike.
  */
-class WeatherDetailModal extends Modal {
+class WeatherDetailModal extends HearthModal {
 	/** The day the hourly table is showing, as a `YYYY-MM-DD`. Null until the
 	 * first draw picks today. */
 	private day: string | null = null;
@@ -877,6 +1007,9 @@ class WeatherDetailModal extends Modal {
 			this.titleEl.createSpan({ cls: "hearth-weather-detail-region", text: place.region });
 		}
 		this.host = this.contentEl.createDiv("hearth-weather-detail");
+		// The card's design reaches its dialog: flat glyphs, and the metric
+		// tiles, day rows and range bars in the Expressive manner.
+		this.host.toggleClass("is-expressive", this.opts.r.expressive);
 		this.draw();
 	}
 
@@ -913,7 +1046,7 @@ class WeatherDetailModal extends Modal {
 		const now = snapshot.now;
 
 		const head = this.host.createDiv("hearth-weather-detail-now");
-		glyph(head, weatherIcon(now.code, now.isDay), "hearth-weather-detail-glyph");
+		conditionGlyph(head, now.code, now.isDay, "hearth-weather-detail-glyph", r, true);
 		const text = head.createDiv("hearth-weather-detail-nowtext");
 		text.createDiv({
 			cls: "hearth-weather-detail-temp",
@@ -969,7 +1102,7 @@ class WeatherDetailModal extends Modal {
 			const name = row.createDiv("hearth-weather-detail-day-name");
 			name.createDiv({ cls: "hearth-weather-detail-day-weekday", text: label });
 			name.createDiv({ cls: "hearth-weather-detail-day-date", text: formatDayDate(day.date) });
-			glyph(row, weatherIcon(day.code, true), "hearth-weather-detail-day-icon");
+			conditionGlyph(row, day.code, true, "hearth-weather-detail-day-icon", this.opts.r);
 			row.createDiv({
 				cls: "hearth-weather-detail-day-condition",
 				text: conditionText(day.code),
@@ -1040,10 +1173,12 @@ class WeatherDetailModal extends Modal {
 				cls: "hearth-weather-detail-cell-time",
 				text: isNow ? strings.now : formatHour(hour.time, r.hour12),
 			});
-			glyph(
+			conditionGlyph(
 				row.createEl("td", { cls: "hearth-weather-detail-cell-icon" }),
-				weatherIcon(hour.code, hour.isDay),
+				hour.code,
+				hour.isDay,
 				"hearth-weather-detail-cellicon",
+				r,
 			);
 			row.createEl("td", { text: conditionText(hour.code) });
 			row.createEl("td", { text: formatTemp(hour.temp, r.tempUnit) });
@@ -1164,6 +1299,8 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 			d.addOption("detailed", strings.styleDetailed);
 			d.addOption("forecast", strings.styleForecast);
 			d.addOption("artistic", strings.styleArtistic);
+			d.addOption("moon", strings.styleMoon);
+			d.addOption("daylight", strings.styleDaylight);
 			d.setValue(style).onChange((v) => {
 				cfg.style = v as WeatherStyle;
 				ctx.opts.save();
@@ -1173,10 +1310,46 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 			});
 		});
 
-	if (style === "artistic") {
+	// Undefined follows the style's own default (see defaultDesign).
+	designSetting(containerEl, {
+		name: strings.design,
+		desc: strings.designDesc,
+		own: cfg.design,
+		fallback: defaultDesign(style, effectiveCardDesign(ctx.opts.settings, undefined)),
+		set: (design) => {
+			cfg.design = design;
+			ctx.opts.save();
+			ctx.opts.rerender();
+		},
+	});
+
+	if (style === "moon") {
+		new Setting(containerEl)
+			.setName(strings.moonLayout)
+			.setDesc(strings.moonLayoutDesc)
+			.addDropdown((d) => {
+				d.addOption("full", strings.moonLayoutFull);
+				d.addOption("clean", strings.moonLayoutClean);
+				d.setValue(cfg.moonLayout ?? "full").onChange((v) => {
+					cfg.moonLayout = v === "clean" ? "clean" : undefined;
+					ctx.opts.save();
+					ctx.opts.rerender();
+					// The clean layout has nothing for the display toggles to show.
+					ctx.requestRender();
+				});
+			});
+	}
+
+	if (style === "artistic" || style === "moon" || style === "daylight") {
 		new Setting(containerEl)
 			.setName(strings.animate)
-			.setDesc(strings.animateDesc)
+			.setDesc(
+				style === "moon"
+					? strings.animateMoonDesc
+					: style === "daylight"
+						? strings.animateSunDesc
+						: strings.animateDesc,
+			)
 			.addToggle((tg) =>
 				tg.setValue(cfg.animate !== false).onChange((v) => {
 					cfg.animate = v ? undefined : false;
@@ -1237,7 +1410,9 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 		});
 
 	// ---- What to display ----
-	new Setting(containerEl).setName(strings.display).setHeading();
+	// The clean moon writes nothing on the card, so it has nothing to toggle.
+	const cleanMoon = style === "moon" && cfg.moonLayout === "clean";
+	if (!cleanMoon) new Setting(containerEl).setName(strings.display).setHeading();
 
 	/** One display toggle. `defaultOn` decides which way the stored value is
 	 * flipped, so the config only ever holds the non-default. */
@@ -1259,9 +1434,16 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 		);
 	};
 
-	toggle(strings.showLocation, "", () => cfg.showLocation, (v) => (cfg.showLocation = v), true);
-	toggle(strings.showCondition, "", () => cfg.showCondition, (v) => (cfg.showCondition = v), true);
-	if (style !== "minimal") {
+	// The moon and daylight styles are about the sky, not the forecast: the
+	// metric toggles and forecast strips have nowhere to go on them.
+	const skyClock = style === "moon" || style === "daylight";
+	if (!cleanMoon) {
+		toggle(strings.showLocation, "", () => cfg.showLocation, (v) => (cfg.showLocation = v), true);
+	}
+	if (style !== "moon") {
+		toggle(strings.showCondition, "", () => cfg.showCondition, (v) => (cfg.showCondition = v), true);
+	}
+	if (style !== "minimal" && !skyClock) {
 		toggle(strings.showFeelsLike, "", () => cfg.showFeelsLike, (v) => (cfg.showFeelsLike = v), true);
 		toggle(strings.showHighLow, "", () => cfg.showHighLow, (v) => (cfg.showHighLow = v), true);
 		toggle(strings.showHumidity, "", () => cfg.showHumidity, (v) => (cfg.showHumidity = v), false);
@@ -1271,9 +1453,11 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 		toggle(strings.showPressure, "", () => cfg.showPressure, (v) => (cfg.showPressure = v), false);
 		toggle(strings.showSun, "", () => cfg.showSun, (v) => (cfg.showSun = v), false);
 	}
-	toggle(strings.showUpdated, "", () => cfg.showUpdated, (v) => (cfg.showUpdated = v), false);
+	if (!cleanMoon) {
+		toggle(strings.showUpdated, "", () => cfg.showUpdated, (v) => (cfg.showUpdated = v), false);
+	}
 
-	if (style !== "minimal") {
+	if (style !== "minimal" && !skyClock) {
 		countSlider(ctx, containerEl, {
 			name: strings.hourlyCount,
 			desc: strings.hourlyCountDesc,
@@ -1322,6 +1506,7 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 /** Current conditions and a forecast, from the free key-less Open-Meteo API. */
 export const weatherCard: CardDefinition<"weather"> = {
 	kind: "weather",
+	ownDesign: (card, fallback) => card.weather?.design ?? defaultDesign(card.weather?.style ?? "compact", fallback),
 	templates: [
 		{
 			id: "weather",

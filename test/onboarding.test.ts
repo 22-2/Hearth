@@ -13,6 +13,7 @@ import {
 import type { SetupDetection } from "../src/onboarding/detect";
 import { DEFAULT_SETTINGS, migrateSettings, type HomeSettings } from "../src/types";
 import { parseTaskNotesSettings } from "../src/tasknotes";
+import { formatSkyValue } from "../src/sky";
 
 /**
  * The first-run setup wizard.
@@ -301,6 +302,13 @@ describe("defaultAnswers", () => {
 
 		expect(answers.purposes).toContain("tasks");
 	});
+
+	it("offers the vault's design as already chosen", () => {
+		const settings = freshSettings();
+		expect(defaultAnswers(settings, emptyDetection()).design).toBe("classic");
+		settings.cardDesign = "expressive";
+		expect(defaultAnswers(settings, emptyDetection()).design).toBe("expressive");
+	});
 });
 
 // ---- Planning the board ----------------------------------------------
@@ -309,11 +317,72 @@ describe("planCards", () => {
 	const ids = (answers: SetupAnswers, detection = emptyDetection()): string[] =>
 		planCards(answers, detection, (i) => `c${i}`).map((p) => p.id);
 
-	it("always starts with a full-width clock", () => {
-		const [first] = planCards(blankAnswers(), emptyDetection(), (i) => `c${i}`);
+	it("keeps the clock small, at the head of a side column", () => {
+		const planned = planCards(
+			blankAnswers({ purposes: ["daily", "browsing"] }),
+			emptyDetection(),
+			(i) => `c${i}`,
+		);
+		const clock = planned.find((p) => p.id === "clock")!;
 
-		expect(first.id).toBe("clock");
-		expect(first.card).toMatchObject({ kind: "clock", x: 0, y: 0, w: 12 });
+		expect(clock.card).toMatchObject({ kind: "clock", x: 8, y: 0, w: 4, h: 2 });
+	});
+
+	it("leaves the clock off when asked", () => {
+		expect(ids(blankAnswers({ purposes: ["daily"], clock: false }))).not.toContain("clock");
+	});
+
+	it("fills a board with no holes beside or below its cards", () => {
+		const planned = planCards(
+			blankAnswers({ purposes: ["daily", "browsing"] }),
+			emptyDetection(),
+			(i) => `c${i}`,
+		);
+		const rows = planned.reduce((m, p) => Math.max(m, p.card.y + p.card.h), 0);
+		let covered = 0;
+		for (const { card } of planned) covered += card.w * card.h;
+
+		expect(covered).toBe(rows * 12);
+	});
+
+	it("never plans a card that would open empty", () => {
+		// No feed and no place: the purpose is chosen but its card waits.
+		const bare = ids(blankAnswers({ purposes: ["reading", "ambience"] }));
+		expect(bare).not.toContain("rss");
+		expect(bare).not.toContain("weather");
+		expect(bare).toContain("pet");
+
+		const capture = planCards(blankAnswers({ purposes: ["capture"] }), emptyDetection());
+		const actions = capture.find((p) => p.id === "commands")!.card.commands ?? [];
+		expect(actions.length).toBeGreaterThanOrEqual(4);
+		expect(capture.some((p) => p.card.kind === "links")).toBe(false);
+	});
+
+	it("adds the Reading card once there is a feed to read", () => {
+		const planned = planCards(
+			blankAnswers({ purposes: ["reading"], feedUrl: " https://example.com/feed.xml " }),
+			emptyDetection(),
+		);
+		const rss = planned.find((p) => p.id === "rss")!;
+
+		expect(rss.card.rss?.sources).toEqual([
+			{ id: "feed-1", name: "", url: "https://example.com/feed.xml" },
+		]);
+		expect(ids(blankAnswers({ purposes: ["reading"], feedUrl: "not a url" }))).not.toContain("rss");
+	});
+
+	it("gives the Weather card the live sky's place when none was picked for it", () => {
+		const place = { name: "Brno", lat: 49.19, lon: 16.61 };
+		const planned = planCards(
+			blankAnswers({
+				purposes: ["ambience"],
+				background: "weather",
+				skyValue: formatSkyValue({ mode: "live", place }),
+			}),
+			emptyDetection(),
+		);
+
+		expect(planned.find((p) => p.id === "weather")?.card.weather?.place).toMatchObject(place);
 	});
 
 	it("adds a card group per chosen purpose", () => {
@@ -520,6 +589,21 @@ describe("applySetup", () => {
 		});
 	});
 
+	it("leaves an Expressive board's surface to the vault, since its frame takes none of it", () => {
+		const settings = freshSettings();
+		const outcome = applySetup(
+			settings,
+			blankAnswers({ design: "expressive", surface: "minimal" }),
+			emptyDetection(),
+		);
+
+		const board = built(settings, outcome);
+		expect(board.cardOpacity).toBeUndefined();
+		expect(board.cardBlur).toBeUndefined();
+		expect(board.cardRadius).toBeUndefined();
+		expect(board.cardBorderWidth).toBeUndefined();
+	});
+
 	it("paints a flat colour at full strength rather than fading it", () => {
 		const settings = freshSettings();
 		const outcome = applySetup(
@@ -546,7 +630,7 @@ describe("applySetup", () => {
 
 		expect(built(settings, outcome).background).toMatchObject({
 			kind: "default",
-			opacity: 0.35,
+			opacity: 0.8,
 		});
 	});
 
@@ -641,18 +725,21 @@ describe("applySetup", () => {
 	 * The guarantee the whole module rests on, asserted wholesale rather than
 	 * setting by setting: run the wizard with every answer turned away from its
 	 * default and compare the settings object against an untouched clone,
-	 * ignoring only the three structural fields installing a board *is*.
+	 * ignoring only the three structural fields installing a board *is* — and,
+	 * on a first setup, the Design, the one answer that is vault-wide by
+	 * nature (see applyDesign).
 	 *
 	 * A future answer that writes a global setting fails here even if nobody
 	 * thought to write a test for it.
 	 */
-	it("changes nothing vault-wide but the board list and the setup flag", () => {
+	it("changes nothing vault-wide but the board list, the setup flag and the design", () => {
 		const settings = freshSettings();
 		const before = structuredClone(settings);
 
 		applySetup(
 			settings,
 			blankAnswers({
+				design: "expressive",
 				title: "Elsewhere",
 				showTitle: false,
 				titleIcon: "🔥",
@@ -672,12 +759,54 @@ describe("applySetup", () => {
 		);
 
 		const structural = new Set(["dashboards", "activeDashboardId", "setupStatus"]);
+		const design = new Set(["cardDesign", "backgroundSkyDesign"]);
 		for (const key of Object.keys(before) as (keyof HomeSettings)[]) {
-			if (structural.has(key)) continue;
+			if (structural.has(key) || design.has(key)) continue;
 			expect({ [key]: settings[key] }).toEqual({ [key]: before[key] });
 		}
 		// And the boards that already existed are untouched too.
 		expect(settings.dashboards[0]).toEqual(before.dashboards[0]);
+	});
+
+	it("makes the first setup's design the vault's, with no board override", () => {
+		const settings = freshSettings();
+		applySetup(settings, blankAnswers({ design: "expressive", target: "new" }), emptyDetection());
+
+		expect(settings.cardDesign).toBe("expressive");
+		expect(settings.backgroundSkyDesign).toBe("expressive");
+		const board = settings.dashboards[1];
+		expect(board.cardDesign).toBeUndefined();
+		expect(board.backgroundSkyDesign).toBeUndefined();
+	});
+
+	it("stores a first setup's Classic as absence, as the settings do", () => {
+		const settings = freshSettings();
+		settings.cardDesign = "expressive";
+		settings.setupStatus = "skipped";
+		applySetup(settings, blankAnswers({ design: "classic" }), emptyDetection());
+
+		expect(settings.cardDesign).toBeUndefined();
+		expect(settings.backgroundSkyDesign).toBeUndefined();
+	});
+
+	it("puts a later run's design on the new board and leaves the vault's alone", () => {
+		const settings = freshSettings();
+		settings.setupStatus = "done";
+		const before = structuredClone(settings);
+		applySetup(settings, blankAnswers({ design: "expressive", target: "new" }), emptyDetection());
+
+		expect(settings.cardDesign).toBe(before.cardDesign);
+		expect(settings.backgroundSkyDesign).toBe(before.backgroundSkyDesign);
+		const board = settings.dashboards[1];
+		expect(board.cardDesign).toBe("expressive");
+		expect(board.backgroundSkyDesign).toBe("expressive");
+	});
+
+	it("paints the harbour town when it is the chosen background", () => {
+		const settings = freshSettings();
+		applySetup(settings, blankAnswers({ background: "harbour", target: "new" }), emptyDetection());
+
+		expect(settings.dashboards[1].background).toMatchObject({ kind: "harbour", value: "" });
 	});
 
 	it("replaces the active board's cards when asked to replace", () => {

@@ -1,6 +1,7 @@
 import { type App, type ButtonComponent, debounce, Notice, Platform, PluginSettingTab, setIcon, Setting, type SettingDefinitionItem, type SliderComponent, type TextComponent, TFile } from "obsidian";
 import type HearthPlugin from "./main";
 import { TaskFieldsModal } from "./cards/tasks";
+import { classicCardsInUse } from "./cards";
 import { hasFileIconPlugin } from "./fileicons";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { kofiTipButton } from "./kofi";
@@ -8,7 +9,7 @@ import { addIconPicker } from "./lucide";
 import { CommandPickerModal, FilePickerModal, FolderPickerModal } from "./pickers";
 import { addTitleIconPicker } from "./titleicon";
 import { configuredPlaces, renderSkySource } from "./placepicker";
-import { activeDashboard, BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, backgroundIsRemote, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN, CONTENT_WIDTH_STEP, DEFAULT_SETTINGS, NARROW_WIDTH_MAX, NARROW_WIDTH_MIN, NARROW_WIDTH_STEP, defaultMobileActionButtons, frostAllowed, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, skyDensity, timersAllowed } from "./types";
+import { activeDashboard, BANNER_HEIGHT_MAX, BANNER_HEIGHT_MIN, type BackgroundKind, backgroundIsRemote, type BackgroundLayout, CARD_BORDER_WIDTH_MAX, clampBannerHeight, CONTENT_WIDTH_MAX, CONTENT_WIDTH_MIN, CONTENT_WIDTH_STEP, DEFAULT_SETTINGS, NARROW_WIDTH_MAX, NARROW_WIDTH_MIN, NARROW_WIDTH_STEP, defaultMobileActionButtons, frostAllowed, frostSuppressedByVibrancy, type HomeSettings, LOW_POWER_BACKGROUND, lowPowerActive, type MobileActionButton, motionAllowed, OPEN_IN_MODES, OPEN_SOURCES, type OpenIn, type OpenInRule, type OpenOutsideRule, PERFORMANCE_TIERS, type PerformanceTier, performanceTier, retuneBackground, skyDensity, timersAllowed } from "./types";
 import {
 	exportLayout,
 	exportSettings,
@@ -18,9 +19,10 @@ import {
 } from "./exportimport";
 import { forgetGallerySession, galleryConfigured, normalizeGalleryUrl } from "./gallery";
 import { openGallery } from "./gallerybrowse";
-import { makeClickable } from "./ui";
+import { makeClickable, scrollParent } from "./ui";
 import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
 import { formatSkyValue, parseSkyValue } from "./sky";
+import { shapePath, sparklePath } from "./shapes";
 import {
 	type IntegrationEntry,
 	type IntegrationGroup,
@@ -38,6 +40,7 @@ import {
 import { CHANGELOG, WhatsNewModal } from "./whatsnew";
 import { openSetupWizard } from "./onboarding";
 import { t } from "./i18n";
+import { stateDesign } from "./uidesign";
 import { isWebSearchEngineId, WEB_SEARCH_ENGINES, webSearchEngine } from "./websearch";
 import {
 	destinationSummary,
@@ -239,9 +242,9 @@ export class HomeSettingTab extends PluginSettingTab {
 	 * is never attached, so rendering into it would silently go nowhere. */
 	private renderTarget: HTMLElement | null = null;
 
-	/** Title of a section to scroll to on the next render, set by a catalogue
-	 * row's "Show" button. */
-	private revealSectionTitle: string | null = null;
+	/** Each section's wrapper on the current page, by title, so a catalogue
+	 * row's "Show" button can scroll to it without rebuilding the pane. */
+	private sectionEls = new Map<string, HTMLElement>();
 
 	/**
 	 * Obsidian 1.13 reworked the settings modal around declarative setting
@@ -281,22 +284,41 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.renderInto(this.containerEl);
 	}
 
+	/** Draw the pane in the vault's Card design — the global switch, never a
+	 * board's, since nothing here belongs to one board — and state it, so a
+	 * dialog opened from the pane takes it too (src/uidesign.ts). */
+	private applyPaneDesign(containerEl: HTMLElement): void {
+		const design = this.plugin.settings.cardDesign ?? "classic";
+		containerEl.toggleClass("hearth-x-settings", design === "expressive");
+		stateDesign(containerEl, design);
+	}
+
 	/** Re-render the pane in place after a state change (tab switch, list
 	 * mutation, import) — into whichever element the pane currently lives in. */
-	private rerender(): void {
+	private rerender(keepScroll = true): void {
 		// A rerender follows a structural change (a card added, a list reordered,
 		// a settings import) and rebuilds every control from `plugin.settings`.
 		// Flush first so the pending edit is on disk before the pane that produced
 		// it is thrown away.
 		this.flushSave();
-		this.renderInto(this.renderTarget ?? this.containerEl);
+		const target = this.renderTarget ?? this.containerEl;
+		// Emptying the pane collapses its height, which snaps the scroller to the
+		// top — so a toggle halfway down a page threw the user back to its start.
+		// Put the scroller back where it was; only a move to another page
+		// (`navigate`) starts at the top.
+		const scroller = scrollParent(target);
+		const top = scroller?.scrollTop ?? 0;
+		this.renderInto(target);
+		if (scroller) scroller.scrollTop = keepScroll ? top : 0;
 	}
 
 	/** Build the full settings pane into `containerEl`, shared by both render
 	 * paths (legacy `display()` and the 1.13 setting-definition host). */
 	private renderInto(containerEl: HTMLElement): void {
 		containerEl.empty();
+		this.sectionEls.clear();
 		containerEl.addClass("hearth-settings");
+		this.applyPaneDesign(containerEl);
 
 		// Whole-pane backstop. #52 reports a completely blank settings pane — no
 		// content, no error in the (main-window) console — for some users on
@@ -366,7 +388,7 @@ export class HomeSettingTab extends PluginSettingTab {
 	/** Move to another level of the pane, remembering it for next time. */
 	private navigate(route: SettingsRoute): void {
 		this.app.saveLocalStorage(ACTIVE_TAB_KEY, route);
-		this.rerender();
+		this.rerender(false);
 	}
 
 	/** The index: every category as a full-width row, grouped under headings.
@@ -440,6 +462,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		const s = t().settings;
 		switch (tab) {
 			case "appearance":
+				this.designHero(body);
 				this.section(body, s.sections.performance, s.sections.performanceDesc, (b) =>
 					this.performanceSection(b),
 				);
@@ -553,6 +576,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		const render = typeof descOrRender === "function" ? descOrRender : maybeRender!;
 
 		const wrap = containerEl.createDiv("hearth-section");
+		this.sectionEls.set(title, wrap);
 		const head = wrap.createDiv("hearth-section-head");
 		head.createDiv({ cls: "hearth-section-title", text: title });
 		if (desc) head.createDiv({ cls: "hearth-section-desc", text: desc });
@@ -566,15 +590,6 @@ export class HomeSettingTab extends PluginSettingTab {
 		} catch (err) {
 			body.empty();
 			this.renderError(body, title, err);
-		}
-
-		// A catalogue row asked for this section — it lives further down the same
-		// page, so scroll it into view once the pane has been laid out.
-		if (this.revealSectionTitle === title) {
-			this.revealSectionTitle = null;
-			window.requestAnimationFrame(() =>
-				wrap.scrollIntoView({ block: "start", behavior: "smooth" }),
-			);
 		}
 	}
 
@@ -1061,6 +1076,28 @@ export class HomeSettingTab extends PluginSettingTab {
 		note.descEl.prepend(icon);
 	}
 
+	/** The note standing in for the card-surface settings where every card is
+	 * Expressive, whose frame none of them shape. */
+	private expressiveSurfaceNote(containerEl: HTMLElement): void {
+		const note = new Setting(containerEl).setDesc(t().settings.dashboard.cardSurfaceExpressive);
+		note.settingEl.addClass("hearth-setting-note");
+		const icon = createSpan("hearth-setting-note-icon");
+		setIcon(icon, "shapes");
+		note.descEl.prepend(icon);
+	}
+
+	/** The note that says the frosted glass is being withheld because Obsidian's
+	 * translucent window is on (#272), shown only where the tier would otherwise
+	 * have allowed the blur — below that, the tier's own note already speaks. */
+	private vibrancyFrostNote(containerEl: HTMLElement): void {
+		if (!frostSuppressedByVibrancy(this.plugin.settings)) return;
+		const note = new Setting(containerEl).setDesc(t().settings.performance.vibrancyFrost);
+		note.settingEl.addClass("hearth-setting-note");
+		const icon = createSpan("hearth-setting-note-icon");
+		setIcon(icon, "layers");
+		note.descEl.prepend(icon);
+	}
+
 	// ---- Background -----------------------------------------------------
 
 	/** The note that says a web wallpaper is not being fetched, shown only when
@@ -1091,18 +1128,13 @@ export class HomeSettingTab extends PluginSettingTab {
 					d.addOption(k, t().settings.background.labels[k]);
 				});
 				d.setValue(s.backgroundKind).onChange((v) => {
+					const tuned = retuneBackground(s.backgroundKind, v as BackgroundKind, {
+						opacity: s.backgroundOpacity,
+						blur: s.backgroundBlur,
+					});
 					s.backgroundKind = v as BackgroundKind;
-					// Opacity means different things to the two kinds of backdrop.
-					// For a photo it is "dim this so the text on top reads", and
-					// the default (0.35) is set for that. The weather sky is a
-					// gradient, not a photo — dimmed that far it is a grey slab
-					// with the weather invisible in it, and the contrast the
-					// reader needs comes from the card surfaces instead. So lift
-					// it once on the switch, only from a photo-ish value, with
-					// the slider right below to put it back.
-					if (v === "weather" && s.backgroundOpacity <= 0.5) {
-						s.backgroundOpacity = 1;
-					}
+					s.backgroundOpacity = tuned.opacity;
+					s.backgroundBlur = tuned.blur;
 					void this.save();
 					this.rerender();
 				});
@@ -1119,10 +1151,17 @@ export class HomeSettingTab extends PluginSettingTab {
 			this.weatherBackgroundSection(containerEl);
 		}
 
-		// Built-in backgrounds, "none" and "weather" have no free-text value field; the rest do.
+		// Hearth's own wallpaper is drawn in the same two designs as the sky.
+		if (s.backgroundKind === "default") {
+			this.backgroundDesignSetting(containerEl);
+		}
+
+		// The drawn kinds, "none" and "weather" have no free-text value field; the
+		// rest do.
 		if (
 			s.backgroundKind !== "none" &&
 			s.backgroundKind !== "default" &&
+			s.backgroundKind !== "harbour" &&
 			s.backgroundKind !== "animated" &&
 			s.backgroundKind !== "weather"
 		) {
@@ -1200,9 +1239,8 @@ export class HomeSettingTab extends PluginSettingTab {
 				});
 				d.setValue(s.backgroundLayout).onChange((v) => {
 					s.backgroundLayout = v as BackgroundLayout;
-					// A wallpaper is dimmed and softened so the board on top of it
-					// stays readable — that is what the 0.35/2 defaults are for. A
-					// banner has nothing on top of it: it is the picture itself, and
+					// A photo wallpaper is dimmed and softened so the board on top
+					// of it stays readable. A banner has nothing on top of it: it is the picture itself, and
 					// at those values it arrives as a grey smear. So lift it once on
 					// the way in, only from wallpaper-ish values, with both sliders
 					// right above to put it back.
@@ -1286,6 +1324,27 @@ export class HomeSettingTab extends PluginSettingTab {
 					this.save();
 				}),
 			);
+
+		this.backgroundDesignSetting(containerEl);
+	}
+
+	/** Classic or Expressive, for the backgrounds Hearth draws itself: the
+	 * weather sky and its own wallpaper. One setting serves both, since a vault
+	 * that wants the flat look wants it whichever it is showing. */
+	private backgroundDesignSetting(containerEl: HTMLElement): void {
+		const s = this.plugin.settings;
+		const strings = t().settings.background;
+		new Setting(containerEl)
+			.setName(strings.skyDesign)
+			.setDesc(s.backgroundKind === "default" ? strings.wallpaperDesignDesc : strings.skyDesignDesc)
+			.addDropdown((d) => {
+				d.addOption("classic", strings.skyDesignClassic);
+				d.addOption("expressive", strings.skyDesignExpressive);
+				d.setValue(s.backgroundSkyDesign ?? "classic").onChange((v) => {
+					s.backgroundSkyDesign = v === "expressive" ? "expressive" : undefined;
+					this.save();
+				});
+			});
 	}
 
 	// ---- Startup & tabs -------------------------------------------------
@@ -1697,9 +1756,13 @@ export class HomeSettingTab extends PluginSettingTab {
 		if (entry.where.kind === "section") {
 			const section = entry.where.section;
 			row.addButton((b) =>
+				// The section lives further down this same page — scroll to it as it
+				// stands, rather than rebuilding the pane (which flashed it back to
+				// the top first).
 				b.setButtonText(strings.goToSection).onClick(() => {
-					this.revealSectionTitle = this.integrationSectionTitle(section);
-					this.rerender();
+					this.sectionEls
+						.get(this.integrationSectionTitle(section))
+						?.scrollIntoView({ block: "start", behavior: "smooth" });
 				}),
 			);
 			return;
@@ -1732,7 +1795,14 @@ export class HomeSettingTab extends PluginSettingTab {
 	 * the same string `renderTabSections` passes to `section()`, which is what
 	 * keys its collapsed state. */
 	private integrationSectionTitle(section: IntegrationSectionId): string {
-		return section === "tasks" ? t().settings.tasks.heading : t().settings.fileIcons.heading;
+		switch (section) {
+			case "tasks":
+				return t().settings.tasks.heading;
+			case "operon":
+				return t().settings.operon.heading;
+			case "fileIcons":
+				return t().settings.fileIcons.heading;
+		}
 	}
 
 	// ---- Tasks / TaskNotes ------------------------------------------------
@@ -2090,10 +2160,19 @@ export class HomeSettingTab extends PluginSettingTab {
 	private cardSurfaceSection(containerEl: HTMLElement): void {
 		const s = this.plugin.settings;
 
+		// These shape the Classic frame only. With no Classic card on any board
+		// there is nothing for them to act on, so they step aside for a line
+		// saying why (they still hold their values for a board switched back).
+		if (!classicCardsInUse(s)) {
+			this.expressiveSurfaceNote(containerEl);
+			return;
+		}
+
 		// Radius and border width below are untouched by the tier; blur is dropped
 		// from `reduced` down and opacity on `minimal`, hence the note covering
 		// the section as soon as either applies.
 		this.tierOverrideNote(containerEl, !frostAllowed(s) || lowPowerActive(s));
+		this.vibrancyFrostNote(containerEl);
 
 		const cardOpacity = new Setting(containerEl)
 			.setName(t().settings.dashboard.cardOpacity)
@@ -2148,6 +2227,81 @@ export class HomeSettingTab extends PluginSettingTab {
 				});
 			this.addSliderReset(cardBorderWidth, sl, "cardBorderWidth");
 		});
+
+	}
+
+	/**
+	 * The vault's Design, Classic or Expressive, at the head of the Appearance
+	 * page.
+	 *
+	 * Not a dropdown among the card-surface sliders any more: it decides how all
+	 * of Hearth looks — every card, dialog, menu and this pane — so it is the
+	 * first thing on the page that is about looks, and it shows rather than
+	 * names its two choices: a small card drawn each way, the one in use marked.
+	 * Its own ornaments are Expressive shapes in the accent, so the switch is
+	 * noticed whichever design the pane is in.
+	 */
+	private designHero(containerEl: HTMLElement): void {
+		const s = this.plugin.settings;
+		const strings = t().settings.dashboard;
+		const current = s.cardDesign ?? "classic";
+
+		const hero = containerEl.createDiv("hearth-design-hero");
+		const art = hero.createSvg("svg", {
+			cls: "hearth-design-hero-art",
+			attr: { viewBox: "0 0 240 140", "aria-hidden": "true" },
+		});
+		art.createSvg("path", { cls: "is-cookie", attr: { d: shapePath(196, 34, 46, 9, 0.07, 16) } });
+		art.createSvg("circle", { cls: "is-dot", attr: { cx: "132", cy: "22", r: "9" } });
+		art.createSvg("path", { cls: "is-sparkle", attr: { d: sparklePath(222, 112, 13) } });
+		art.createSvg("path", { cls: "is-sparkle", attr: { d: sparklePath(150, 62, 8) } });
+
+		const head = hero.createDiv("hearth-design-hero-head");
+		head.createDiv({ cls: "hearth-design-hero-title", text: strings.cardDesign });
+		head.createDiv({ cls: "hearth-design-hero-desc", text: strings.cardDesignDesc });
+
+		const choices = hero.createDiv({ cls: "hearth-design-choices", attr: { role: "radiogroup" } });
+		for (const design of ["classic", "expressive"] as const) {
+			const chosen = design === current;
+			const choice = choices.createDiv({
+				cls: ["hearth-design-choice", `is-${design}`],
+				attr: { role: "radio", "aria-checked": String(chosen) },
+			});
+			choice.toggleClass("is-chosen", chosen);
+
+			// A card in miniature, drawn the way this design draws one.
+			const preview = choice.createDiv("hearth-design-preview");
+			const card = preview.createDiv("hearth-design-preview-card");
+			card.createDiv("hearth-design-preview-badge");
+			const lines = card.createDiv("hearth-design-preview-lines");
+			lines.createDiv("hearth-design-preview-line");
+			lines.createDiv("hearth-design-preview-line is-short");
+			const rows = preview.createDiv("hearth-design-preview-rows");
+			for (let i = 0; i < 3; i++) rows.createDiv("hearth-design-preview-row");
+			preview.createDiv("hearth-design-preview-button");
+
+			const label = choice.createDiv("hearth-design-choice-label");
+			const name = label.createDiv("hearth-design-choice-name");
+			name.createSpan({ text: t().editors.design[design] });
+			if (chosen) name.createSpan({ cls: "hearth-design-choice-badge", text: strings.designInUse });
+			label.createDiv({
+				cls: "hearth-design-choice-desc",
+				text: design === "classic" ? strings.designClassicDesc : strings.designExpressiveDesc,
+			});
+
+			const pick = (): void => {
+				if (design === (s.cardDesign ?? "classic")) return;
+				// Classic, the default, is stored as absence.
+				s.cardDesign = design === "expressive" ? "expressive" : undefined;
+				this.save();
+				// The pane wears the switch itself, so it changes on the spot.
+				this.rerender();
+			};
+			makeClickable(choice, pick, t().editors.design[design]);
+			// One of two, not a plain button: announced as the radio it is.
+			choice.setAttribute("role", "radio");
+			choice.addEventListener("click", pick);
+		}
 	}
 
 	// ---- Layout import / export ----------------------------------------
@@ -2364,3 +2518,4 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.aboutButton(b, icon, label, () => window.open(url, "_blank"), url);
 	}
 }
+

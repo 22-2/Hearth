@@ -1,9 +1,11 @@
-import { type Component, Menu, Platform, setIcon } from "obsidian";
+import { type Component, Platform, setIcon } from "obsidian";
+import { hearthMenu } from "./uidesign";
 import type { HomeView } from "./view";
 import { SearchSection } from "./search";
 import { hearthIconIdFor } from "./icon";
 import { renderTitleIcon } from "./titleicon";
 import {
+	effectiveCardDesign,
 	effectiveHeaderAlign,
 	effectiveHeaderLogoScale,
 	effectiveHeaderMarginTop,
@@ -93,6 +95,10 @@ export function renderHeader(view: HomeView, container: HTMLElement, component: 
 	const narrow = view.isNarrow();
 	const searchWrap = container.createDiv("hearth-search-wrap");
 	searchWrap.toggleClass("is-narrow", narrow);
+	// The row isn't a card, but it sits on the board with them: it takes the
+	// board's card design (else the vault's), so an Expressive board has an
+	// Expressive search field, filter chips, button and results.
+	searchWrap.toggleClass("is-expressive", effectiveCardDesign(s, undefined) === "expressive");
 	const searchCol = searchWrap.createDiv("hearth-search-col");
 	const searchRow = searchCol.createDiv("hearth-search");
 	const bar = search.renderBar(searchRow);
@@ -178,7 +184,7 @@ function createSearchOnlineButton(view: HomeView, bar: HTMLElement): HTMLElement
 	setIcon(caret.createSpan("hearth-newnote-icon"), "chevron-down");
 	caret.addEventListener("click", (evt) => {
 		const current = view.plugin.settings.webSearchEngine;
-		const menu = new Menu();
+		const menu = hearthMenu();
 		for (const engine of WEB_SEARCH_ENGINES) {
 			menu.addItem((item) =>
 				item

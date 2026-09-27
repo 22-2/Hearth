@@ -34,6 +34,7 @@ import {
 	effectiveBackground,
 	effectiveCardBlur,
 	effectiveCardBorderWidth,
+	effectiveCardDesign,
 	effectiveCardOpacity,
 	effectiveCardRadius,
 	effectiveColumns,
@@ -56,6 +57,7 @@ import {
 	effectiveShowSearch,
 	effectiveShowTitle,
 	effectiveSkyAnimate,
+	effectiveSkyDesign,
 	effectiveStackOnNarrow,
 	effectiveSwitcherVisibility,
 	effectiveThemeColorTarget,
@@ -128,6 +130,7 @@ export function flattenBoardLook(s: HomeSettings, dash: Dashboard): Dashboard {
 	out.cardBlur = effectiveCardBlur(snap);
 	out.cardRadius = effectiveCardRadius(snap);
 	out.cardBorderWidth = effectiveCardBorderWidth(snap);
+	out.cardDesign = effectiveCardDesign(snap, undefined);
 
 	// The search row and the chrome around the board
 	out.showSearch = effectiveShowSearch(snap);
@@ -154,6 +157,7 @@ export function flattenBoardLook(s: HomeSettings, dash: Dashboard): Dashboard {
 	out.bannerFade = bg.bannerFade;
 	out.bannerFullWidth = bg.bannerFullWidth;
 	out.backgroundSkyAnimate = effectiveSkyAnimate(snap);
+	out.backgroundSkyDesign = effectiveSkyDesign(snap);
 
 	// The title block
 	const header = { ...out.header };

@@ -168,70 +168,29 @@ export const de: Translations = {
 	setup: {
 		/** Kurze Bezeichnungen auf der Fortschrittsleiste. */
 		stepNames: {
-			welcome: "Willkommen",
-			vault: "Dein Vault",
-			look: "Aussehen",
 			purpose: "Wofür",
-			integrations: "Integrationen",
-			finish: "Fertig",
+			look: "Aussehen",
+			finish: "Dein Board",
 		},
 		/** Die Überschrift oben auf jedem Schritt. */
 		stepTitles: {
-			welcome: "Willkommen bei Hearth",
-			vault: "Benenne deinen Startbildschirm",
-			look: "Wähle ein Aussehen",
 			purpose: "Wofür nutzt du deinen Vault?",
-			integrations: "In deinem Vault gefunden",
-			finish: "Hier ist dein Dashboard",
+			look: "Wähle ein Aussehen",
+			finish: "Das ist dein Startbildschirm",
 		},
 		/** Die Zeile unter jeder Überschrift. */
 		stepDescs: {
-			welcome: "Ein paar Fragen, dann erstellt Hearth dein erstes Dashboard.",
-			vault: "Der Titel und sein Symbol oben auf diesem Board.",
-			look:
-				"Das gilt für das Board, das gerade erstellt wird - jedes andere Board behält sein " +
-				"eigenes Aussehen. Du kannst alles später in den Einstellungen des Boards ändern.",
-			purpose: "Wähle so viele du willst - jede Auswahl fügt deinem Board Karten hinzu.",
-			integrations:
-				"Hearth hat diese bereits installiert gefunden. Schalte die ein, die es nutzen soll.",
-			finish:
-				"Es wurde noch nichts geändert. Das wird erstellt - als ein " +
-				"Dashboard, deine Vault-weiten Einstellungen bleiben unverändert.",
+			purpose:
+				"Wähle so viele du willst, Hearth sucht die Karten aus. Drei kurze Schritte, " +
+				"und alles lässt sich später ändern.",
+			look: "Für das Board, das gerade entsteht. Jedes andere Board behält sein Aussehen.",
+			finish: "Es wurde noch nichts geändert. Das hier wird erstellt.",
 		},
 		nav: {
 			back: "Zurück",
 			next: "Weiter",
 			finish: "Mein Dashboard erstellen",
 			skip: "Einrichtung überspringen",
-		},
-		welcome: {
-			lead:
-				"Hearth verwandelt einen Tab in einen Startbildschirm für deinen Vault - Suche, ein Dashboard " +
-				"aus Karten und eine Startzentrale. Dieser Assistent richtet ein Board ein, das zu deiner " +
-				"Arbeitsweise passt, damit du nicht mit einem leeren Raster beginnst.",
-			bullets: [
-				{
-					icon: "layout-dashboard",
-					title: "Ein Dashboard für dich",
-					desc: "Sag Hearth, wofür du deinen Vault nutzt, und es wählt die Karten.",
-				},
-				{
-					icon: "plug",
-					title: "Deine Plugins, schon verbunden",
-					desc:
-						"Hearth sucht nach TaskNotes, Dataview, Git und mehr und bietet an, " +
-						"sie zu verbinden - liest deren eigene Einstellungen, damit Karten sofort funktionieren.",
-				},
-				{
-					icon: "palette",
-					title: "Ein Aussehen nach deiner Wahl",
-					desc: "Hintergrund, Kartenstil und Dichte, in einem Schritt eingestellt.",
-				},
-			],
-			detected: (names: string) => `In diesem Vault gefunden: ${names}.`,
-			detectedNone:
-				"Noch keine unterstützten Plugins erkannt - kein Problem, Hearth funktioniert auch allein " +
-				"und du kannst sie später verbinden.",
 		},
 		vault: {
 			title: "Titel",
@@ -254,6 +213,8 @@ export const de: Translations = {
 			showSearchDesc: "Das Such- und Befehlsfeld unter dem Titel.",
 		},
 		look: {
+			designHeading: "Design",
+			designNote: "Diese Wahl gilt für ganz Hearth, nicht nur für dieses Dashboard. Jederzeit änderbar unter Einstellungen → Hearth → Erscheinungsbild.",
 			surfaceHeading: "Karten",
 			backgroundHeading: "Hintergrund",
 			color: "Farbe",
@@ -287,11 +248,28 @@ export const de: Translations = {
 				desc: "Gar keine Kartenoberfläche - Inhalt schwebt auf dem Hintergrund.",
 			},
 		},
+		designs: {
+			classic: {
+				icon: "square",
+				name: "Klassisch",
+				desc: "Hearth, wie es immer aussah: ruhige Flächen, feine Rahmen.",
+			},
+			expressive: {
+				icon: "shapes",
+				name: "Expressive",
+				desc: "Material 3 Expressive für ganz Hearth — Karten, Schaltflächen, Menüs, Dialoge und Einstellungen — in Tönen deiner Akzentfarbe.",
+			},
+		},
 		backgrounds: {
 			default: {
 				icon: "image",
 				name: "Hearth-Hintergrundbild",
-				desc: "Das Bild, das mit Hearth geliefert wird.",
+				desc: "Von Hearth gezeichnete Hügel, bei Tag oder Nacht passend zu deinem Theme.",
+			},
+			harbour: {
+				icon: "anchor",
+				name: "Eine Hafenstadt",
+				desc: "Ein Leuchtturm, Boote und Häuser am Hang, in flachen Expressive-Formen in deiner Akzentfarbe gezeichnet.",
 			},
 			weather: {
 				icon: "cloud-sun",
@@ -328,7 +306,7 @@ export const de: Translations = {
 			},
 			capture: {
 				name: "Schnelles Erfassen & Starten",
-				desc: "Kacheln für die Notizen und Befehle, die du ständig brauchst.",
+				desc: "Eine Reihe Schnellaktionen: neue Notiz, Suche, die Befehlspalette.",
 			},
 			insights: {
 				name: "Vault-Statistiken",
@@ -336,16 +314,22 @@ export const de: Translations = {
 			},
 			reading: {
 				name: "Lesen & Feeds",
-				desc: "Eine RSS-Karte für die Seiten, denen du folgst.",
+				desc: "Eine RSS-Karte für eine Seite, der du folgst.",
 			},
 			ambience: {
 				name: "Ein bisschen Leben",
-				desc: "Wetter und ein kleines Haustier, das auf deinem Board lebt.",
+				desc: "Das Wetter bei dir und ein kleines Haustier, das auf deinem Board lebt.",
 			},
 		},
 		purpose: {
 			count: (n: number) =>
 				n === 1 ? "Das ist bisher 1 Karte." : `Das sind bisher ${n} Karten.`,
+			integrationsHeading: "In deinem Vault gefunden",
+			feed: "Feed zum Folgen",
+			feedDesc: "Die RSS- oder Atom-Adresse einer Seite, die du liest. Weitere kannst du auf der Karte ergänzen.",
+			feedMissing: "Gib eine Feed-Adresse ein, dann kommt die Lesen-Karte aufs Board.",
+			weatherPlace: "Wetter für",
+			weatherMissing: "Wähle einen Ort, dann kommt die Wetter-Karte aufs Board.",
 		},
 		integrations: {
 			lead:
@@ -396,19 +380,14 @@ export const de: Translations = {
 			/** Ausgangsname für das neue Dashboard; nummeriert, falls schon vergeben. */
 			defaultName: "Start",
 			calloutTitle: "Ein Startpunkt, keine Vorgabe",
-			calloutLead:
-				"Dieses Board soll ein solider Anfang sein - genug, um zu zeigen, was Hearth " +
-				"für dich tun kann.",
-			calloutBody:
-				"Aber Hearth ist vor allem gebaut, um stark anpassbar zu sein, und dieser Assistent " +
-				"berührt nur einen Bruchteil davon. Jede Karte kann verschoben, in der Größe geändert, umbenannt, " +
-				"umgefärbt, neu eingerichtet oder entfernt werden, Boards können hinzugefügt und gewechselt " +
-				"werden, und in den Einstellungen steckt viel mehr, als hier gefragt wurde. " +
-				"Schau dich dort um und bearbeite alles nach deinen Wünschen - dafür " +
-				"ist Hearth da.",
 			calloutHint:
-				"Anordnen (oben rechts auf dem Board) bearbeitet die Karten; Einstellungen → Hearth enthält den " +
-				"Rest. Du kannst diesen Assistenten jederzeit erneut über Einstellungen → Über ausführen.",
+				"Jede Karte lässt sich mit Anordnen (oben rechts auf dem Board) verschieben, " +
+				"in der Größe ändern, neu einrichten oder entfernen; Einstellungen → Hearth enthält " +
+				"den Rest. Du kannst diesen Assistenten jederzeit über Einstellungen → Über erneut ausführen.",
+			clock: "Uhr",
+			clockDesc: "Eine kleine Uhr mit Begrüßung oben in der Seitenspalte.",
+			more: "Titel und Kopfzeile",
+			why: "Warum diese Karten",
 		},
 		plan: {
 			/** Ersatznamen für geplante Karten ohne eigenen Titel. */
@@ -421,7 +400,6 @@ export const de: Translations = {
 				recent: "Zuletzt verwendete Dateien",
 				favorites: "Favoriten",
 				bookmarks: "Lesezeichen",
-				links: "Links",
 				commands: "Befehle",
 				stats: "Vault-Statistiken",
 				heatmap: "Aktivität",
@@ -433,9 +411,17 @@ export const de: Translations = {
 				git: "Git",
 				base: "Base",
 			},
+			/** Die vorbelegten Schaltflächen der Schnellaktionen-Karte. */
+			actions: {
+				newNote: "Neue Notiz",
+				today: "Heutige Notiz",
+				switcher: "Schnellwechsler",
+				search: "Suche",
+				palette: "Befehle",
+			},
 			/** Warum jede Karte auf dem Board ist, daneben in der Überprüfungsliste angezeigt. */
 			reasons: {
-				always: "Jedes Hearth-Board beginnt mit einer",
+				clock: "Du wolltest eine Uhr",
 				daily: "Tägliche Notizen & Tagebuch",
 				dailyNotes: "Tägliche Notizen sind aktiviert",
 				tasks: "Aufgaben & To-dos",
@@ -526,6 +512,7 @@ export const de: Translations = {
 		deleteConfirm: "Löschen",
 		modal: {
 			title: "Dashboard-Einstellungen",
+			deleteDashboard: "Dashboard löschen",
 			/** Reiter oben im Fenster der Dashboard-Einstellungen. */
 			tabs: {
 				general: "Allgemein",
@@ -641,6 +628,14 @@ export const de: Translations = {
 			skyAnimateStateOff: "still",
 			skyAnimateOptionOn: "Animieren",
 			skyAnimateOptionOff: "Stillhalten",
+			cardDesign: "Design",
+			cardDesignDesc:
+				"Wie dieses Dashboard gezeichnet wird — seine Karten, seine Schaltflächen und die Dialoge und Menüs, die es öffnet —, sofern eine Karte nicht selbst wählt: Klassisch oder Material 3 Expressive.",
+			skyDesign: "Hintergrund-Design",
+			skyDesignDesc:
+				"Der klassische gemalte Himmel oder der flache im Stil von Material 3 Expressive, auf diesem Board.",
+			wallpaperDesignDesc:
+				"Das Hearth-Hintergrundbild auf diesem Board: klassische Hügel oder flache Formen im Stil von Material 3 Expressive in deiner Akzentfarbe.",
 			visibilityDefaultPlugin: (state: string) =>
 				`Standard auf einem Plugin-Board (${state})`,
 			visibilityShown: "angezeigt",
@@ -731,6 +726,8 @@ export const de: Translations = {
 			default: "Globalen Standard verwenden",
 			none: "Kein",
 			hdefault: "Hearth-Standard",
+			harbour: "Hafenstadt",
+			animated: "Animiertes Hearth-GIF",
 			color: "Volltonfarbe",
 			image: "Vault-Bild",
 			url: "Bild-URL",
@@ -763,7 +760,7 @@ export const de: Translations = {
 		/** Eine Zeile pro Kategorie, gezeigt auf ihrer Übersichtszeile und erneut oben auf
 		 * ihrer Seite: was ein Leser findet, wenn er sie öffnet. */
 		tabDescs: {
-			appearance: "Titel, Titelsymbol, Hintergrund und Energiesparmodus.",
+			appearance: "Design, Titel, Titelsymbol, Hintergrund und Energiesparmodus.",
 			search: "Die Suchleiste und welche Ergebnisse sie anbietet.",
 			dashboard: "Raster, Kartenoberfläche und die Steuerelemente rund um das Board.",
 			behaviour: "Start, wie Notizen geöffnet werden, und Datenschutz.",
@@ -1001,6 +998,12 @@ export const de: Translations = {
 			effectClock: "Uhr-Karten lassen Sekunden und den schleichenden Sekundenzeiger weg",
 			effectSlideshow: "Diashow-Karten halten ein Bild statt zu wechseln",
 			/** Wird in den Abschnitten angezeigt, deren Einstellungen die Stufe gerade überschreibt. */
+			vibrancyFrost:
+				"Milchglas ist aus, solange Obsidians transparentes Fenster an ist: " +
+				"Eine Weichzeichnung und die macOS-Transparenz verrechnen das ganze " +
+				"Fenster gegeneinander neu, was die Tableiste flackern lässt. Deine " +
+				"Einstellung bleibt erhalten und gilt wieder, sobald du das " +
+				"transparente Fenster ausschaltest.",
 			overridden:
 				"Die Leistungsstufe überschreibt diese gerade. Sie bleiben wie " +
 				"sie sind und greifen wieder, wenn du nach oben wechselst.",
@@ -1044,6 +1047,8 @@ export const de: Translations = {
 				"Ziehe das Banner von Kante zu Kante, statt es am Inhalt darunter auszurichten.",
 			labels: {
 				default: "Hearth-Standard",
+				harbour: "Hafenstadt",
+				animated: "Animiertes Hearth-GIF",
 				none: "Keine",
 				color: "Volltonfarbe",
 				image: "Vault-Bild",
@@ -1073,6 +1078,15 @@ export const de: Translations = {
 			skyAnimateDesc:
 				"Ziehende Wolken, fallender Regen und funkelnde Sterne hinter dem Board. Immer " +
 				"aus im Energiesparmodus und für Leser, deren System reduzierte Bewegung wünscht.",
+			skyDesign: "Design",
+			skyDesignDesc:
+				"Der klassische gemalte Himmel oder ein flacher im Stil von Material 3 Expressive mit Hügeln, runden Wolken und einer sich drehenden Sonne.",
+			wallpaperDesignDesc:
+				"Klassische Hügel mit einer Hütte – ein Morgen im hellen Theme, eine Mondnacht im dunklen – " +
+				"oder flache Formen im Stil von Material 3 Expressive in Tönen deiner Akzentfarbe. Von Hearth " +
+				"gezeichnet, es wird also nichts heruntergeladen.",
+			skyDesignClassic: "Klassisch (gemalt)",
+			skyDesignExpressive: "Expressive (flach)",
 		},
 		behaviour: {
 			heading: "Verhalten",
@@ -1309,6 +1323,15 @@ export const de: Translations = {
 						"Dasselbe für Iconize (ehemals Obsidian Icon Folder), einschließlich Symbolen, " +
 						"die über eine Frontmatter-Eigenschaft gesetzt wurden.",
 				},
+				vaultPet: {
+					name: "Vault Pet",
+					desc:
+						"Die Vault-Pet-Karte gibt dem Plugin einen Platz auf deinem Board - " +
+						"entweder seine eigene Haustierkarte, lebendig und anklickbar, oder " +
+						"sein ganzes Haus mit Quests, Dex, Abzeichen und Statistik. Das " +
+						"Haustier, seine EP und alles Freigeschaltete gehören Vault Pet; " +
+						"Hearth gibt ihm nur den Raum.",
+				},
 				excalidraw: {
 					name: "Excalidraw",
 					desc:
@@ -1381,6 +1404,10 @@ export const de: Translations = {
 					desc:
 						"Die Rechner-Karte rechnet Währungen mit EZB-Kursen über die kostenlose, " +
 						"schlüssellose Frankfurter API um.",
+				},
+				markets: {
+					name: "Börsenkurse",
+					desc: "Börsenkarten lesen Kurse aus freien Quellen ohne Schlüssel: Yahoo Finance für die meisten Börsen der Welt, Devisen und Krypto; Tencent für Shanghai, Shenzhen, Peking und Hongkong; Eastmoney für chinesische Publikumsfonds; CoinGecko für Coins; und die EZB über Frankfurter für Währungspaare. Keine davon ist eine offizielle API, deshalb weicht eine Karte auf eine andere Quelle aus, wenn eine ausfällt. Gesendet werden nur die Symbole auf deinen Karten.",
 				},
 				weather: {
 					name: "Wettervorhersagen",
@@ -1535,6 +1562,14 @@ export const de: Translations = {
 			cardBorderWidth: "Kartenrahmen",
 			cardBorderWidthDesc:
 				"Stärke des Kartenrahmens und der Kopfzeilentrennlinie, in Pixeln. 0 blendet den Rahmen aus.",
+			cardSurfaceExpressive:
+				"Expressive-Karten liegen auf einer deckenden, tonalen Fläche mit großen, runden Ecken. Deckkraft, Unschärfe, Eckenradius und Rahmen gelten daher nur für klassische Karten.",
+			cardDesign: "Design",
+			cardDesignDesc:
+				"Wie Hearth gezeichnet wird: Klassisch oder Material 3 Expressive — tonale Flächen in deiner Akzentfarbe, Pillen und weiche Formen, kräftigere Schrift. Expressive gilt für die ganze Oberfläche von Hearth: die Karten, die Schaltflächen des Dashboards, alle Dialoge und Menüs und diese Einstellungen. Ein Dashboard oder eine Karte kann weiterhin selbst wählen; Karten mit deinem eigenen Inhalt (Notizen, Einbettungen, Webseiten) behalten diesen Inhalt, wie er ist, und bekommen nur den Expressive-Rahmen.",
+			designClassicDesc: "Ruhige Flächen und feine Rahmen — Hearth, wie es immer aussah.",
+			designExpressiveDesc: "Material 3 Expressive überall: tonale Farben aus deiner Akzentfarbe, Pillen und weiche Formen, kräftige Schrift.",
+			designInUse: "Aktiv",
 			cards: "Karten",
 			cardsDesc:
 				"Füge Karten auf dem Dashboard selbst hinzu und richte sie ein: Öffne die Startansicht, " +
@@ -1618,6 +1653,7 @@ export const de: Translations = {
 			favorites: "Favoriten",
 			text: "Text / Kurznotiz",
 			recent: "Letzte Dateien",
+			folder: "Ordnerinhalt",
 			links: "Links / Zentrale",
 			commands: "Befehle",
 			templater: "Neue Notiz aus Vorlage",
@@ -1635,10 +1671,12 @@ export const de: Translations = {
 			rss: "RSS-Feed",
 			jira: "Jira-Filter",
 			weather: "Wetter",
+			market: "Börse",
 			git: "Git",
 			operon: "Operon",
 			leaf: "Plugin-Ansicht (Beta)",
 			pet: "Haustier",
+			vaultpet: "Vault Pet",
 		},
 		linkTypes: {
 			note: "Notiz",
@@ -1870,6 +1908,10 @@ export const de: Translations = {
 			refreshIntervalAria: "Aktualisierungsintervall in Sekunden",
 		},
 		recent: {
+			display: "Darstellung",
+			displayDesc: "Eine kompakte Liste von Zeilen oder ein Raster aus Kacheln mit dem Symbol über dem Namen.",
+			displayList: "Liste",
+			displayTiles: "Kacheln",
 			fit: "An Kartenhöhe anpassen",
 			fitDesc:
 				"Liste so viele Dateien, wie die Karte hoch genug anzeigt, statt einer " +
@@ -1880,6 +1922,51 @@ export const de: Translations = {
 				`weit reicht Hearths Verlauf zuletzt geöffneter Dateien zurück.`,
 			types: "Dateitypen",
 			typesDesc: "Liste nur Dateien der ausgewählten Typen. Wähle eine beliebige Kombination; ohne Auswahl werden alle Typen angezeigt.",
+		},
+		folder: {
+			folder: "Ordner",
+			folderDesc: "Der Ordner, den diese Karte auflistet. Leer lassen für die Vault-Wurzel.",
+			folderPlaceholder: "Projekte/2026",
+			pickFolder: "Ordner wählen",
+			sort: "Reihenfolge",
+			sortDesc:
+				"Wie der Inhalt sortiert wird. Bei Hearths eigenen Sortierungen stehen " +
+				"Ordner vorn und werden nach Namen sortiert, wie im Datei-Explorer.",
+			sorts: {
+				explorer: "Wie im Datei-Explorer",
+				name: "Name (A–Z)",
+				nameDesc: "Name (Z–A)",
+				modified: "Geändert (neueste zuerst)",
+				modifiedAsc: "Geändert (älteste zuerst)",
+				created: "Erstellt (neueste zuerst)",
+				createdAsc: "Erstellt (älteste zuerst)",
+			},
+			show: "Anzeigen",
+			showDesc: "Welche Inhalte des Ordners die Karte auflistet.",
+			showAll: "Ordner und Dateien",
+			showFolders: "Nur Ordner",
+			showFiles: "Nur Dateien",
+			display: "Darstellung",
+			displayDesc: "Eine Liste von Zeilen oder ein Raster aus Kacheln.",
+			displayList: "Liste",
+			displayTiles: "Kacheln",
+			count: "Anzahl der Einträge",
+			countDesc:
+				"Wie viele die Karte auflistet, bevor sie sagt, wie viele übrig sind. " +
+				"Der Browser, den sie öffnet, ist nie begrenzt.",
+			counts: "Anzahl je Unterordner",
+			countsDesc: "Zeigt, wie viele Einträge jeder Unterordner enthält.",
+			navigate: "Unterordner öffnen",
+			navigateDesc:
+				"In einem Dialog oder in der Karte selbst — die dann eine Pfadzeile " +
+				"mit einem Weg zurück erhält und dort bleibt, wo Sie waren.",
+			navigateModal: "Im Ordner-Browser",
+			navigateCard: "In der Karte",
+			browse: "Browser von der Karte aus öffnen",
+			browseDesc:
+				"Ein Klick auf die freie Fläche der Karte — oder auf ihre " +
+				"Ordner-Schaltfläche — öffnet den Ordner in einem Browser mit " +
+				"Pfadleiste, in dem jeder Ordner geöffnet werden kann.",
 		},
 		calendar: {
 			view: "Layout",
@@ -1970,6 +2057,21 @@ export const de: Translations = {
 			chipRecurringDesc: "Das „Wiederkehrend“-Abzeichen an einer sich wiederholenden Aufgabe.",
 			chipTimeblock: "Zeitblock-Markierung",
 			chipTimeblockDesc: "Das „Zeitblock“-Abzeichen an einer Aufgabe mit Zeitblock.",
+			checkboxHeading: "Checkbox-Aufgaben",
+			checkboxDesc:
+				"Markdown-Checkbox-Aufgaben (- [ ] …) nach den Daten im Tasks-Format im Kalender anzeigen: 📅 fällig und ⏳ geplant. Aufgaben ohne Datum werden nicht angezeigt.",
+			checkboxEnabled: "Checkbox-Aufgaben verwenden",
+			checkboxEnabledDesc: "Checkbox-Aufgaben mit Datum aus deinen Notizen lesen.",
+			checkboxScheduled: "Geplantes Datum",
+			checkboxScheduledDesc: "Eine Aufgabe an ihrem ⏳ geplanten Datum anzeigen.",
+			checkboxDue: "Fälligkeitsdatum",
+			checkboxDueDesc: "Eine Aufgabe an ihrem 📅 Fälligkeitsdatum anzeigen.",
+			checkboxCompletedDesc: "Abgehakte Aufgaben durchgestrichen im Kalender behalten.",
+			checkboxCompleteDesc: "Bei jeder Aufgabe ein Kästchen zeigen, das sie in ihrer Notiz abhakt.",
+			checkboxFolders: "Ordner",
+			checkboxFoldersDesc: "Nur Notizen in diesen Ordnern lesen (durch Kommas getrennt). Leer liest den ganzen Vault.",
+			checkboxColor: "Farbe",
+			checkboxColorDesc: "Farbe der Checkbox-Aufgaben.",
 			taskNotesHeading: "TaskNotes",
 			taskNotesDesc:
 				"Nutze TaskNotes als Terminquelle. Die Karte spiegelt, was der eigene Kalender von TaskNotes zeigt - geplante Aufgaben, Fälligkeitsdaten, wiederkehrende Vorkommen, Zeitblöcke und die in TaskNotes abonnierten Kalender - mit den eigenen Feldnamen, Status und Farben von TaskNotes.",
@@ -2529,6 +2631,10 @@ export const de: Translations = {
 			foldersDesc: "Ein Ordnerpfad pro Zeile.",
 		},
 		favorites: {
+			display: "Darstellung",
+			displayDesc: "Eine kompakte Liste von Zeilen oder ein Raster aus Kacheln mit dem Symbol über dem Namen.",
+			displayList: "Liste",
+			displayTiles: "Kacheln",
 			heading: "Favoriten",
 			headingDesc: "Notizen, die jede Favoriten-Karte zeigt.",
 			ownList: "Dieser Karte eine eigene Liste geben",
@@ -2545,6 +2651,14 @@ export const de: Translations = {
 			style: "Stil",
 			styleDigital: "Digital",
 			styleAnalog: "Analog",
+			styleStacked: "Gestapelt",
+			styleFlip: "Klappzahlen",
+			styleRing: "Ringe",
+			styleShapes: "Formen (Expressive)",
+			styleOrbit: "Orbit (Expressive)",
+			styleExpressiveDesc: "Das Expressive-Design (Tab Stil) bringt die Zifferblätter Formen und Orbit mit.",
+			styleFallbackDesc: (face: string) =>
+				`Dieses Zifferblatt gehört zum Expressive-Design (Tab Stil); eine klassische Karte zeigt stattdessen ${face}.`,
 			hourFormat: "Zeitformat",
 			hourFormatAuto: "Automatisch (Gebietsschema)",
 			hourFormat12: "12 Stunden",
@@ -2772,6 +2886,70 @@ export const de: Translations = {
 			showDate: "Datum anzeigen",
 			showDateDesc: "Die Veröffentlichungszeit jedes Eintrags zeigen.",
 		},
+		market: {
+			symbols: "Symbole",
+			symbolsDesc: "Was die Karte verfolgt, in der Reihenfolge, in der es gezeichnet wird. Stile für ein Instrument zeigen das erste.",
+			noSymbols: "Noch nichts – suche unten oder tippe ein Symbol und füge es so hinzu.",
+			moveUp: "Nach oben",
+			moveDown: "Nach unten",
+			remove: "Entfernen",
+			holding: "Bestand",
+			quantity: "Anteile",
+			cost: "Einstandskurs",
+			search: "Hinzufügen",
+			searchDesc:
+				"Nach Name oder Symbol suchen oder eines eintippen und direkt hinzufügen: AAPL, 0700.HK, 510300, EUR/USD, BTC-USD, fund:161725, cg:bitcoin.",
+			searchDisabled: "Die Suche ist aus, solange externe Aufrufe deaktiviert sind. Ein getipptes Symbol lässt sich trotzdem hinzufügen.",
+			searchPlaceholder: "Apple, 沪深300, EUR/USD…",
+			searchEmpty: "Gib zuerst einen Namen oder ein Symbol ein",
+			searchButton: "Suchen",
+			addTyped: "So hinzufügen",
+			noResults: "Nichts gefunden. Versuch es mit dem Symbol selbst oder füge es so hinzu.",
+			add: "Hinzufügen",
+			added: "Hinzugefügt",
+			appearance: "Darstellung",
+			style: "Stil",
+			styleDesc: "Minimal, Spotlight und Chart zeigen ein Instrument, die anderen alle.",
+			styles: {
+				minimal: "Minimal – Kurs und Veränderung",
+				spotlight: "Spotlight – Kurs, Chart und Kennzahlen",
+				chart: "Chart – randlos",
+				list: "Watchlist",
+				tiles: "Kacheln",
+				ticker: "Laufband",
+				portfolio: "Portfolio",
+				lookup: "Suche – direkt auf der Karte",
+			},
+			design: "Design",
+			designDesc: "Klassisch oder Material 3 Expressive: Chips, Tonflächen in deiner Akzentfarbe und weiche Formen.",
+			designClassic: "Klassisch",
+			designExpressive: "Expressive",
+			upColor: "Farbe für Anstieg",
+			upColorDesc: "Grün für einen Anstieg in den meisten Ländern, Rot in China, Japan und Korea. Automatisch folgt der Sprache von Obsidian.",
+			upColorAuto: "Automatisch",
+			upColorGreen: "Grün hoch, Rot runter",
+			upColorRed: "Rot hoch, Grün runter",
+			range: "Chart-Zeitraum",
+			rangeDesc: "Der Zeitraum der Sparklines.",
+			rangeDescSingle: "Der Zeitraum, mit dem der Chart startet. Die Chips auf der Karte wechseln ihn.",
+			change: "Veränderung zeigen als",
+			changePercent: "Prozent",
+			changeAbsolute: "Betrag",
+			changeBoth: "Beides",
+			baseCurrency: "Portfoliowährung",
+			baseCurrencyDesc: "Summen werden zu den täglichen EZB-Kursen umgerechnet.",
+			baseCurrencyAuto: "Automatisch (die meisten Positionen)",
+			animate: "Laufband bewegen",
+			animateDesc: "Aus steht das Band still und lässt sich von Hand scrollen. Auf einer reduzierten Leistungsstufe immer aus.",
+			display: "Was angezeigt wird",
+			showName: "Namen",
+			showSparkline: "Sparklines",
+			showStats: "Kennzahlen",
+			showMarketState: "Börse geöffnet oder geschlossen",
+			showUpdated: "Zuletzt aktualisiert",
+			refresh: "Aktualisieren alle (Minuten)",
+			refreshDesc: "0 aktualisiert nur beim Öffnen des Boards. Kurse werden zwischen Karten geteilt, eine geschlossene Börse wird höchstens halbstündlich geprüft.",
+		},
 		weather: {
 			location: "Ort",
 			search: "Ort suchen",
@@ -2807,9 +2985,24 @@ export const de: Translations = {
 			styleDetailed: "Detailliert (Kennzahlenraster)",
 			styleForecast: "Vorhersage (Stundenkurve)",
 			styleArtistic: "Künstlerisch (gemalter Himmel)",
+			styleMoon: "Mond (heutige Phase)",
+			design: "Design",
+			designDesc:
+				"Klassische Liniensymbole und ein gemalter Himmel oder Material 3 Expressive: flache Wetterbilder, Chips und Flächen in deiner Akzentfarbe.",
+			designClassic: "Klassisch",
+			designExpressive: "Expressive",
+			styleDaylight: "Tageslicht (Sonnenbogen)",
 			animate: "Himmel animieren",
 			animateDesc:
 				"Ziehende Wolken, fallender Regen und funkelnde Sterne. Im Stromsparmodus immer aus.",
+			animateMoonDesc:
+				"Der Mond steigt auf und schwebt, seine Form dreht sich, die Sterne funkeln. Im Stromsparmodus immer aus.",
+			animateSunDesc:
+				"Die Sonne wandert ihren Bogen bis zur aktuellen Stunde und dreht sich dort. Im Stromsparmodus immer aus.",
+			moonLayout: "Aufbau",
+			moonLayoutDesc: "Alles über den heutigen Mond oder nur der Mond und wo er im Monat steht.",
+			moonLayoutFull: "Vollständig (Nachthimmel und Details)",
+			moonLayoutClean: "Schlicht (Mond und Monat)",
 
 			units: "Einheiten",
 			tempUnit: "Temperatur",
@@ -2963,6 +3156,35 @@ export const de: Translations = {
 			showMood: "Stimmung anzeigen",
 			showActivity: "Heutige Aktivität anzeigen",
 		},
+		vaultPet: {
+			missing: "Vault Pet ist nicht installiert",
+			missingDesc:
+				"Diese Karte beherbergt das Community-Plugin Vault Pet. Installiere und " +
+				"aktiviere es, und die Karte füllt sich von selbst - diese Einstellungen " +
+				"bleiben so oder so erhalten.",
+			display: "Anzeigen",
+			displayDesc:
+				"Beides stammt von Vault Pet selbst: die kleine Karte, die es in eine " +
+				"Notiz einfügen kann, oder seine Haus-Ansicht, hier statt in der " +
+				"Seitenleiste eingebettet.",
+			displayPet: "Das Haustier",
+			displayHouse: "Das Haustierhaus",
+			showHeader: "Titelleiste des Hauses behalten",
+			showHeaderDesc:
+				"Die eigene Kopfzeile der eingebetteten Ansicht ist standardmäßig " +
+				"ausgeblendet - die Karte hat bereits eine.",
+			openButton: "Schaltfläche „Haustierhaus öffnen“",
+			openButtonDesc:
+				"Eine Schaltfläche in der Ecke der Karte, die das Haus von Vault Pet in " +
+				"der Seitenleiste öffnet - wie sein Symbol in der Seitenleiste.",
+		},
+		design: {
+			name: "Design",
+			desc: "Klassisch oder Material 3 Expressive: tonale Flächen in deiner Akzentfarbe, Pillen und weiche Formen.",
+			classic: "Klassisch",
+			expressive: "Expressive",
+			followDefault: (design: string) => `Voreinstellung (${design})`,
+		},
 		colors: {
 			heading: "Farben",
 			headingDesc: "Akzent und Hintergrundtönung für diese Karte.",
@@ -3020,6 +3242,9 @@ export const de: Translations = {
 			bookmarksEmpty: "Noch keine Lesezeichen",
 			favoritesEmpty: "Füge Favoriten in den Einstellungen hinzu",
 			recentEmpty: "Keine kürzlich verwendeten Dateien",
+			folderEmpty: "Dieser Ordner ist leer",
+			folderMissing: (path: string) =>
+				path ? `Kein Ordner unter „${path}“` : "Ordner in den Karteneinstellungen wählen",
 			linksEmpty: "Füge Links in den Einstellungen hinzu",
 			commandsEmpty: "Füge Befehle in den Karteneinstellungen hinzu",
 			templaterEnable: "Aktiviere das Templater-Plugin, um Notizen aus Vorlagen zu erstellen",
@@ -3042,12 +3267,17 @@ export const de: Translations = {
 			gitNotReady: "Noch kein Repository geöffnet - richte eines im Git-Plugin ein",
 			rssNoSources: "Füge einen Feed in den Karteneinstellungen hinzu",
 			weatherNoLocation: "Wähle einen Ort in den Karteneinstellungen",
+			marketNoSymbols: "Füge in den Karteneinstellungen eine Aktie, einen Fonds, eine Währung oder einen Coin hinzu",
 			renderFailed: "Diese Karte konnte nicht gezeichnet werden - Details findest du in der Konsole",
 			leafPickView: "Wähle eine Plugin-Ansicht in den Karteneinstellungen",
 			boardPickView: "Wähle eine Ansicht für dieses Board in den Dashboard-Einstellungen",
 			boardNeedsFile: "Wähle eine Datei für dieses Board in den Dashboard-Einstellungen",
 			leafViewMissing:
 				"Diese Ansicht ist nicht verfügbar - aktiviere das Plugin, das sie bereitstellt",
+			vaultPetInstall:
+				"Installiere das Plugin Vault Pet, um hier ein Haustier zu halten",
+			vaultPetNoHouse:
+				"Das Haus von Vault Pet ist nicht verfügbar - aktiviere oder aktualisiere das Plugin",
 			operonEnable: "Aktiviere das Operon-Plugin, um seine Aufgaben anzuzeigen",
 			operonDisabled:
 				"Die Operon-Integration ist aus - schalte sie unter Einstellungen → Hearth → Integrations ein",
@@ -3064,6 +3294,15 @@ export const de: Translations = {
 			operonNoTasks: "Keine passenden Operon-Aufgaben",
 			operonNoAgenda: "Nichts in diesem Zeitraum geplant",
 			operonNoColumns: "Keine Operon-Status anzuzeigen - wähle eine Pipeline in den Karteneinstellungen",
+		},
+		folder: {
+			browse: "Diesen Ordner durchsehen",
+			/** The card's last row: what it isn't showing. */
+			more: (n: number) => `${n} weitere…`,
+			missing: "Diesen Ordner gibt es im Vault nicht mehr.",
+			/** The path row's back arrow, and the vault's own name in it. */
+			up: (name: string) => `Zurück zu ${name}`,
+			vaultRoot: "Vault-Wurzel",
 		},
 		operon: {
 			loading: "Lese Operon…",
@@ -3130,6 +3369,9 @@ export const de: Translations = {
 					: `${count} Notiz${count === 1 ? "" : "en"} heute`,
 			streak: (days: number) => `${days}-Tage-Serie`,
 		},
+		vaultPet: {
+			openHouse: "Haustierhaus öffnen",
+		},
 		embed: {
 			openFile: "Diese Datei öffnen",
 			editHint: "Doppelklicken zum Bearbeiten",
@@ -3161,6 +3403,83 @@ export const de: Translations = {
 			disabled: "Feeds sind aus (externe Aufrufe deaktiviert)",
 			refresh: "Aktualisieren",
 		},
+		market: {
+			types: {
+				equity: "Aktie",
+				etf: "ETF",
+				fund: "Fonds",
+				index: "Index",
+				currency: "Devisen",
+				crypto: "Krypto",
+				future: "Future",
+				other: "",
+			},
+			states: {
+				open: "Geöffnet",
+				pre: "Vorbörslich",
+				post: "Nachbörslich",
+				closed: "Geschlossen",
+			},
+			ranges: {
+				"1d": "1T",
+				"5d": "5T",
+				"1mo": "1M",
+				"6mo": "6M",
+				"1y": "1J",
+				"5y": "5J",
+			},
+			rangeNames: {
+				"1d": "Ein Tag",
+				"5d": "Fünf Tage",
+				"1mo": "Ein Monat",
+				"6mo": "Sechs Monate",
+				"1y": "Ein Jahr",
+				"5y": "Fünf Jahre",
+			},
+			sources: {
+				yahoo: "Yahoo Finance",
+				tencent: "Tencent",
+				eastmoney: "Eastmoney",
+				coingecko: "CoinGecko",
+				frankfurter: "EZB (Frankfurter)",
+			},
+			updated: (time: string) => `Aktualisiert ${time}`,
+			loadingShort: "Lädt…",
+			unavailable: "Nicht verfügbar",
+			disabled: "Externe Aufrufe sind aus – Kurse können nicht geladen werden",
+			noChart: "Kein Chart für diesen Zeitraum",
+			dayRange: "Tagesspanne",
+			yearRange: "52-Wochen-Spanne",
+			open: "Eröffnung",
+			prevClose: "Vortagesschluss",
+			volume: "Volumen",
+			currency: "Währung",
+			source: "Quelle",
+			asOf: "Stand",
+			totalValue: "Gesamtwert",
+			noHoldings: "Trage in den Karteneinstellungen ein, wie viele Anteile du hältst",
+			today: "Heute",
+			totalGain: "Gesamt",
+			notConverted: (n: number) =>
+				n === 1 ? "1 Position ausgelassen: kein Wechselkurs für ihre Währung" : `${n} Positionen ausgelassen: kein Wechselkurs für ihre Währung`,
+			units: (n: number) => `${n.toLocaleString()} Anteile`,
+			position: "Deine Position",
+			unitsLabel: "Anteile",
+			value: "Wert",
+			avgCost: "Einstandskurs",
+			costBasis: "Einstandswert",
+			openInBrowser: "Im Browser öffnen",
+			refresh: "Aktualisieren",
+			searchPlaceholder: "Aktie, Fonds, Währung oder Coin suchen",
+			searchDisabled: "Die Suche ist aus, solange externe Aufrufe deaktiviert sind",
+			searching: "Suche…",
+			noResults: "Nichts gefunden",
+			lookupHint: "Suche oben nach allem – Name, Ticker, Fondsnummer, Währungspaar – und füge es mit einem Klick hinzu.",
+			back: "Zurück",
+			addToCard: "Zur Karte hinzufügen",
+			onCard: "Auf der Karte",
+			added: (name: string) => `${name} hinzugefügt`,
+		},
 		weather: {
 			loading: "Lade Vorhersage…",
 			error: "Die Vorhersage konnte nicht geladen werden",
@@ -3180,6 +3499,36 @@ export const de: Translations = {
 			/** Himmelsrichtungen, im Uhrzeigersinn ab Norden. Über das Achtel
 			 * der Peilung indextiert - alle acht behalten, in dieser Reihenfolge. */
 			compass: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"],
+			duration: (h: number, m: number) => (h ? `${h} Std. ${m} Min.` : `${m} Min.`),
+			moon: {
+				label: "Mond",
+				phases: {
+					new: "Neumond",
+					waxingCrescent: "Zunehmende Sichel",
+					firstQuarter: "Erstes Viertel",
+					waxingGibbous: "Zunehmender Mond",
+					full: "Vollmond",
+					waningGibbous: "Abnehmender Mond",
+					lastQuarter: "Letztes Viertel",
+					waningCrescent: "Abnehmende Sichel",
+				},
+				illuminated: (percent: string) => `${percent} beleuchtet`,
+				age: (days: number) => `Tag ${days} von 29`,
+				nextFull: "Vollmond",
+				nextNew: "Neumond",
+				moonrise: "Mondaufgang",
+				moonset: "Monduntergang",
+				inDays: (days: number) =>
+					days <= 0 ? "Heute" : days === 1 ? "Morgen" : `In ${days} Tagen`,
+				cycle: "Wo die heutige Nacht im Mondmonat steht",
+			},
+			daylight: {
+				until: (span: string) => `in ${span}`,
+				dayLength: (span: string) => `${span} Tageslicht`,
+				polarDay: "Die Sonne geht heute nicht unter",
+				polarNight: "Die Sonne geht heute nicht auf",
+				arc: "Der Weg der Sonne von Aufgang bis Untergang",
+			},
 			/** Der Vollvorhersage-Dialog, den eine Wetterkarte per Klick öffnet:
 			 * alle Messwerte aus der Antwort, egal was die Karte zeigt. */
 			detail: {
@@ -3355,6 +3704,7 @@ export const de: Translations = {
 			createEventNote: "Notiz erstellen",
 			openEventNote: "Notiz öffnen",
 			taskNotesSource: "TaskNotes",
+			checkboxSource: "Aufgaben",
 			taskDue: "Fällig",
 			taskTimeblock: "Zeitblock",
 			taskComplete: "Abschließen",
@@ -3363,6 +3713,7 @@ export const de: Translations = {
 				minutes >= 60
 					? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ""}`
 					: `${minutes}m`,
+			openTaskLine: "In Notiz öffnen",
 			openTaskNote: "Aufgabe öffnen",
 		},
 		schedule: {
@@ -3392,6 +3743,8 @@ export const de: Translations = {
 		},
 		bookmarks: {
 			untitled: "Unbenannt",
+			needsSearch: "Aktiviere das Kern-Plugin „Suche“, um eine gespeicherte Suche zu öffnen",
+			needsGraph: "Aktiviere das Kern-Plugin „Graphansicht“, um einen gespeicherten Graphen zu öffnen",
 		},
 		tasks: {
 			createNewTask: "Neue Aufgabe erstellen",
@@ -3605,6 +3958,7 @@ export const de: Translations = {
 		bookmarks: "Lesezeichen",
 		favorites: "Favoriten",
 		recent: "Zuletzt verwendete Dateien",
+		folder: "Ordner",
 		links: "Links / Zentrale",
 		commands: "Befehle",
 		templater: "Neue Notiz aus Vorlage",
@@ -3623,6 +3977,7 @@ export const de: Translations = {
 		rss: "RSS-Feed",
 		jira: "Jira-Filter",
 		weather: "Wetter",
+		market: "Börse",
 		git: "Git",
 		"operon-tasks": "Operon-Aufgaben",
 		"operon-board": "Operon-Board",
@@ -3630,6 +3985,8 @@ export const de: Translations = {
 		"operon-timer": "Operon-Timer",
 		leaf: "Plugin-Ansicht (Beta)",
 		pet: "Haustier",
+		"vault-pet": "Vault Pet",
+		"vault-pet-house": "Vault-Pet-Haus",
 	},
 
 	/** Eine Zeile pro Vorlage, gezeigt unter ihrem Namen in der Kartenauswahl und
@@ -3649,6 +4006,7 @@ export const de: Translations = {
 		bookmarks: "Deine Obsidian-Lesezeichen, einen Klick entfernt",
 		favorites: "Die Notizen, die du in Hearth markiert hast",
 		recent: "Die Dateien, die du zuletzt geöffnet hast",
+		folder: "Was in einem Ordner liegt, eine Ebene tief, mit Browser dahinter",
 		links: "Eine Zentrale für Links, Notizen und Ordner",
 		commands: "Schaltflächen, die Obsidian-Befehle ausführen",
 		templater: "Schaltflächen, die aus einer Templater-Vorlage eine Notiz in einem Ordner deiner Wahl erstellen",
@@ -3667,6 +4025,7 @@ export const de: Translations = {
 		rss: "Schlagzeilen aus den Feeds, denen du folgst",
 		jira: "Vorgänge aus einem Jira-Filter oder einer JQL-Suche",
 		weather: "Die Vorhersage für einen Ort deiner Wahl",
+		market: "Aktien, Fonds, Devisen und Krypto, live",
 		git: "Repository-Status, mit Commit, Pull und Push",
 		"operon-tasks": "Deine Operon-Aufgaben, gefiltert nach deinen Wünschen",
 		"operon-board": "Operons Pipeline-Status als Board-Spalten",
@@ -3674,6 +4033,8 @@ export const de: Translations = {
 		"operon-timer": "Operons laufende Zeiterfassung, live tickend",
 		leaf: "Die Seitenleiste eines anderen Plugins, eingebettet in einer Karte",
 		pet: "Ein kleiner Begleiter, der auf deinem Board lebt",
+		"vault-pet": "Das Haustier des Vault-Pet-Plugins, das mit dem Schreiben wächst",
+		"vault-pet-house": "Das Haus von Vault Pet - Quests, Dex, Abzeichen und Statistik",
 	},
 
 	// ---- Kartenauswahl -----------------------------------------------
@@ -3751,7 +4112,7 @@ export const de: Translations = {
 			// dieselben vier Dinge sind und wer beides liest das erkennen soll.
 			publishRemoves: [
 				"Notiz- und Ordnerpfade - alles, worauf das Board in deinem Vault zeigt",
-				"Kalender-Feeds, private Hosts und dein Standort",
+				"Kalender-Feeds, private Hosts, dein Standort und Bestände",
 				"Text, den du auf dem Board getippt hast - der Inhalt einer Textkarte, die letzte Summe eines Rechners",
 				"Zugangsdaten - ein Jira-Token und alles andere, was eine Karte enthalten kann",
 			],
@@ -3878,14 +4239,14 @@ export const de: Translations = {
 			// aus einer Überschrift zwei Zeilen darüber ableiten müssen.
 			groups: {
 				paths: "Notiz- und Ordnerpfade entfernen",
-				private: "Kalender-Feeds, private Hosts und deinen Standort entfernen",
+				private: "Kalender-Feeds, private Hosts, deinen Standort und Bestände entfernen",
 				content: "Text entfernen, den du auf dem Board getippt hast",
 				queries: "Suchen und Dataview-Abfragen entfernen",
 				plugins: "Befehls-IDs und Ansichtstypen entfernen",
 			},
 			groupDesc: {
 				paths: "Alles, worauf dieses Board in deinem Vault zeigt, und der Ordner, aus dem jedes eingebettete Bild kam. Die Bilder selbst reisen weiter mit, wenn der Hintergrund-Schalter oben an ist - es ist der Ordner, in dem sie lagen, der geht.",
-				private: "ICS-Kalender-Links (wer einen hat, kann diesen Kalender lesen), ein interner Jira-Host und der Ort, auf den eine Wetterkarte eingestellt ist.",
+				private: "ICS-Kalender-Links (wer einen hat, kann diesen Kalender lesen), ein interner Jira-Host, der Ort, auf den eine Wetterkarte eingestellt ist, sowie Anteile und Einstandskurse eines Portfolios.",
 				content: "Der Inhalt einer Textkarte und die letzte Eingabe eines Rechners - was auch immer du auf dein eigenes Dashboard gekritzelt hast.",
 				queries: "Standardmäßig aus: Ein Board ohne seine Abfragen tut nichts mehr. Lohnt sich einzuschalten, wenn eine Abfrage einen privaten Ordner nennt.",
 				plugins: "Standardmäßig aus: Diese nennen Plugins, nicht dich. Sie zu entfernen lässt die Schaltflächen, die sie ausführten, ohne Funktion.",

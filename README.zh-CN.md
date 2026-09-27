@@ -17,7 +17,7 @@
 
 - 🔍 **搜索一切** —— 模糊搜索、全文、标签、frontmatter 与命令
 - 🧩 **35+ 种卡片** —— 嵌入、任务、日历、Dataview、Git、Jira、Operon 等等
-- 🔌 **25 项集成** —— 插件启用后自动识别
+- 🔌 **26 项集成** —— 插件启用后自动识别
 - 🎛️ **自由布局** —— 卡片可任意拖动、缩放与吸附
 - 🪟 **毛玻璃** —— 每张卡片可单独设置不透明度、模糊、颜色和圆角
 - 🗂️ **多个面板** —— 一次点击或一个快捷键即可切换
@@ -139,6 +139,7 @@ TaskNotes 这一项值得特别一提：它的字段名可由用户重映射、�
 | **Excalidraw 绘图** | 一幅支持原生平移与缩放的绘图 | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) |
 | **嵌入 base** | 一个 `.base` 文件，由 Obsidian 的 Bases 渲染 | Bases（核心） |
 | **最近文件** | 您最近打开的文件 | — |
+| **文件夹** | 文件夹下一层的内容，按文件管理器自身的顺序排列；并可打开浏览页：带面包屑导航、每个子文件夹展开一层，页面上的任意文件夹都可继续进入 | — |
 | **收藏** | 您在 Hearth 中标星的笔记 | — |
 | **书签** | 您的 Obsidian 书签，带站点图标 | 书签（核心） |
 
@@ -204,6 +205,7 @@ TaskNotes 这一项值得特别一提：它的字段名可由用户重映射、�
 | **Jira 筛选器** | 来自已保存 Jira 筛选器或 JQL 搜索的事项，可按状态、负责人、优先级、类型、迭代和版本筛选 | 通过 HTTPS 访问 Jira |
 | **RSS 订阅** | 来自您关注的任意 RSS 2.0 或 Atom 源的头条 | 联网 |
 | **天气** | 来自 [Open-Meteo](https://open-meteo.com) 的当前天况和预报，共五种样式，最高可达铺满整屏、跟随真实天况与时段的绘制天空 —— 点击卡片可查看完整预报，精确到每小时 | 联网 |
+| **行情** | 全球大多数交易所的股票、ETF、基金、指数、外汇与加密货币，包括场内与场外基金 —— 可显示为单一价格、带走势图的聚焦视图、铺满卡片的走势图、自选列表、磁贴、滚动行情条、以单一币种统计盈亏的投资组合，或卡片上的搜索框。经典或 Material 3 Expressive 设计；红涨绿跌或绿涨红跌。点击任意品种可查看完整走势与数据 | 联网 |
 | **Operon 任务 / 看板 / 日程 / 计时器** | 基于 [Operon](https://github.com/hasanyilmaz/operon) 自己 API 的四张卡片 —— 任务列表、流程看板、几天的日程，以及正在运行的时间追踪 | Operon（桌面端） |
 | **插件视图** *（测试版）* | 在卡片中承载另一个插件的侧边面板视图（日历、大纲、标签面板、Kanban…），可选固定到某个文件 | 一个提供视图的插件 |
 
@@ -222,6 +224,7 @@ Git 和 Operon 都是*通过*另一个插件工作，而不是绕过它：Git �
 | 卡片 | 显示内容 | 需要 |
 | --- | --- | --- |
 | **宠物** | 一只像素风小伙伴（猫、狗、鸟、狐狸、青蛙或软软），心情跟随您的仓库 —— 满足、开心、无聊，或在安静的一天里睡去，带绘制动画和跟随指针的眼睛。可设置夜间时段、命名、上色。不会丢失；点击它还能收获爱心 | — |
+| **Vault Pet** | [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) 插件的宠物住进面板：它自己的宠物卡片（像素形象、等级、连续天数，点击可撸），或它完整的小屋 —— 任务、图鉴、徽章、衣橱与统计 | [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) |
 
 一切都是**实时的**：嵌入和可编辑的笔记会跟随仓库事件而不丢失光标位置，
 数据卡片会随仓库和元数据变化重绘，网页卡片按计时器刷新。每一张会联网的卡片
@@ -247,6 +250,7 @@ Hearth 会自行识别这些插件 —— 无需连接，也不用粘贴任何�
 | [Iconic](https://obsidian.md/plugins?id=iconic) / [Iconize](https://obsidian.md/plugins?id=obsidian-icon-folder) | 您的按文件图标会出现在 Hearth 列出文件的任何位置 | 集成标签页 |
 | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) | 绘图在嵌入卡片中实时渲染；“新建绘图”会运行它的命令 | 卡片本身 |
 | [Kanban](https://github.com/obsidian-community/obsidian-kanban) | 任务卡片以它自己的格式读写其看板笔记 | 卡片本身 |
+| [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) | Vault Pet 卡片把该插件安置在面板上 —— 它自己的宠物卡片，或它完整的宠物小屋 | 卡片本身 |
 
 **Obsidian 核心插件**
 
@@ -267,6 +271,7 @@ Hearth 会自行识别这些插件 —— 无需连接，也不用粘贴任何�
 | 服务 | 使用者 | 账号 / 密钥 |
 | --- | --- | --- |
 | [Open-Meteo](https://open-meteo.com) | 天气卡片与实时天气天空 | 无需。仅会发送您选择的坐标，而固定的天空完全不需要位置信息 |
+| [Yahoo Finance](https://finance.yahoo.com)、[腾讯](https://gu.qq.com)、[东方财富](https://fund.eastmoney.com)、[CoinGecko](https://www.coingecko.com)、[Frankfurter](https://www.frankfurter.app/) | 行情卡片。这些都不是官方 API，某个来源失败时会自动改用下一个提供同一品种的来源 | 无需。仅会发送卡片上的代码（以及您在搜索中输入的内容） |
 | [Frankfurter](https://www.frankfurter.app/)（欧洲央行汇率） | 计算器的货币换算 | 无需 |
 | Jira Cloud / Server | Jira 卡片，通过 REST 与 bearer PAT 认证 | 您自己的，填在卡片上；导出内容绝不包含 PAT |
 | RSS / Atom 源 | RSS 卡片 | 无需 |

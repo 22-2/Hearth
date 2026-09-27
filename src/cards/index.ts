@@ -1,5 +1,5 @@
 import type { App } from "obsidian";
-import type { CardKind, DashboardCard } from "../types";
+import { type CardDesign, type CardKind, type DashboardCard, type Dashboard, type HomeSettings, activeDashboard } from "../types";
 import type {
 	CardCategory,
 	CardDefinition,
@@ -17,6 +17,7 @@ import { bookmarksCard } from "./bookmarks";
 import { favoritesCard } from "./favorites";
 import { textCard } from "./text";
 import { recentCard } from "./recent";
+import { folderCard } from "./folder";
 import { linksCard } from "./links";
 import { commandsCard } from "./commands";
 import { templaterCard } from "./templater";
@@ -34,10 +35,12 @@ import { datacoreCard } from "./datacore";
 import { rssCard } from "./rss";
 import { jiraCard } from "./jira";
 import { weatherCard } from "./weather";
+import { marketCard } from "./market";
 import { gitCard } from "./git";
 import { operonCard } from "./operon";
 import { leafCard } from "./leaf";
 import { petCard } from "./pet";
+import { vaultPetCard } from "./vaultpet";
 
 export type {
 	CardCategory,
@@ -65,6 +68,7 @@ export const CARD_DEFINITIONS: { [K in CardKind]: CardDefinition<K> } = {
 	favorites: favoritesCard,
 	text: textCard,
 	recent: recentCard,
+	folder: folderCard,
 	links: linksCard,
 	commands: commandsCard,
 	templater: templaterCard,
@@ -82,10 +86,12 @@ export const CARD_DEFINITIONS: { [K in CardKind]: CardDefinition<K> } = {
 	rss: rssCard,
 	jira: jiraCard,
 	weather: weatherCard,
+	market: marketCard,
 	git: gitCard,
 	operon: operonCard,
 	leaf: leafCard,
 	pet: petCard,
+	vaultpet: vaultPetCard,
 };
 
 /** Every registered kind, in registry order. Used for layout-import validation
@@ -125,13 +131,13 @@ export function cardDefinition(card: DashboardCard): CardDefinition {
 export const TEMPLATE_MENU_GROUPS: { category: CardCategory; templates: string[] }[] = [
 	{
 		category: "notes",
-		templates: ["note", "daily", "periodic", "journal", "image", "slideshow", "canvas", "excalidraw", "base", "recent", "favorites", "bookmarks"],
+		templates: ["note", "daily", "periodic", "journal", "image", "slideshow", "canvas", "excalidraw", "base", "recent", "folder", "favorites", "bookmarks"],
 	},
 	{ category: "planning", templates: ["tasks", "schedule", "calendar", "clock"] },
 	{ category: "vault", templates: ["search", "searchbar", "stats", "heatmap"] },
 	{ category: "tools", templates: ["links", "commands", "text", "calculator", "web"] },
-	{ category: "integrations", templates: ["templater", "dataview", "datacore", "git", "jira", "rss", "weather", "operon-tasks", "operon-board", "operon-agenda", "operon-timer", "leaf"] },
-	{ category: "fun", templates: ["pet"] },
+	{ category: "integrations", templates: ["templater", "dataview", "datacore", "git", "jira", "rss", "weather", "market", "operon-tasks", "operon-board", "operon-agenda", "operon-timer", "leaf"] },
+	{ category: "fun", templates: ["pet", "vault-pet", "vault-pet-house"] },
 ];
 
 /** The categories, in picker order. */
@@ -207,6 +213,31 @@ export function cardClasses(card: DashboardCard): string[] {
 	const cls = cardDefinition(card).cardClass;
 	const raw = typeof cls === "function" ? cls(card) : cls;
 	return raw ? raw.split(/\s+/).filter(Boolean) : [];
+}
+
+/**
+ * The design a card is drawn in on `board` (the active board by default): the
+ * kind's own choice where it keeps one (weather, market), else the card's
+ * `design`, else the board's, else the vault's. The card's frame follows it —
+ * a tonal Material 3 Expressive surface or Classic's glass — and so do the
+ * dialogs and menus opened from the card.
+ */
+export function resolveCardDesign(s: HomeSettings, card: DashboardCard, board?: Dashboard): CardDesign {
+	const boardDesign = (board ?? activeDashboard(s))?.cardDesign ?? s.cardDesign ?? "classic";
+	return cardDefinition(card).ownDesign?.(card, boardDesign) ?? card.design ?? boardDesign;
+}
+
+/** Whether any card, on any board, is drawn in Classic — the one design whose
+ * frame the card-surface settings (opacity, blur, radius, border) shape. With
+ * `board`, only that board's cards are asked. */
+export function classicCardsInUse(s: HomeSettings, board?: Dashboard): boolean {
+	const boards = board ? [board] : s.dashboards;
+	// An empty board still takes the settings for the first card added to it.
+	return boards.some((b) =>
+		b.cards.length === 0
+			? (b.cardDesign ?? s.cardDesign ?? "classic") === "classic"
+			: b.cards.some((c) => resolveCardDesign(s, c, b) === "classic"),
+	);
 }
 
 /** Deep-clone a card with a fresh id, so the copy can be added to a dashboard

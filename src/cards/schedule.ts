@@ -15,6 +15,7 @@ import {
 	renderEventRow,
 	showDayMenu,
 	showEventDetail,
+	checkboxTasksSourceEditor,
 	taskNotesSourceEditor,
 	type IcsContext,
 } from "../calendarsource";
@@ -34,7 +35,7 @@ import {
 	type DaySpan,
 	type DayWindow,
 } from "../timegrid";
-import { type DashboardCard, type ScheduleConfig, type ScheduleView } from "../types";
+import { type DashboardCard, effectiveCardDesign, type ScheduleConfig, type ScheduleView } from "../types";
 import { makeClickable } from "../ui";
 import { type HomeView } from "../view";
 import { type CardDefinition, type CardEditorContext } from "./definition";
@@ -63,18 +64,26 @@ export function renderSchedule(
 ): void {
 	const cfg = card.schedule ?? {};
 	const sources = (cfg.sources ?? []).filter((s) => s.url.trim() && s.enabled !== false);
-	const useTaskNotes = cfg.taskNotes?.enabled === true && taskNotesEnabled(view.app);
+	const useTasks =
+		(cfg.taskNotes?.enabled === true && taskNotesEnabled(view.app)) ||
+		cfg.checkboxTasks?.enabled === true;
 	const options = cfg.dailyNotes === false ? null : dailyNotesOptions(view);
 
 	// Same rule as the mini calendar: the card needs at least one thing to draw
-	// — daily notes, a subscribed calendar, or TaskNotes.
-	if (!options && sources.length === 0 && !useTaskNotes) {
+	// — daily notes, a subscribed calendar, or a task source.
+	if (!options && sources.length === 0 && !useTasks) {
 		emptyState(body, "calendar-range", t().cards.empty.scheduleNoSources);
 		return;
 	}
 
 	const state = scheduleState(card, cfg);
-	const ics = buildIcsContext(view, cfg, sources, component);
+	const ics = buildIcsContext(
+		view,
+		cfg,
+		sources,
+		component,
+		effectiveCardDesign(view.plugin.settings, card.design) === "expressive",
+	);
 	const wrap = body.createDiv("hearth-sched");
 
 	const draw = (): void => {
@@ -989,6 +998,7 @@ export function scheduleEditor(ctx: CardEditorContext, containerEl: HTMLElement)
 	// mini calendar, down to the wording — see src/calendarsource.ts.
 	calendarChipsEditor(ctx, containerEl, cfg);
 	taskNotesSourceEditor(ctx, containerEl, cfg);
+	checkboxTasksSourceEditor(ctx, containerEl, cfg);
 	calendarSourcesEditor(ctx, containerEl, cfg);
 }
 
@@ -1025,5 +1035,6 @@ export const scheduleCard: CardDefinition<"schedule"> = {
 					: undefined,
 			};
 	},
+	expressive: true,
 	liveness: { mode: "vault" },
 };

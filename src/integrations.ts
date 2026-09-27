@@ -31,6 +31,7 @@ import { JOURNALS_PLUGIN_ID } from "./journals";
 import { PERIODIC_NOTES_PLUGIN_ID } from "./periodic";
 import { TASKNOTES_PLUGIN_ID } from "./tasknotes";
 import { TEMPLATER_PLUGIN_ID } from "./templater";
+import { VAULT_PET_PLUGIN_ID } from "./vaultpet";
 
 /**
  * Ids of the settings ribbon tabs.
@@ -86,6 +87,7 @@ export type IntegrationId =
 	| "iconic"
 	| "iconize"
 	| "excalidraw"
+	| "vaultPet"
 	| "bases"
 	| "canvas"
 	| "dailyNotes"
@@ -100,6 +102,7 @@ export type IntegrationId =
 	| "ics"
 	| "currency"
 	| "weather"
+	| "markets"
 	| "webSearch";
 
 export interface IntegrationEntry {
@@ -193,6 +196,12 @@ export const INTEGRATIONS: readonly IntegrationEntry[] = [
 		pluginId: EXCALIDRAW_PLUGIN_ID,
 		where: { kind: "card" },
 	},
+	{
+		id: "vaultPet",
+		group: "plugin",
+		pluginId: VAULT_PET_PLUGIN_ID,
+		where: { kind: "card" },
+	},
 
 	// ---- Obsidian core plugins --------------------------------------------
 	{ id: "bases", group: "core", corePluginId: "bases", where: { kind: "card" } },
@@ -233,6 +242,7 @@ export const INTEGRATIONS: readonly IntegrationEntry[] = [
 	{ id: "ics", group: "service", where: { kind: "card" } },
 	{ id: "currency", group: "service", where: { kind: "none" } },
 	{ id: "weather", group: "service", where: { kind: "card" } },
+	{ id: "markets", group: "service", where: { kind: "card" } },
 	{ id: "webSearch", group: "service", where: { kind: "tab", tab: "search" } },
 ];
 

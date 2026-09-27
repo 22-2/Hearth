@@ -67,7 +67,8 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 			{ id: "excalidraw", icon: "pen-tool", category: "notes", requires: null, build: { kind: "embed", title: "Drawing", target: "", w: 6, h: 4 } },
 			{ id: "base", icon: "database", category: "notes", requires: null, build: { kind: "embed", title: "Base", target: "", w: 6, h: 4 } },
 			{ id: "recent", icon: "history", category: "notes", requires: null, build: { kind: "recent", title: "Recent", count: 8, w: 4, h: 3 } },
-			{ id: "favorites", icon: "star", category: "notes", requires: null, build: { kind: "favorites", title: "Favorites", w: 4, h: 3 } },
+			{ id: "folder", icon: "folder-tree", category: "notes", requires: null, build: { kind: "folder", title: "Folder", folder: {}, w: 4, h: 4 } },
+			{ id: "favorites", icon: "star", category: "notes", requires: null, build: { kind: "favorites", title: "Favorites", fileView: "list", w: 4, h: 3 } },
 			{ id: "bookmarks", icon: "bookmark", category: "notes", requires: null, build: { kind: "bookmarks", title: "Bookmarks", w: 4, h: 3 } },
 
 			// ---- Planning ----
@@ -137,6 +138,25 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 				build: { kind: "weather", title: "Weather", weather: {}, w: 4, h: 3 },
 			},
 			{
+				id: "market",
+				icon: "trending-up",
+				category: "integrations",
+				requires: null,
+				build: {
+					kind: "market",
+					title: "Markets",
+					market: {
+						items: [
+							{ symbol: "^GSPC", provider: "yahoo", name: "S&P 500" },
+							{ symbol: "EURUSD=X", provider: "yahoo", name: "EUR/USD" },
+							{ symbol: "BTC-USD", provider: "yahoo", name: "Bitcoin" },
+						],
+					},
+					w: 4,
+					h: 3,
+				},
+			},
+			{
 				id: "operon-tasks",
 				icon: "list-checks",
 				category: "integrations",
@@ -174,6 +194,20 @@ describe("CARD_TEMPLATES (add-card menu)", () => {
 
 			// ---- Fun ----
 			{ id: "pet", icon: "cat", category: "fun", requires: null, build: { kind: "pet", title: "Pet", pet: {}, w: 3, h: 4 } },
+			{
+				id: "vault-pet",
+				icon: "egg",
+				category: "fun",
+				requires: "Vault Pet",
+				build: { kind: "vaultpet", title: "Vault Pet", vaultPet: {}, w: 3, h: 4 },
+			},
+			{
+				id: "vault-pet-house",
+				icon: "house",
+				category: "fun",
+				requires: "Vault Pet",
+				build: { kind: "vaultpet", title: "Pet house", vaultPet: { display: "house" }, w: 5, h: 6 },
+			},
 		]);
 	});
 
@@ -261,6 +295,7 @@ function maximalCard(): DashboardCard {
 			eventNote: { fields: [{ name: "n" } as never] },
 		},
 		savedSearch: { query: "q" },
+		folder: { path: "Projects", sort: "name" },
 		heatmap: { field: "h" } as never,
 		stats: {
 			builtins: ["notes"] as never,
@@ -319,6 +354,7 @@ describe("cloneCard deep-clone independence", () => {
 		copy.schedule!.taskNotes!.enabled = false;
 		copy.schedule!.eventNote!.fields!.push({ name: "n2" } as never);
 		(copy.savedSearch as { query: string }).query = "q2";
+		copy.folder!.path = "Archive";
 		(copy.heatmap as { field: string }).field = "h2";
 		copy.stats!.builtins!.push("words" as never);
 		copy.stats!.attachmentTypes!.push("jpg");
@@ -353,6 +389,7 @@ describe("cloneCard deep-clone independence", () => {
 		expect(orig.calendar).toEqual(pristine.calendar);
 		expect(orig.schedule).toEqual(pristine.schedule);
 		expect(orig.savedSearch).toEqual(pristine.savedSearch);
+		expect(orig.folder).toEqual(pristine.folder);
 		expect(orig.heatmap).toEqual(pristine.heatmap);
 		expect(orig.stats).toEqual(pristine.stats);
 		expect(orig.clock).toEqual(pristine.clock);
@@ -387,6 +424,7 @@ describe("liveness classification", () => {
 			favorites: "static",
 			text: "static",
 			recent: "static",
+			folder: "vault",
 			links: "static",
 			commands: "static",
 			templater: "static",
@@ -404,10 +442,12 @@ describe("liveness classification", () => {
 			rss: "static",
 			jira: "static",
 			weather: "static",
+			market: "static",
 			git: "static",
 			operon: "vault",
 			leaf: "static",
 			pet: "vault",
+			vaultpet: "static",
 		});
 	});
 });

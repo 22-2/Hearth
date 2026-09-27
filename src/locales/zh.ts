@@ -139,67 +139,27 @@ export const zh: Translations = {
 	setup: {
 		/** Short labels on the progress rail. */
 		stepNames: {
-			welcome: "欢迎",
-			vault: "您的仓库",
-			look: "外观",
 			purpose: "用途",
-			integrations: "集成",
-			finish: "完成",
+			look: "外观",
+			finish: "您的面板",
 		},
 		/** The heading at the top of each step. */
 		stepTitles: {
-			welcome: "欢迎使用 Hearth",
-			vault: "为主屏幕命名",
-			look: "选择外观",
 			purpose: "您用仓库做什么？",
-			integrations: "在您的仓库中找到",
-			finish: "这就是您的面板",
+			look: "选择外观",
+			finish: "这就是您的主屏幕",
 		},
 		/** The line under each heading. */
 		stepDescs: {
-			welcome: "回答几个问题，Hearth 就会为您搭建第一个面板。",
-			vault: "面板顶部的标题与图标。",
-			look:
-				"这只影响正在搭建的面板 — 其他每个面板都保留自己的外观。" +
-				"之后都可以在该面板自己的设置中修改。",
-			purpose: "可以任选多项 — 每一项都会为面板添加卡片。",
-			integrations: "Hearth 发现这些插件已安装。请开启希望它使用的项目。",
-			finish:
-				"目前尚未更改任何内容。以下是将要搭建的面板 — 作为一个面板创建，" +
-				"不会影响仓库的全局设置。",
+			purpose: "可任选多项，Hearth 会据此挑选卡片。只需三步，之后一切都可以修改。",
+			look: "只作用于正在搭建的面板，其他面板保留各自的外观。",
+			finish: "目前尚未更改任何内容。以下就是将要搭建的面板。",
 		},
 		nav: {
 			back: "上一步",
 			next: "下一步",
 			finish: "搭建我的面板",
 			skip: "跳过设置",
-		},
-		welcome: {
-			lead:
-				"Hearth 把一个标签页变成仓库的主屏幕 — 搜索、卡片面板和启动器。" +
-				"这个向导会搭建一个契合您实际工作方式的面板，让您不必从空白网格开始。",
-			bullets: [
-				{
-					icon: "layout-dashboard",
-					title: "为您量身搭建的面板",
-					desc: "告诉 Hearth 您用仓库做什么，它会挑好卡片。",
-				},
-				{
-					icon: "plug",
-					title: "您的插件，已经接好线",
-					desc:
-						"Hearth 会查找 TaskNotes、Dataview、Git 等插件并主动连接 — " +
-						"读取它们各自的设置，让卡片立刻正常工作。",
-				},
-				{
-					icon: "palette",
-					title: "由您选择的外观",
-					desc: "背景、卡片样式与密度，一步设定。",
-				},
-			],
-			detected: (names: string) => `在此仓库中找到：${names}。`,
-			detectedNone:
-				"暂未检测到受支持的插件 — 没关系，Hearth 独立也能用，之后再连接即可。",
 		},
 		vault: {
 			title: "标题",
@@ -221,6 +181,8 @@ export const zh: Translations = {
 			showSearchDesc: "标题下方的搜索与命令输入框。",
 		},
 		look: {
+			designHeading: "设计",
+			designNote: "此选项适用于整个 Hearth，而不仅是此面板。可随时在 设置 → Hearth → 外观 中更改。",
 			surfaceHeading: "卡片",
 			backgroundHeading: "背景",
 			color: "颜色",
@@ -252,11 +214,28 @@ export const zh: Translations = {
 				desc: "完全没有卡片表面 — 内容直接浮在背景上。",
 			},
 		},
+		designs: {
+			classic: {
+				icon: "square",
+				name: "经典",
+				desc: "Hearth 一贯的样子：安静的表面，细边框。",
+			},
+			expressive: {
+				icon: "shapes",
+				name: "Expressive",
+				desc: "整个 Hearth 使用 Material 3 Expressive——卡片、按钮、菜单、对话框和设置——采用强调色的色调。",
+			},
+		},
 		backgrounds: {
 			default: {
 				icon: "image",
 				name: "Hearth 壁纸",
-				desc: "Hearth 自带的图片。",
+				desc: "由 Hearth 绘制的山丘，随主题呈现白天或夜晚。",
+			},
+			harbour: {
+				icon: "anchor",
+				name: "港口小镇",
+				desc: "灯塔、船只和山坡上的房屋，以强调色的扁平 Expressive 形状绘制。",
 			},
 			weather: {
 				icon: "cloud-sun",
@@ -293,7 +272,7 @@ export const zh: Translations = {
 			},
 			capture: {
 				name: "快速记录与启动",
-				desc: "为您经常使用的笔记和命令准备的磁贴。",
+				desc: "一排快捷操作：新建笔记、搜索、命令面板。",
 			},
 			insights: {
 				name: "仓库统计",
@@ -301,15 +280,21 @@ export const zh: Translations = {
 			},
 			reading: {
 				name: "阅读与订阅",
-				desc: "为您关注的网站准备的 RSS 卡片。",
+				desc: "一张订阅您关注网站的 RSS 卡片。",
 			},
 			ambience: {
 				name: "一点生机",
-				desc: "天气，以及一只住在面板上的小宠物。",
+				desc: "您所在地的天气，以及一只住在面板上的小宠物。",
 			},
 		},
 		purpose: {
 			count: (n: number) => `目前共 ${n} 张卡片。`,
+			integrationsHeading: "在您的仓库中找到",
+			feed: "要订阅的源",
+			feedDesc: "您常读网站的 RSS 或 Atom 地址。之后可在卡片上添加更多。",
+			feedMissing: "填入订阅地址后，阅读卡片就会加入面板。",
+			weatherPlace: "天气地点",
+			weatherMissing: "选择一个地点后，天气卡片就会加入面板。",
 		},
 		integrations: {
 			lead:
@@ -356,16 +341,13 @@ export const zh: Translations = {
 			/** Seed for the new dashboard's name; numbered if already taken. */
 			defaultName: "主页",
 			calloutTitle: "这是起点，不是预设",
-			calloutLead:
-				"这个面板应当是一个扎实的起点 — 足以让您看到 Hearth 能为您做什么。",
-			calloutBody:
-				"但 Hearth 首先是为高度自定义而生的，而这个向导只触及了其中一小部分。" +
-				"每张卡片都可以移动、缩放、改标题、换颜色、重新配置或删除，面板可以添加" +
-				"和切换，设置里还有远比这里问到的更多内容。请到设置中翻一翻，随心修改 — " +
-				"这正是 Hearth 的意义所在。",
 			calloutHint:
-				"“排列”（面板右上角）用于编辑卡片；其余内容在 设置 → Hearth 中。" +
-				"您随时可以从 设置 → 关于 再次运行此向导。",
+				"每张卡片都可以通过“排列”（面板右上角）移动、缩放、重新配置或删除；" +
+				"其余内容在 设置 → Hearth 中。您随时可以从 设置 → 关于 再次运行此向导。",
+			clock: "时钟",
+			clockDesc: "侧栏顶部的一个小时钟和问候语。",
+			more: "标题与页眉",
+			why: "为什么是这些卡片",
 		},
 		plan: {
 			/** Fallback names for planned cards that carry no title of their own. */
@@ -378,7 +360,6 @@ export const zh: Translations = {
 				recent: "最近文件",
 				favorites: "收藏",
 				bookmarks: "书签",
-				links: "链接",
 				commands: "命令",
 				stats: "仓库统计",
 				heatmap: "活跃度",
@@ -390,9 +371,17 @@ export const zh: Translations = {
 				git: "Git",
 				base: "Base",
 			},
+			/** The Quick actions card's seeded buttons. */
+			actions: {
+				newNote: "新建笔记",
+				today: "今天的笔记",
+				switcher: "快速切换",
+				search: "搜索",
+				palette: "命令",
+			},
 			/** Why each card is on the board, shown beside it in the review list. */
 			reasons: {
-				always: "每个 Hearth 面板都以它开始",
+				clock: "您选择了时钟",
 				daily: "日记与随笔",
 				dailyNotes: "已启用日记插件",
 				tasks: "任务与待办",
@@ -481,6 +470,7 @@ export const zh: Translations = {
 		deleteConfirm: "删除",
 		modal: {
 			title: "面板设置",
+			deleteDashboard: "删除面板",
 			/** Tabs across the top of the dashboard settings modal. */
 			tabs: {
 				general: "通用",
@@ -587,6 +577,12 @@ export const zh: Translations = {
 			skyAnimateStateOff: "静止",
 			skyAnimateOptionOn: "启用动画",
 			skyAnimateOptionOff: "保持静止",
+			cardDesign: "设计",
+			cardDesignDesc:
+				"此面板的绘制方式——其卡片、按钮以及从它打开的对话框和菜单——卡片未单独指定时生效：经典，或 Material 3 Expressive。",
+			skyDesign: "背景设计",
+			skyDesignDesc: "在此面板上使用经典手绘天空，或 Material 3 Expressive 风格的扁平天空。",
+			wallpaperDesignDesc: "此面板上的 Hearth 壁纸：经典山丘，或以你的强调色绘制的 Material 3 Expressive 扁平图形。",
 			visibilityDefaultPlugin: (state: string) => `插件视图面板的默认值（${state}）`,
 			visibilityShown: "显示",
 			visibilityHidden: "隐藏",
@@ -671,6 +667,7 @@ export const zh: Translations = {
 			default: "使用全局默认",
 			none: "无",
 			hdefault: "Hearth 默认",
+			harbour: "港口小镇",
 			animated: "Hearth 动态 GIF",
 			color: "纯色",
 			image: "仓库图片",
@@ -705,7 +702,7 @@ export const zh: Translations = {
 		/** One line per category, shown on its index row and again at the top of
 		 * its page: what a reader will find if they open it. */
 		tabDescs: {
-			appearance: "标题、图标、背景与低功耗模式。",
+			appearance: "设计、标题、图标、背景与低功耗模式。",
 			search: "搜索栏及其提供的结果。",
 			dashboard: "网格、卡片表面与面板周围的控件。",
 			behaviour: "启动、笔记打开方式与隐私。",
@@ -916,6 +913,10 @@ export const zh: Translations = {
 			effectClock: "时钟卡片不显示秒数与走动的秒针",
 			effectSlideshow: "幻灯片卡片固定显示一张图片，不再轮播",
 			/** Shown in the sections whose settings the tier currently overrides. */
+			vibrancyFrost:
+				"启用 Obsidian 的「半透明窗口」时，毛玻璃效果会关闭：模糊与 macOS 的" +
+				"半透明材质会让整个窗口互相重新混合，导致标签栏闪烁。你的模糊设置会保留，" +
+				"关闭半透明窗口后即可恢复。",
 			overridden:
 				"当前性能档位覆盖了这些设置。它们会原样保留，并在您调回更高档位时重新生效。",
 		},
@@ -952,6 +953,7 @@ export const zh: Translations = {
 			bannerFullWidthDesc: "让横幅横贯窗口两端，而不是与下方内容对齐。",
 			labels: {
 				default: "Hearth 默认",
+				harbour: "港口小镇",
 				animated: "Hearth 动态 GIF",
 				none: "无",
 				color: "纯色",
@@ -981,6 +983,12 @@ export const zh: Translations = {
 			skyAnimateDesc:
 				"面板背后飘动的云、落下的雨与闪烁的星。在低功耗模式下，" +
 				"以及系统要求减少动态效果的用户处，始终关闭。",
+			skyDesign: "设计",
+			skyDesignDesc: "经典的手绘天空，或 Material 3 Expressive 风格的扁平天空：山丘、圆润的云与旋转的太阳。",
+			wallpaperDesignDesc:
+				"经典山丘与小屋——浅色主题下是清晨，深色主题下是月夜——或以强调色色调绘制的 Material 3 Expressive 扁平图形。由 Hearth 绘制，无需下载任何内容。",
+			skyDesignClassic: "经典（手绘）",
+			skyDesignExpressive: "Expressive（扁平）",
 		},
 		behaviour: {
 			heading: "行为",
@@ -1192,6 +1200,13 @@ export const zh: Translations = {
 						"对 Iconize（原 Obsidian Icon Folder）同样适用，包括通过 frontmatter " +
 						"属性设置的图标。",
 				},
+				vaultPet: {
+					name: "Vault Pet",
+					desc:
+						"Vault Pet 卡片把该插件安置在您的面板上：既可以是它自己的宠物卡片，" +
+						"活生生且可点击，也可以是它完整的小屋，含任务、图鉴、徽章与统计。" +
+						"宠物、经验以及解锁的一切都属于 Vault Pet，Hearth 只提供空间。",
+				},
 				excalidraw: {
 					name: "Excalidraw",
 					desc:
@@ -1258,6 +1273,10 @@ export const zh: Translations = {
 					name: "汇率",
 					desc:
 						"计算器卡片使用来自免费、无需密钥的 Frankfurter API 的欧洲央行汇率进行货币换算。",
+				},
+				markets: {
+					name: "行情报价",
+					desc: "行情卡片从免费、无需密钥的来源读取报价：Yahoo Finance 覆盖全球大多数交易所、外汇和加密货币；腾讯覆盖沪深京及港股；天天基金（东方财富）提供场外基金估值；CoinGecko 提供加密货币；Frankfurter 提供欧洲央行汇率。这些都不是官方 API，因此某个来源失败时卡片会自动改用另一个来源。只会发送卡片上的代码。",
 				},
 				weather: {
 					name: "天气预报",
@@ -1392,6 +1411,14 @@ export const zh: Translations = {
 			cardBorderWidth: "卡片边框",
 			cardBorderWidthDesc:
 				"卡片边框和标题栏分隔线的粗细（像素）。0 表示隐藏边框。",
+			cardSurfaceExpressive:
+				"Expressive 卡片使用不透明的色调表面和大圆角，因此不透明度、模糊、圆角半径和边框只作用于经典卡片。",
+			cardDesign: "设计",
+			cardDesignDesc:
+				"Hearth 的绘制方式：经典，或 Material 3 Expressive——强调色的色调容器、胶囊与柔和形状、更粗的字体。Expressive 适用于 Hearth 的整个界面：卡片、面板按钮、所有对话框和菜单，以及此设置页面。面板或卡片仍可单独指定；内容来自你自己的卡片（笔记、嵌入、网页）内容保持不变，只采用 Expressive 的卡片外框。",
+			designClassicDesc: "安静的表面与细边框——Hearth 一贯的样子。",
+			designExpressiveDesc: "处处 Material 3 Expressive：源自强调色的色调、胶囊与柔和形状、醒目的字体。",
+			designInUse: "使用中",
 			cards: "卡片",
 			cardsDesc:
 				"卡片在面板上添加和配置：打开主页视图，点击“排列”，" +
@@ -1471,6 +1498,7 @@ export const zh: Translations = {
 			favorites: "收藏",
 			text: "文本 / 速记",
 			recent: "最近文件",
+			folder: "文件夹内容",
 			links: "链接 / 启动台",
 			commands: "命令",
 			templater: "从模板新建笔记",
@@ -1488,10 +1516,12 @@ export const zh: Translations = {
 			rss: "RSS 订阅",
 			jira: "Jira 筛选器",
 			weather: "天气",
+			market: "行情",
 			git: "Git",
 			operon: "Operon",
 			leaf: "插件视图（测试版）",
 			pet: "宠物",
+			vaultpet: "Vault Pet",
 		},
 		linkTypes: {
 			note: "笔记",
@@ -1697,6 +1727,10 @@ export const zh: Translations = {
 			refreshIntervalAria: "刷新间隔（秒）",
 		},
 		recent: {
+			display: "显示方式",
+			displayDesc: "紧凑的列表行，或图标位于名称上方的磁贴网格。",
+			displayList: "列表",
+			displayTiles: "磁贴",
 			fit: "适应卡片高度",
 			fitDesc:
 				"按卡片高度能容纳的数量列出文件，而不是固定数量。调整卡片大小会改变显示数量。",
@@ -1705,6 +1739,42 @@ export const zh: Translations = {
 				`列出多少个最近打开的文件 — 最多 ${max} 个，这也是 Hearth 最近文件历史的上限。`,
 			types: "文件类型",
 			typesDesc: "只列出所选类型的文件。可任意组合；不选则显示所有类型。",
+		},
+		folder: {
+			folder: "文件夹",
+			folderDesc: "此卡片列出的文件夹。留空表示库的根目录。",
+			folderPlaceholder: "项目/2026",
+			pickFolder: "选择文件夹",
+			sort: "排序",
+			sortDesc: "内容的排列顺序。使用 Hearth 自带的排序时，文件夹排在前面并按名称排列，与文件管理器一致。",
+			sorts: {
+				explorer: "与文件管理器一致",
+				name: "名称（A–Z）",
+				nameDesc: "名称（Z–A）",
+				modified: "修改时间（最新在前）",
+				modifiedAsc: "修改时间（最早在前）",
+				created: "创建时间（最新在前）",
+				createdAsc: "创建时间（最早在前）",
+			},
+			show: "显示",
+			showDesc: "卡片列出该文件夹中的哪些内容。",
+			showAll: "文件夹和文件",
+			showFolders: "仅文件夹",
+			showFiles: "仅文件",
+			display: "显示方式",
+			displayDesc: "列表行，或图标磁贴网格。",
+			displayList: "列表",
+			displayTiles: "磁贴",
+			count: "条目数量",
+			countDesc: "卡片在提示还剩多少条之前列出的数量。它打开的浏览页不受此限制。",
+			counts: "条目计数",
+			countsDesc: "显示每个子文件夹包含多少条目。",
+			navigate: "打开子文件夹时",
+			navigateDesc: "在对话框中打开，或在卡片内打开——卡片会显示一行路径和返回上级的按钮，并保持在您离开时的位置。",
+			navigateModal: "在文件夹浏览页中",
+			navigateCard: "在卡片内",
+			browse: "从卡片打开浏览页",
+			browseDesc: "点击卡片的空白处（或其文件夹按钮）会打开带面包屑导航的浏览页，其中每个文件夹都可以继续进入。",
 		},
 		calendar: {
 			view: "布局",
@@ -1794,6 +1864,21 @@ export const zh: Translations = {
 			chipRecurringDesc: "重复任务上的“重复”标记。",
 			chipTimeblock: "时间块标记",
 			chipTimeblockDesc: "时间块上的“时间块”标记。",
+			checkboxHeading: "复选框任务",
+			checkboxDesc:
+				"按 Tasks 格式写在任务上的日期（📅 截止、⏳ 计划）在日历上显示 Markdown 复选框任务（- [ ] …）。没有日期的任务不会显示。",
+			checkboxEnabled: "使用复选框任务",
+			checkboxEnabledDesc: "从笔记中读取带日期的复选框任务。",
+			checkboxScheduled: "计划日期",
+			checkboxScheduledDesc: "在任务的 ⏳ 计划日期显示它。",
+			checkboxDue: "截止日期",
+			checkboxDueDesc: "在任务的 📅 截止日期显示它。",
+			checkboxCompletedDesc: "已勾选的任务以删除线保留在日历上。",
+			checkboxCompleteDesc: "在每个任务上显示一个复选框，可在其笔记中勾选完成。",
+			checkboxFolders: "文件夹",
+			checkboxFoldersDesc: "只读取这些文件夹中的笔记（以逗号分隔）。留空则读取整个库。",
+			checkboxColor: "颜色",
+			checkboxColorDesc: "复选框任务条目的颜色。",
 			taskNotesHeading: "TaskNotes",
 			taskNotesDesc:
 				"把 TaskNotes 作为事件来源。此卡片会镜像 TaskNotes 自己的日历所显示的内容 — 计划任务、到期日、重复发生、时间块以及在 TaskNotes 内订阅的日历 — 并使用 TaskNotes 自己的字段名、状态和颜色。",
@@ -2308,6 +2393,10 @@ export const zh: Translations = {
 			foldersDesc: "每行一个文件夹路径。",
 		},
 		favorites: {
+			display: "显示方式",
+			displayDesc: "紧凑的列表行，或图标位于名称上方的磁贴网格。",
+			displayList: "列表",
+			displayTiles: "磁贴",
 			heading: "收藏",
 			headingDesc: "每张收藏卡片显示的笔记。",
 			ownList: "为这张卡片单独设置列表",
@@ -2322,6 +2411,14 @@ export const zh: Translations = {
 			style: "样式",
 			styleDigital: "数字",
 			styleAnalog: "指针",
+			styleStacked: "堆叠",
+			styleFlip: "翻页",
+			styleRing: "圆环",
+			styleShapes: "形状（Expressive）",
+			styleOrbit: "轨道（Expressive）",
+			styleExpressiveDesc: "Expressive 设计（样式标签页）另有「形状」和「轨道」两种表盘。",
+			styleFallbackDesc: (face: string) =>
+				`此表盘属于 Expressive 设计（样式标签页）；经典卡片会改为显示「${face}」。`,
 			hourFormat: "时间格式",
 			hourFormatAuto: "自动（区域设置）",
 			hourFormat12: "12 小时制",
@@ -2541,6 +2638,70 @@ export const zh: Translations = {
 			showDate: "显示日期",
 			showDateDesc: "显示每个条目的发布时间。",
 		},
+		market: {
+			symbols: "代码",
+			symbolsDesc: "卡片关注的品种，按绘制顺序排列。单品种样式显示第一个。",
+			noSymbols: "还没有品种——在下方搜索，或直接输入代码添加。",
+			moveUp: "上移",
+			moveDown: "下移",
+			remove: "移除",
+			holding: "持仓",
+			quantity: "份额",
+			cost: "成本价",
+			search: "添加",
+			searchDesc:
+				"按名称或代码搜索，或直接输入代码：AAPL、0700.HK、510300、EUR/USD、BTC-USD、fund:161725（场外基金）、cg:bitcoin。",
+			searchDisabled: "已禁用外部请求，无法搜索，但仍可直接添加代码。",
+			searchPlaceholder: "沪深300、Apple、EUR/USD…",
+			searchEmpty: "请先输入名称或代码",
+			searchButton: "搜索",
+			addTyped: "按输入添加",
+			noResults: "未找到结果。试试直接输入代码添加。",
+			add: "添加",
+			added: "已添加",
+			appearance: "外观",
+			style: "样式",
+			styleDesc: "极简、聚焦和走势图显示单个品种，其余样式显示全部。",
+			styles: {
+				minimal: "极简——价格与涨跌",
+				spotlight: "聚焦——价格、走势图与数据",
+				chart: "走势图——铺满卡片",
+				list: "自选列表",
+				tiles: "磁贴",
+				ticker: "滚动行情条",
+				portfolio: "投资组合",
+				lookup: "查询——在卡片上搜索",
+			},
+			design: "设计",
+			designDesc: "经典，或 Material 3 Expressive：标签、强调色的色调容器和柔和的形状。",
+			designClassic: "经典",
+			designExpressive: "Expressive",
+			upColor: "上涨颜色",
+			upColorDesc: "中国、日本和韩国以红色表示上涨，其他地区多用绿色。自动会跟随 Obsidian 的界面语言。",
+			upColorAuto: "自动",
+			upColorGreen: "绿涨红跌",
+			upColorRed: "红涨绿跌",
+			range: "走势区间",
+			rangeDesc: "迷你走势图覆盖的时间范围。",
+			rangeDescSingle: "走势图默认显示的区间，可用卡片上的按钮切换。",
+			change: "涨跌显示为",
+			changePercent: "百分比",
+			changeAbsolute: "金额",
+			changeBoth: "两者",
+			baseCurrency: "组合币种",
+			baseCurrencyDesc: "总额按欧洲央行每日汇率换算为此币种。",
+			baseCurrencyAuto: "自动（多数持仓的币种）",
+			animate: "滚动行情条",
+			animateDesc: "关闭后行情条静止，可手动滚动。在低性能档位下始终关闭。",
+			display: "显示内容",
+			showName: "名称",
+			showSparkline: "迷你走势图",
+			showStats: "数据",
+			showMarketState: "开盘或收盘状态",
+			showUpdated: "更新时间",
+			refresh: "刷新间隔（分钟）",
+			refreshDesc: "0 表示仅在打开面板时刷新。卡片之间共享报价，已收盘的市场最多每半小时检查一次。",
+		},
 		weather: {
 			location: "位置",
 			search: "查找地点",
@@ -2574,8 +2735,20 @@ export const zh: Translations = {
 			styleDetailed: "详细（指标网格）",
 			styleForecast: "预报（逐小时曲线）",
 			styleArtistic: "艺术（绘制的天空）",
+			styleMoon: "月亮（今晚的月相）",
+			design: "设计",
+			designDesc: "经典线条图标与手绘天空，或 Material 3 Expressive：扁平天气插画、标签与强调色色块。",
+			designClassic: "经典",
+			designExpressive: "Expressive",
+			styleDaylight: "日照（太阳的轨迹）",
 			animate: "让天空动起来",
 			animateDesc: "飘动的云、落下的雨与闪烁的星。低功耗模式下始终关闭。",
+			animateMoonDesc: "月亮升起并轻轻浮动，背后的形状缓缓旋转，星星闪烁。低功耗模式下始终关闭。",
+			animateSunDesc: "太阳沿轨迹走到当前时刻，并在那里缓缓旋转。低功耗模式下始终关闭。",
+			moonLayout: "布局",
+			moonLayoutDesc: "显示今晚月亮的全部信息，或只显示月亮及其在月中的位置。",
+			moonLayoutFull: "完整（夜空与详情）",
+			moonLayoutClean: "简洁（月亮与月相进度）",
 
 			units: "单位",
 			tempUnit: "温度",
@@ -2722,6 +2895,29 @@ export const zh: Translations = {
 			showMood: "显示心情",
 			showActivity: "显示今天的活跃度",
 		},
+		vaultPet: {
+			missing: "尚未安装 Vault Pet",
+			missingDesc:
+				"这张卡片用来承载 Vault Pet 社区插件。安装并启用后卡片会自行填充 —— " +
+				"无论如何这些设置都会保留。",
+			display: "显示",
+			displayDesc:
+				"两者都来自 Vault Pet 自身：它可以插入笔记的小卡片，或它的小屋视图，" +
+				"承载在这里而不是侧边栏。",
+			displayPet: "宠物",
+			displayHouse: "宠物小屋",
+			showHeader: "保留小屋的标题栏",
+			showHeaderDesc: "承载视图自带的标题栏默认隐藏 —— 卡片本身已经有一个。",
+			openButton: "“打开宠物小屋”按钮",
+			openButtonDesc: "卡片角落的一个按钮，像它的功能区图标一样在侧边栏打开 Vault Pet 的小屋。",
+		},
+		design: {
+			name: "设计",
+			desc: "经典，或 Material 3 Expressive：强调色的色调容器、胶囊与柔和形状。",
+			classic: "经典",
+			expressive: "Expressive",
+			followDefault: (design: string) => `默认（${design}）`,
+		},
 		colors: {
 			heading: "颜色",
 			headingDesc: "此卡片的强调色和背景色调。",
@@ -2777,6 +2973,9 @@ export const zh: Translations = {
 			bookmarksEmpty: "还没有书签",
 			favoritesEmpty: "请在设置中添加收藏",
 			recentEmpty: "没有最近文件",
+			folderEmpty: "此文件夹为空",
+			folderMissing: (path: string) =>
+				path ? `找不到文件夹“${path}”` : "请在卡片设置中选择文件夹",
 			linksEmpty: "请在设置中添加链接",
 			commandsEmpty: "请在卡片设置中添加命令",
 			templaterEnable: "请启用 Templater 插件以从模板创建笔记",
@@ -2798,11 +2997,14 @@ export const zh: Translations = {
 			gitNotReady: "尚未打开任何存储库 — 请在 Git 插件中配置一个",
 			rssNoSources: "请在卡片设置中添加订阅源",
 			weatherNoLocation: "请在卡片设置中选择一个位置",
+			marketNoSymbols: "请在卡片设置中添加股票、基金、货币或加密货币",
 			renderFailed: "此卡片无法绘制 — 详情请查看控制台",
 			leafPickView: "请在卡片设置中选择一个插件视图",
 			boardPickView: "请在仪表板设置中为本面板选择一个视图",
 			boardNeedsFile: "请在仪表板设置中为本面板选择一个文件",
 			leafViewMissing: "此视图不可用 — 请启用提供它的插件",
+			vaultPetInstall: "安装 Vault Pet 插件即可在此养一只宠物",
+			vaultPetNoHouse: "Vault Pet 的小屋不可用 — 请启用或更新该插件",
 			operonEnable: "请启用 Operon 插件以显示其任务",
 			operonDisabled: "Operon 集成已关闭 — 请在 设置 → Hearth → 集成 中开启",
 			operonUnsupported:
@@ -2818,6 +3020,15 @@ export const zh: Translations = {
 			operonNoTasks: "没有匹配的 Operon 任务",
 			operonNoAgenda: "此时段内没有安排",
 			operonNoColumns: "没有可显示的 Operon 状态 — 请在卡片设置中选择一个流程",
+		},
+		folder: {
+			browse: "浏览此文件夹",
+			/** The card's last row: what it isn't showing. */
+			more: (n: number) => `还有 ${n} 项…`,
+			missing: "库中已不存在此文件夹。",
+			/** The path row's back arrow, and the vault's own name in it. */
+			up: (name: string) => `返回 ${name}`,
+			vaultRoot: "库根目录",
 		},
 		operon: {
 			loading: "正在读取 Operon…",
@@ -2885,6 +3096,9 @@ export const zh: Translations = {
 					: `今天有 ${count} 篇笔记`,
 			streak: (days: number) => `连续 ${days} 天`,
 		},
+		vaultPet: {
+			openHouse: "打开宠物小屋",
+		},
 		embed: {
 			openFile: "打开此文件",
 			editHint: "双击以编辑",
@@ -2916,6 +3130,82 @@ export const zh: Translations = {
 			disabled: "订阅源已关闭（对外调用被禁用）",
 			refresh: "刷新",
 		},
+		market: {
+			types: {
+				equity: "股票",
+				etf: "ETF",
+				fund: "基金",
+				index: "指数",
+				currency: "外汇",
+				crypto: "加密货币",
+				future: "期货",
+				other: "",
+			},
+			states: {
+				open: "交易中",
+				pre: "盘前",
+				post: "盘后",
+				closed: "已收盘",
+			},
+			ranges: {
+				"1d": "1日",
+				"5d": "5日",
+				"1mo": "1月",
+				"6mo": "6月",
+				"1y": "1年",
+				"5y": "5年",
+			},
+			rangeNames: {
+				"1d": "一天",
+				"5d": "五天",
+				"1mo": "一个月",
+				"6mo": "六个月",
+				"1y": "一年",
+				"5y": "五年",
+			},
+			sources: {
+				yahoo: "Yahoo Finance",
+				tencent: "腾讯",
+				eastmoney: "东方财富",
+				coingecko: "CoinGecko",
+				frankfurter: "欧洲央行（Frankfurter）",
+			},
+			updated: (time: string) => `更新于 ${time}`,
+			loadingShort: "加载中…",
+			unavailable: "暂无数据",
+			disabled: "已禁用外部请求，无法获取行情",
+			noChart: "此区间暂无走势图",
+			dayRange: "日内区间",
+			yearRange: "52 周区间",
+			open: "开盘",
+			prevClose: "昨收",
+			volume: "成交量",
+			currency: "币种",
+			source: "来源",
+			asOf: "时间",
+			totalValue: "总市值",
+			noHoldings: "请在卡片设置中填写持有份额",
+			today: "今日",
+			totalGain: "累计",
+			notConverted: (n: number) => `${n} 项持仓未计入：缺少其币种的汇率`,
+			units: (n: number) => `${n.toLocaleString()} 份`,
+			position: "我的持仓",
+			unitsLabel: "份额",
+			value: "市值",
+			avgCost: "成本价",
+			costBasis: "持仓成本",
+			openInBrowser: "在浏览器中打开",
+			refresh: "刷新",
+			searchPlaceholder: "搜索股票、基金、外汇或加密货币",
+			searchDisabled: "已禁用外部请求，无法搜索",
+			searching: "搜索中…",
+			noResults: "未找到结果",
+			lookupHint: "在上方搜索名称、代码、基金代码或货币对，一键添加到卡片。",
+			back: "返回",
+			addToCard: "添加到卡片",
+			onCard: "已在卡片上",
+			added: (name: string) => `已添加 ${name}`,
+		},
 		weather: {
 			loading: "正在加载预报…",
 			error: "无法加载预报",
@@ -2935,6 +3225,36 @@ export const zh: Translations = {
 			/** Compass points, clockwise from north. Indexed by the bearing's
 			 * eighth — keep all eight, in this order. */
 			compass: ["北", "东北", "东", "东南", "南", "西南", "西", "西北"],
+			duration: (h: number, m: number) => (h ? `${h} 小时 ${m} 分钟` : `${m} 分钟`),
+			moon: {
+				label: "月亮",
+				phases: {
+					new: "新月",
+					waxingCrescent: "蛾眉月",
+					firstQuarter: "上弦月",
+					waxingGibbous: "盈凸月",
+					full: "满月",
+					waningGibbous: "亏凸月",
+					lastQuarter: "下弦月",
+					waningCrescent: "残月",
+				},
+				illuminated: (percent: string) => `照亮 ${percent}`,
+				age: (days: number) => `第 ${days} 天（共 29 天）`,
+				nextFull: "满月",
+				nextNew: "新月",
+				moonrise: "月出",
+				moonset: "月落",
+				inDays: (days: number) =>
+					days <= 0 ? "今天" : days === 1 ? "明天" : `${days} 天后`,
+				cycle: "今晚在朔望月中的位置",
+			},
+			daylight: {
+				until: (span: string) => `${span}后`,
+				dayLength: (span: string) => `日照 ${span}`,
+				polarDay: "今天太阳不落",
+				polarNight: "今天太阳不升",
+				arc: "太阳从日出到日落的轨迹",
+			},
 			/** The full-forecast dialog a weather card opens when it is clicked:
 			 * every reading the response carries, whatever the card shows. */
 			detail: {
@@ -3108,6 +3428,7 @@ export const zh: Translations = {
 			createEventNote: "创建笔记",
 			openEventNote: "打开笔记",
 			taskNotesSource: "TaskNotes",
+			checkboxSource: "任务",
 			taskDue: "到期",
 			taskTimeblock: "时间块",
 			taskComplete: "完成",
@@ -3116,6 +3437,7 @@ export const zh: Translations = {
 				minutes >= 60
 					? `${Math.floor(minutes / 60)} 小时${minutes % 60 ? ` ${minutes % 60} 分` : ""}`
 					: `${minutes} 分`,
+			openTaskLine: "在笔记中打开",
 			openTaskNote: "打开任务",
 		},
 		schedule: {
@@ -3145,6 +3467,8 @@ export const zh: Translations = {
 		},
 		bookmarks: {
 			untitled: "未命名",
+			needsSearch: "请启用核心插件「搜索」以打开已保存的搜索",
+			needsGraph: "请启用核心插件「关系图谱」以打开已保存的图谱",
 		},
 		tasks: {
 			createNewTask: "新建任务",
@@ -3357,6 +3681,7 @@ export const zh: Translations = {
 		bookmarks: "书签",
 		favorites: "收藏",
 		recent: "最近文件",
+		folder: "文件夹",
 		links: "链接 / 启动台",
 		commands: "命令",
 		templater: "从模板新建笔记",
@@ -3375,6 +3700,7 @@ export const zh: Translations = {
 		rss: "RSS 订阅",
 		jira: "Jira 筛选器",
 		weather: "天气",
+		market: "行情",
 		git: "Git",
 		"operon-tasks": "Operon 任务",
 		"operon-board": "Operon 看板",
@@ -3382,6 +3708,8 @@ export const zh: Translations = {
 		"operon-timer": "Operon 计时器",
 		leaf: "插件视图（测试版）",
 		pet: "宠物",
+		"vault-pet": "Vault Pet",
+		"vault-pet-house": "Vault Pet 小屋",
 	},
 
 	/** One line per template, shown under its name in the add-card picker and
@@ -3401,6 +3729,7 @@ export const zh: Translations = {
 		bookmarks: "您的 Obsidian 书签，一键可达",
 		favorites: "您在 Hearth 中标星的笔记",
 		recent: "您最近打开的文件",
+		folder: "文件夹下一层的内容，并可继续展开浏览",
 		links: "链接、笔记与文件夹的启动台",
 		commands: "运行 Obsidian 命令的按钮",
 		templater: "从 Templater 模板在您指定的文件夹中创建笔记的按钮",
@@ -3419,6 +3748,7 @@ export const zh: Translations = {
 		rss: "您关注的订阅源的头条",
 		jira: "来自 Jira 筛选器或 JQL 搜索的事项",
 		weather: "您所选地点的天气预报",
+		market: "股票、基金、外汇与加密货币实时行情",
 		git: "存储库状态，并可提交、拉取和推送",
 		"operon-tasks": "您的 Operon 任务，按您的喜好筛选",
 		"operon-board": "把 Operon 的流程状态作为看板列",
@@ -3426,6 +3756,8 @@ export const zh: Translations = {
 		"operon-timer": "Operon 正在运行的时间追踪，实时跳动",
 		leaf: "在卡片中承载另一个插件的侧边面板",
 		pet: "住在您面板上的小伙伴",
+		"vault-pet": "Vault Pet 插件的宠物，随着您的写作成长",
+		"vault-pet-house": "Vault Pet 的小屋 —— 任务、图鉴、徽章与统计",
 	},
 
 	// ---- Add-card picker -----------------------------------------------
@@ -3494,7 +3826,7 @@ export const zh: Translations = {
 			publishRemovesTune: "下方的详情会按同样的分组列出具体的值，也可以在那里调整移除的范围。",
 			publishRemoves: [
 				"笔记与文件夹路径——面板在你库中指向的一切",
-				"日历订阅源、内网主机，以及你的所在地",
+				"日历订阅源、内网主机、你的所在地，以及持仓",
 				"你在面板上写的文字——文本卡片的内容、计算器最后一次的算式",
 				"凭据——Jira 令牌，以及卡片可能保存的其他凭据",
 			],
@@ -3588,7 +3920,7 @@ export const zh: Translations = {
 			carriedNothing: "这个面板没有指向任何外部内容。",
 			groups: {
 				paths: "移除笔记与文件夹路径",
-				private: "移除日历订阅、内部主机与你的位置",
+				private: "移除日历订阅、内部主机、你的位置与持仓",
 				content: "移除你在面板上写下的文字",
 				queries: "移除搜索与 Dataview 查询",
 				plugins: "移除命令 ID 与视图类型",
@@ -3596,7 +3928,7 @@ export const zh: Translations = {
 			groupPinned: "发布时始终会移除。",
 			groupDesc: {
 				paths: "该面板在你库中指向的一切，以及每张内嵌图片的来源文件夹。若上面的壁纸开关是打开的，图片本身仍会随文件一起带走——被移除的只是它们所在的文件夹。",
-				private: "ICS 日历链接（拿到链接的人即可读取该日历）、内部 Jira 主机，以及天气卡片设定的地点。",
+				private: "ICS 日历链接（拿到链接的人即可读取该日历）、内部 Jira 主机、天气卡片设定的地点，以及投资组合中的份额和成本价。",
 				content: "文本卡片的正文与计算器最后一次输入——你随手写在自己仪表板上的内容。",
 				queries: "默认关闭：没有查询的面板将无事可做。若查询中出现私密文件夹名，值得开启。",
 				plugins: "默认关闭：它们指向插件而非你本人。移除后，运行它们的按钮将不起作用。",

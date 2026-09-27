@@ -16,13 +16,14 @@ import {
 	type VaultEventHub,
 	watchedCardReactsToKind,
 } from "./cardevents";
-import { cardClasses, cardDefinition, cardFromTemplate, cloneCard } from "./cards";
+import { cardClasses, cardDefinition, cardFromTemplate, cloneCard, resolveCardDesign } from "./cards";
 import { openCardPicker } from "./cardpicker";
 import { openGallery } from "./gallerybrowse";
 import { galleryConfigured } from "./gallery";
 import { openDashboardSettings } from "./dashboards";
 import { moveStacked, stackedCards, stackedHeight } from "./narrow";
 import { CardSettingsModal } from "./editors";
+import { stateDesign } from "./uidesign";
 import {
 	activeCards,
 	activeDashboard,
@@ -35,6 +36,7 @@ import {
 	effectiveFitToPage,
 	effectiveMaxWidth,
 	effectiveRowHeight,
+	performanceTier,
 	removeCard,
 	renderCards,
 	resolveCardBlur,
@@ -164,6 +166,18 @@ export function renderDashboard(
 		el.dataset.kind = card.kind;
 		const kindClasses = cardClasses(card);
 		if (kindClasses.length) el.addClass(...kindClasses);
+		const design = resolveCardDesign(s, card);
+		// The frame follows the card's design whatever its kind: an Expressive
+		// card sits on a tonal, opaque surface with Material's large corners
+		// (see "The Expressive card frame" in styles.css). The body's own
+		// Expressive drawing is only for kinds that have one.
+		el.toggleClass("is-x-frame", design === "expressive");
+		if (cardDefinition(card).expressive && design === "expressive") {
+			el.addClass("is-expressive");
+		}
+		// Stated whether or not the kind draws an Expressive body, so a dialog
+		// or menu opened from the card takes the card's design (src/uidesign.ts).
+		stateDesign(el, design);
 		if (card.accent) {
 			el.style.setProperty("--card-accent", card.accent);
 			el.addClass("has-accent");
@@ -186,7 +200,9 @@ export function renderDashboard(
 		// A seamless card paints no surface of its own, so frosting the wallpaper
 		// behind it would leave a blurred rectangle floating on the board with no
 		// card on it. Such a card never joins a frost layer.
-		const cardBlur = kindClasses.includes("is-seamless") ? 0 : resolveCardBlur(s, card);
+		// An Expressive frame is opaque, so there is nothing behind it to frost.
+		const cardBlur =
+			kindClasses.includes("is-seamless") || design === "expressive" ? 0 : resolveCardBlur(s, card);
 		if (cardBlur > 0) {
 			el.addClass("has-blur");
 			el.dataset.blur = String(cardBlur);
@@ -311,7 +327,36 @@ export function renderDashboard(
 		// then snapped back once the debounced observer squeezed it. Fitting up
 		// front means the very first painted frame is already the final layout.
 		window.requestAnimationFrame(refit);
-		const observer = new ResizeObserver(debounce(refit, 60, true));
+		// A fitted card is placed in whole pixels, not in the percentages a
+		// scrolling board uses, so it does not follow a resize on its own: until
+		// the refit runs it keeps the width of the pane it was fitted to. The
+		// debounce resets on every call, so during a drag of the pane edge the
+		// refit waited for the pointer to stop and the cards then jumped into
+		// place all at once (#326).
+		//
+		// On the full tier the cards are therefore re-placed on every observer
+		// callback. That callback runs after layout and before paint, once a
+		// frame, and placing cards cannot resize the grid it observes (they are
+		// absolutely positioned and a fitted grid has no min-height), so it
+		// follows the pane frame for frame without looping. Only the edge merge
+		// — which measures every card and rebuilds the frosted glass — stays
+		// debounced, exactly as it is on a scrolling board. The lower tiers keep
+		// the single refit once the resize settles: a jump at the end of a drag
+		// is the price of not re-laying out the board sixty times a second.
+		const onResize =
+			performanceTier(view.plugin.settings) === "full"
+				? (() => {
+						const remerge = debounce(() => {
+							if (grid.isConnected) applyEdgeMerging(grid);
+						}, 120, true);
+						return () => {
+							if (!grid.isConnected) return;
+							applyFitLayout(grid, gridLayout);
+							remerge();
+						};
+					})()
+				: debounce(refit, 60, true);
+		const observer = new ResizeObserver(onResize);
 		observer.observe(grid);
 		component.register(() => observer.disconnect());
 	}

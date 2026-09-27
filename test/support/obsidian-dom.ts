@@ -17,6 +17,17 @@
  * work in Obsidian — which is exactly the mistake this exists to catch, since
  * `Document` is a `Node` and a Document may hold only one element child.
  *
+ * The same names also exist as **globals**, and there the contract is the
+ * opposite one:
+ *
+ *     function createEl(tag, o?, callback?)
+ *     function createDiv(o?, callback?)
+ *     function createSpan(o?, callback?)
+ *
+ * A global call has no node to append to, so it returns a *detached* element
+ * (unless `o.parent` names one). Both halves are installed here, because code
+ * that reaches for a detached element has to be exercisable too.
+ *
  * Call `installObsidianDom()` once per test file, before importing anything
  * that uses the helpers at module scope.
  */
@@ -52,17 +63,30 @@ function apply(el: HTMLElement, o?: DomInfo | string): void {
 	}
 }
 
-/** The one implementation the three helpers share. */
-function make(node: Node, tag: string, o?: DomInfo | string, cb?: (el: HTMLElement) => void): HTMLElement {
-	const doc = node.ownerDocument ?? (node as Document);
+/** Build the element itself. `parent` is where it goes, or `null` to leave it
+ * detached — which is the whole difference between the two contracts. */
+function build(doc: Document, tag: string, parent: Node | null, o?: DomInfo | string, cb?: (el: HTMLElement) => void): HTMLElement {
 	const el = doc.createElement(tag);
 	apply(el, o);
-	// The contract: created *and appended to this node*.
-	const parent = typeof o === "object" && o.parent ? o.parent : node;
-	if (typeof o === "object" && o.prepend) parent.insertBefore(el, parent.firstChild);
-	else parent.appendChild(el);
+	const host = (typeof o === "object" && o.parent ? o.parent : parent) ?? null;
+	if (host) {
+		if (typeof o === "object" && o.prepend) host.insertBefore(el, host.firstChild);
+		else host.appendChild(el);
+	}
 	cb?.(el);
 	return el;
+}
+
+/** The one implementation the three *methods* share. */
+function make(node: Node, tag: string, o?: DomInfo | string, cb?: (el: HTMLElement) => void): HTMLElement {
+	const doc = node.ownerDocument ?? (node as Document);
+	// The contract: created *and appended to this node*.
+	return build(doc, tag, node, o, cb);
+}
+
+/** The one implementation the three *globals* share: detached, main document. */
+function makeLoose(tag: string, o?: DomInfo | string, cb?: (el: HTMLElement) => void): HTMLElement {
+	return build(document, tag, null, o, cb);
 }
 
 export function installObsidianDom(): void {
@@ -79,6 +103,36 @@ export function installObsidianDom(): void {
 		return make(this, "span", o, cb);
 	};
 
+	// `window`, not `globalThis`: jsdom hangs the globals off the window, and it
+	// is the object Obsidian itself declares them on.
+	const root = window as unknown as Record<string, unknown>;
+	root.createEl = (tag: string, o?: DomInfo | string, cb?: (el: HTMLElement) => void) => makeLoose(tag, o, cb);
+	root.createDiv = (o?: DomInfo | string, cb?: (el: HTMLElement) => void) => makeLoose("div", o, cb);
+	root.createSpan = (o?: DomInfo | string, cb?: (el: HTMLElement) => void) => makeLoose("span", o, cb);
+
+	// SVG children, created in the SVG namespace and appended. Obsidian hands
+	// `cls` straight to `classList.add()` here — unlike createDiv, which sets the
+	// class attribute — so a single string holding two classes throws
+	// InvalidCharacterError in Obsidian, and must throw here too. That exact
+	// difference shipped a weather card that could not render.
+	elProto.createSvg = function (
+		this: Element,
+		tag: string,
+		o?: { cls?: string | string[]; attr?: Record<string, string | number | boolean | null> } | string,
+		cb?: (el: SVGElement) => void,
+	) {
+		const doc = this.ownerDocument ?? document;
+		const el = doc.createElementNS("http://www.w3.org/2000/svg", tag);
+		const info = typeof o === "string" ? { cls: o } : (o ?? {});
+		if (info.cls) el.classList.add(...(Array.isArray(info.cls) ? info.cls : [info.cls]));
+		for (const [k, v] of Object.entries(info.attr ?? {})) {
+			if (v !== null && v !== false) el.setAttribute(k, String(v));
+		}
+		this.appendChild(el);
+		cb?.(el);
+		return el;
+	};
+
 	elProto.addClass = function (this: Element, ...cls: string[]) { this.classList.add(...cls); };
 	elProto.removeClass = function (this: Element, ...cls: string[]) { this.classList.remove(...cls); };
 	elProto.toggleClass = function (this: Element, cls: string, on: boolean) { this.classList.toggle(cls, on); };
@@ -86,4 +140,12 @@ export function installObsidianDom(): void {
 	elProto.empty = function (this: Element) { while (this.firstChild) this.removeChild(this.firstChild); };
 	elProto.detach = function (this: Element) { this.remove(); };
 	elProto.setText = function (this: Element, text: string) { this.textContent = text; };
+	// HTMLElement and SVGElement both carry these (obsidian.d.ts): styles are
+	// assigned onto `style`, props are custom properties set one by one.
+	elProto.setCssStyles = function (this: HTMLElement, styles: Partial<CSSStyleDeclaration>) {
+		Object.assign(this.style, styles);
+	};
+	elProto.setCssProps = function (this: HTMLElement, props: Record<string, string>) {
+		for (const [key, value] of Object.entries(props)) this.style.setProperty(key, value);
+	};
 }

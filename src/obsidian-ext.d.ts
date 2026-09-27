@@ -1,5 +1,6 @@
 import "obsidian";
 import { Command, EventRef, TFile, TFolder } from "obsidian";
+import type { BookmarkItem } from "./bookmarks";
 import type { GitStatus } from "./git";
 
 // Minimal typings for Obsidian internals that aren't part of the public API
@@ -91,6 +92,14 @@ declare module "obsidian" {
 		containerEl: HTMLElement;
 	}
 
+	/** The menu's element. Not in the public typings, but built in the
+	 * constructor and long relied on by community plugins to add a class to a
+	 * menu; optional here because a native (OS-drawn) menu has none to style.
+	 * Used only to dress Hearth's own menus (see `src/uidesign.ts`). */
+	interface Menu {
+		dom?: HTMLElement;
+	}
+
 	interface FileManager {
 		createNewMarkdownFile(folder: TFolder, baseName?: string): Promise<TFile>;
 		processFrontMatter(file: TFile, fn: (frontmatter: Record<string, unknown>) => void): Promise<void>;
@@ -110,14 +119,22 @@ export interface WorkspacesInstance {
 	activeWorkspace?: string;
 }
 
-// Shape of an Obsidian core "Bookmarks" item we care about. `type` is one of
-// "file" | "folder" | "search" | "group" | "url" (and possibly others), kept as
-// a plain string since the literals collapse into it anyway.
-export interface BookmarkItem {
-	type: string;
-	title?: string;
-	path?: string;
-	url?: string;
-	query?: string;
+/** The core "Bookmarks" plugin instance, as far as the card uses it.
+ *
+ * `items` is the nested tree and `getBookmarks()` the flat list — see the note
+ * in `src/cards/bookmarks.ts` for why only the first is walkable. The instance
+ * extends Obsidian's `Events` and fires `changed` whenever the store is written
+ * (added, removed, renamed, reordered), which is the only way to notice: the
+ * store lives in the config folder, so no vault event covers it. */
+export interface BookmarksInstance {
 	items?: BookmarkItem[];
+	getBookmarks?: () => BookmarkItem[];
+	on?(name: "changed", callback: () => unknown, ctx?: unknown): EventRef;
+	off?(name: "changed", callback: () => unknown): void;
+}
+
+/** The core "Search" plugin instance: the one call that hands a query to
+ * Obsidian's own search pane. */
+export interface GlobalSearchInstance {
+	openGlobalSearch?: (query: string) => void;
 }

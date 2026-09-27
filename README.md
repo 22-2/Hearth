@@ -18,7 +18,7 @@ Think of it as a new-tab dashboard, start page and command launcher in one.
 
 - 🔍 **Search everything** — fuzzy, full-text, tags, frontmatter and commands
 - 🧩 **35+ cards** — embeds, tasks, calendars, Dataview, Git, Jira, Operon, and more
-- 🔌 **25 integrations** — picked up automatically when the plugin is enabled
+- 🔌 **26 integrations** — picked up automatically when the plugin is enabled
 - 🎛️ **Free-form layout** — drag, resize and snap cards anywhere
 - 🪟 **Frosted glass** — per-card opacity, blur, color and corner radius
 - 🗂️ **Multiple dashboards** — switch with a click or a hotkey
@@ -157,6 +157,7 @@ the bottom of the rail opens a pre-filled GitHub issue or email.
 | **Excalidraw drawing** | A drawing with native pan and zoom | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) |
 | **Embedded base** | A `.base` file, rendered by Obsidian's Bases | Bases (core) |
 | **Recent files** | The files you opened most recently | — |
+| **Folder** | What is in a folder, one level down, in the file explorer's own order — with a browser behind it: a breadcrumb, every subfolder opened one level, and any folder on the page steppable into | — |
 | **Favorites** | The notes you starred in Hearth | — |
 | **Bookmarks** | Your Obsidian bookmarks, with site favicons | Bookmarks (core) |
 
@@ -223,7 +224,8 @@ Categorized as **Integrations** in the picker.
 | **Git** | Branch, staged and changed files, unpushed commits and recent log, with commit / sync / push / pull / stage / discard buttons and per-file diffs | [Git](https://github.com/Vinzent03/obsidian-git) |
 | **Jira filter** | Issues from a saved Jira filter or JQL search, filtered by status, assignee, priority, type, sprint and version | Jira over HTTPS |
 | **RSS feed** | Headlines from any RSS 2.0 or Atom feed you follow | Network |
-| **Weather** | Current conditions and forecast from [Open-Meteo](https://open-meteo.com) in five styles, up to an edge-to-edge painted sky that follows real conditions and time of day — click a card for the full forecast, hour by hour | Network |
+| **Weather** | Current conditions and forecast from [Open-Meteo](https://open-meteo.com) in seven styles, up to an edge-to-edge painted sky that follows real conditions and time of day, tonight's moon phase and the sun's arc from sunrise to sunset — click a card for the full forecast, hour by hour | Network |
+| **Markets** | Stocks, ETFs, funds, indices, forex and crypto from most of the world's exchanges — Chinese on- and off-exchange funds included — as a single price, a spotlight with a chart, an edge-to-edge chart, a watchlist, tiles, a ticker tape, a portfolio with gains in one currency, or a search field on the card. Classic or Material 3 Expressive; red-up or green-up. Click anything for the full chart and stats | Network |
 | **Operon tasks / board / agenda / timer** | Four cards on [Operon](https://github.com/hasanyilmaz/operon)'s own API — a task list, a pipeline board, a few days' agenda, and the running time tracker | Operon (desktop) |
 | **Plugin view** *(beta)* | Another plugin's side-panel view (calendar, outline, tag pane, Kanban…) hosted in a card, optionally pinned to one file | A plugin with a view |
 
@@ -244,6 +246,7 @@ from you.
 | Card | What it shows | Needs |
 | --- | --- | --- |
 | **Pet** | A pixel-art companion (cat, dog, bird, fox, frog or blob) whose mood follows your vault — content, happy, bored, or asleep on a quiet day, with drawn animation and eyes that follow your pointer. Set a night window, name it, color it. Nothing to lose; clicking it earns hearts | — |
+| **Vault Pet** | The [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) plugin's own pet, living on the board: its card (sprite, level, streak, click to pet) or its whole house — quests, dex, badges, wardrobe and stats | [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) |
 
 Everything is **live**: embeds and editable notes follow vault events without
 losing your cursor, data cards redraw on vault and metadata changes, and web
@@ -272,6 +275,7 @@ full list, with live status and where each one's settings live, is under
 | [Iconic](https://obsidian.md/plugins?id=iconic) / [Iconize](https://obsidian.md/plugins?id=obsidian-icon-folder) | Your per-file icons show wherever Hearth lists a file | Integrations tab |
 | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) | Drawings render live in Embed cards; "New drawing" runs its command | The card |
 | [Kanban](https://github.com/obsidian-community/obsidian-kanban) | Tasks cards read and write its board notes in its own format | The card |
+| [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) | The Vault Pet card gives the plugin a place on the board — its own pet card, or its whole pet house | The card |
 
 **Obsidian core plugins**
 
@@ -294,11 +298,12 @@ network → Disable external calls**.
 | --- | --- | --- |
 | [Open-Meteo](https://open-meteo.com) | Weather cards and the live weather sky | None. Only the coordinates you pick are sent, and a pinned sky needs no location at all |
 | [Frankfurter](https://www.frankfurter.app/) (ECB rates) | Calculator currency conversion | None |
+| [Yahoo Finance](https://finance.yahoo.com), [Tencent](https://gu.qq.com), [Eastmoney](https://fund.eastmoney.com), [CoinGecko](https://www.coingecko.com), [Frankfurter](https://www.frankfurter.app/) | Markets cards. None is an official API, so a card falls back to the next source that carries the same instrument | None. Only the symbols on your cards (and what you type into a search) are sent |
 | Jira Cloud / Server | Jira cards, over REST with bearer PAT auth | Yours, entered on the card; exports never include the PAT |
 | RSS / Atom feeds | RSS cards | None |
 | ICS / webcal feeds | Mini calendar subscriptions (Google, iCloud, Fastmail, Nextcloud…) | The feed URL |
 | DuckDuckGo, Brave, Kagi, Google, Mojeek, Ecosia, Qwant | The search bar's optional web-search button, whichever engine you pick for it | None |
-| Whatever host you name | A background image or title icon given as a web address; the bundled default wallpaper is one of these, served from `raw.githubusercontent.com` | None |
+| Whatever host you name | A background image or title icon given as a web address | None |
 
 ### Operon
 

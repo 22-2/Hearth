@@ -174,6 +174,23 @@ Kanban.
 
 **Configured in:** the card itself.
 
+### Vault Pet
+
+**What Hearth does with it:** the **Vault Pet** card gives
+[Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) a place on
+the board — either the plugin's own pet card (its sprite, level bar, today's
+count and streak, clickable to pet) or its whole pet house, with quests, dex,
+badges, wardrobe and stats, hosted in the card instead of the sidebar.
+
+Both are the plugin's own surfaces: Hearth draws no pet of its own here and
+stores nothing about yours. The pet, its XP, everything it unlocks and all of
+its settings stay in Vault Pet, and nothing here resets or duplicates them. (For
+Hearth's *own* pixel pet, which needs no plugin at all, see
+[chapter 9](09-cards-vault-tools-and-fun.md#the-pet-card).)
+
+**Configured in:** the card itself — plus Vault Pet's own settings for
+everything about the pet.
+
 ---
 
 ## Obsidian core plugins
@@ -204,12 +221,13 @@ Privacy & network**. See [chapter 17](17-privacy-and-network.md).
 | Service | Used by | Account or key needed |
 | --- | --- | --- |
 | [Open-Meteo](https://open-meteo.com) | Weather cards and the live weather sky | None. Only the coordinates you pick are sent, and a pinned sky needs no location at all |
-| [Frankfurter](https://www.frankfurter.app/) (European Central Bank rates) | Calculator currency conversion | None |
+| [Frankfurter](https://www.frankfurter.app/) (European Central Bank rates) | Calculator currency conversion; Markets forex and portfolio totals | None |
+| [Yahoo Finance](https://finance.yahoo.com), [Tencent](https://gu.qq.com), [Eastmoney](https://fund.eastmoney.com), [CoinGecko](https://www.coingecko.com) | Markets cards | None. Only the symbols on your cards are sent |
 | Jira Cloud or Jira Server | Jira cards, over REST with bearer PAT authentication | Yours, entered on the card. Exports never include the token |
 | RSS and Atom feeds | RSS cards | None |
 | ICS and webcal feeds | Mini calendar subscriptions — Google, iCloud, Fastmail, Nextcloud and others | The feed URL |
 | DuckDuckGo, Brave, Kagi, Google, Mojeek, Ecosia, Qwant | The search bar's optional web-search button | None |
-| Whatever host you name | A background image or title icon given as a web address. Hearth's own bundled default wallpaper is one of these, served from `raw.githubusercontent.com` | None |
+| Whatever host you name | A background image or title icon given as a web address | None |
 | A dashboard gallery server | The gallery browser and publisher | An anonymous handle Hearth generates locally, needed only for voting and publishing |
 
 ---

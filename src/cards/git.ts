@@ -1,4 +1,5 @@
-import { Component, Menu, Notice, setIcon, Setting, TFile } from "obsidian";
+import { Component, Notice, setIcon, Setting, TFile } from "obsidian";
+import { hearthMenu } from "../uidesign";
 import { emptyState, moment } from "../cardbodies";
 import { addResetButton, moveItem } from "../editors";
 import {
@@ -35,7 +36,7 @@ import {
 import { t } from "../i18n";
 import { openFile } from "../opener";
 import { effectiveAutoRefreshMinutes, type DashboardCard } from "../types";
-import { confirmAction, makeClickable } from "../ui";
+import { confirmAction, inExpressiveCard, makeClickable } from "../ui";
 import { type HomeView } from "../view";
 import { type CardDefinition, type CardEditorContext } from "./definition";
 
@@ -213,6 +214,7 @@ function renderGitBody(
 			confirmAction(view.app, {
 				title: t().cards.git.confirmTitle,
 				message: t().cards.git.confirmDiscard,
+				expressive: inExpressiveCard(body),
 				confirmText: t().cards.git.confirmDiscardButton,
 				onConfirm: start,
 			});
@@ -478,7 +480,7 @@ function paintChangeRow(
 
 	el.addEventListener("contextmenu", (evt) => {
 		evt.preventDefault();
-		const menu = new Menu();
+		const menu = hearthMenu();
 		const strings = t().cards.git;
 		if (plugin.tools?.openDiff) {
 			menu.addItem((item) =>
@@ -508,15 +510,19 @@ function paintChangeRow(
 					}),
 			);
 		}
+		// Discarding loses work, so it sits in a group of its own.
+		menu.addSeparator();
 		menu.addItem((item) =>
 			item
 				.setTitle(strings.discardFile)
 				.setIcon("undo")
+				.setWarning(true)
 				.onClick(() => {
 					confirmAction(view.app, {
 						title: t().cards.git.confirmTitle,
 						message: t().cards.git.confirmDiscardFile(row.name),
 						confirmText: t().cards.git.confirmDiscardButton,
+						expressive: inExpressiveCard(el),
 						onConfirm: () => {
 							queueGitFileAction(plugin, "discard", row.path, refresh);
 						},
@@ -817,5 +823,6 @@ export const gitCard: CardDefinition<"git"> = {
 	},
 	// The card drives its own updates off obsidian-git's events, which say far
 	// more precisely than a vault event whether anything git-visible changed.
+	expressive: true,
 	liveness: { mode: "static" },
 };

@@ -1,9 +1,11 @@
-import { Menu, Setting, setIcon } from "obsidian";
+import { Setting, setIcon } from "obsidian";
+import { hearthMenu } from "./uidesign";
 import type { HomeView } from "./view";
 import {
 	type BackgroundConfig,
 	type BackgroundKind,
 	backgroundIsRemote,
+	retuneBackground,
 	type BackgroundLayout,
 	BANNER_HEIGHT_MAX,
 	BANNER_HEIGHT_MIN,
@@ -33,7 +35,7 @@ import {
 	NARROW_WIDTH_STEP,
 	newDashboardId,
 } from "./types";
-import { cloneCard } from "./cards";
+import { classicCardsInUse, cloneCard } from "./cards";
 import { FILE_TYPE_GROUPS, fileTypeLabel } from "./filetypes";
 import { openExportDashboard, pickAndImport } from "./exportimport";
 import {
@@ -99,7 +101,8 @@ const DEFAULT_HEADER_SPACING_BELOW = 28;
 /**
  * The top-left dashboard switcher: a button per dashboard (its emoji/icon or its
  * 1-based number) plus a "+" to add one. Clicking switches to it; right-clicking
- * opens a menu to edit its settings or delete it.
+ * opens a menu to edit its settings or delete it (delete is also in the
+ * dashboard settings modal's footer).
  */
 export function renderDashboardSwitcher(
 	view: HomeView,
@@ -189,14 +192,17 @@ export function openDashboardSettings(view: HomeView, dash: Dashboard): void {
 	new DashboardSettingsModal(view, dash).open();
 }
 
-/** Context menu for a single dashboard button: settings and delete. */
+/** Context menu for a single dashboard button, in three groups — the board
+ * itself, moving it in and out of the vault, and deleting it — so the one
+ * destructive entry stands apart (an Expressive menu draws each group as a
+ * container of its own). */
 function showDashboardMenu(
 	view: HomeView,
 	dash: Dashboard,
 	evt: MouseEvent,
 ): void {
 	const s = view.plugin.settings;
-	const menu = new Menu();
+	const menu = hearthMenu();
 
 	menu.addItem((item) =>
 		item
@@ -219,6 +225,8 @@ function showDashboardMenu(
 			}),
 	);
 
+	menu.addSeparator();
+
 	menu.addItem((item) =>
 		item
 			.setTitle(t().dashboards.menu.exportBoard)
@@ -233,31 +241,45 @@ function showDashboardMenu(
 			.onClick(() => void pickAndImport(view.plugin)),
 	);
 
+	menu.addSeparator();
+
 	menu.addItem((item) =>
 		item
 			.setTitle(t().dashboards.menu.delete)
 			.setIcon("trash-2")
+			.setWarning(true)
 			// Always keep at least one dashboard around.
 			.setDisabled(s.dashboards.length <= 1)
-			.onClick(() => {
-				confirmAction(view.app, {
-					title: t().dashboards.deleteTitle,
-					message: t().dashboards.deleteMessage(dash.name, dash.cards.length),
-					confirmText: t().dashboards.deleteConfirm,
-					onConfirm: () => {
-						const i = s.dashboards.findIndex((d) => d.id === dash.id);
-						if (i >= 0) s.dashboards.splice(i, 1);
-						if (s.activeDashboardId === dash.id) {
-							s.activeDashboardId = s.dashboards[0].id;
-						}
-						void view.plugin.saveData(s);
-						view.render();
-					},
-				});
-			}),
+			.onClick(() => confirmDeleteDashboard(view, dash)),
 	);
 
 	menu.showAtMouseEvent(evt);
+}
+
+/** Ask, then delete `dash`. Shared by the switcher's right-click menu and the
+ * settings modal footer. `onDeleted` runs after the board is gone. Callers
+ * keep at least one dashboard around by not offering this for the last one. */
+function confirmDeleteDashboard(
+	view: HomeView,
+	dash: Dashboard,
+	onDeleted?: () => void,
+): void {
+	const s = view.plugin.settings;
+	confirmAction(view.app, {
+		title: t().dashboards.deleteTitle,
+		message: t().dashboards.deleteMessage(dash.name, dash.cards.length),
+		confirmText: t().dashboards.deleteConfirm,
+		onConfirm: () => {
+			const i = s.dashboards.findIndex((d) => d.id === dash.id);
+			if (i >= 0) s.dashboards.splice(i, 1);
+			if (s.activeDashboardId === dash.id) {
+				s.activeDashboardId = s.dashboards[0].id;
+			}
+			void view.plugin.saveData(s);
+			onDeleted?.();
+			view.render();
+		},
+	});
 }
 
 /** Per-dashboard settings: name, switcher icon, dashboard chrome, and optional
@@ -344,9 +366,19 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		}
 	}
 
-	/** Persistent footer shared by every tab: close the modal. */
+	/** Persistent footer shared by every tab: delete the dashboard, or close. */
 	protected hearthRenderFooter(footer: HTMLElement): void {
-		new Setting(footer).addButton((b) =>
+		const setting = new Setting(footer);
+		// Always keep at least one dashboard around.
+		if (this.view.plugin.settings.dashboards.length > 1) {
+			setting.addButton((b) => {
+				b.setButtonText(t().dashboards.modal.deleteDashboard).onClick(() =>
+					confirmDeleteDashboard(this.view, this.dash, () => this.close()),
+				);
+				b.buttonEl.addClass("hearth-danger-btn");
+			});
+		}
+		setting.addButton((b) =>
 			b
 				.setButtonText(t().dashboards.modal.done)
 				.setCta()
@@ -1260,6 +1292,37 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				});
 			});
 
+		// The design first: it decides whether the surface settings below apply.
+		this.hearthGroupBreak(containerEl);
+		const designs = {
+			classic: t().editors.design.classic,
+			expressive: t().editors.design.expressive,
+		};
+		this.overrideChoice(
+			containerEl,
+			t().dashboards.modal.cardDesign,
+			t().dashboards.modal.cardDesignDesc,
+			dash.cardDesign,
+			designs,
+			designs[s.cardDesign ?? "classic"],
+			(v) => {
+				dash.cardDesign = v;
+			},
+			true,
+		);
+
+		// Opacity, blur, radius and border shape the Classic frame only; on a
+		// board with no Classic card they step aside for a line saying why.
+		this.hearthGroupBreak(containerEl);
+		if (!classicCardsInUse(s, dash)) {
+			const note = new Setting(containerEl).setDesc(t().settings.dashboard.cardSurfaceExpressive);
+			note.settingEl.addClass("hearth-setting-note");
+			const icon = createSpan("hearth-setting-note-icon");
+			setIcon(icon, "shapes");
+			note.descEl.prepend(icon);
+			return;
+		}
+
 		this.overrideSlider(
 			containerEl,
 			t().dashboards.modal.cardOpacity,
@@ -1368,19 +1431,24 @@ class DashboardSettingsModal extends HearthTabbedModal {
 						d.addOption(k, label);
 					},
 				);
-				d.setValue(bg ? bg.kind : "default").onChange((v) => {
+				// The dropdown's "default" means "follow the vault", so Hearth's
+				// own wallpaper — the "default" kind — goes by "hdefault" here.
+				d.setValue(!bg ? "default" : bg.kind === "default" ? "hdefault" : bg.kind).onChange((v) => {
 					if (v === "default") {
 						dash.background = undefined;
 					} else {
-						const opacity = bg?.opacity ?? DEFAULT_DASH_BG_OPACITY;
-						dash.background = {
-							kind: v as BackgroundKind,
-							value: bg?.value ?? "",
-							// See the same lift in the global background settings:
-							// the photo default (0.35) mutes the sky to a slab.
-							opacity: v === "weather" && opacity <= 0.5 ? 1 : opacity,
-							blur: bg?.blur ?? DEFAULT_DASH_BG_BLUR,
-						};
+						const kind = v === "hdefault" ? "default" : (v as BackgroundKind);
+						// Retuned from the backdrop the board shows now — its own,
+						// or the vault's — as the global setting does.
+						const tuned = retuneBackground(
+							bg?.kind ?? this.view.plugin.settings.backgroundKind,
+							kind,
+							{
+								opacity: bg?.opacity ?? DEFAULT_DASH_BG_OPACITY,
+								blur: bg?.blur ?? DEFAULT_DASH_BG_BLUR,
+							},
+						);
+						dash.background = { kind, value: bg?.value ?? "", ...tuned };
 					}
 					this.commit();
 					this.render();
@@ -1413,7 +1481,8 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		// resolves the kind instead of testing the override. It sits with the
 		// banner controls for the same reason those do: it says how the board
 		// wears its backdrop, not what the backdrop is.
-		if ((bg?.kind ?? this.view.plugin.settings.backgroundKind) === "weather") {
+		const drawnKind = bg?.kind ?? this.view.plugin.settings.backgroundKind;
+		if (drawnKind === "weather") {
 			this.overrideBool(
 				containerEl,
 				t().dashboards.modal.skyAnimate,
@@ -1428,6 +1497,28 @@ class DashboardSettingsModal extends HearthTabbedModal {
 				},
 				(v) => {
 					dash.backgroundSkyAnimate = v;
+				},
+			);
+		}
+		// Hearth's own wallpaper is drawn in the same two designs as the sky, so
+		// it takes the same override.
+		if (drawnKind === "weather" || drawnKind === "default") {
+			const sky = t().settings.background;
+			const designs = {
+				classic: sky.skyDesignClassic,
+				expressive: sky.skyDesignExpressive,
+			};
+			this.overrideChoice(
+				containerEl,
+				t().dashboards.modal.skyDesign,
+				drawnKind === "default"
+					? t().dashboards.modal.wallpaperDesignDesc
+					: t().dashboards.modal.skyDesignDesc,
+				dash.backgroundSkyDesign,
+				designs,
+				designs[this.view.plugin.settings.backgroundSkyDesign ?? "classic"],
+				(v) => {
+					dash.backgroundSkyDesign = v;
 				},
 			);
 		}
@@ -1450,7 +1541,12 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			});
 		}
 
-		if (bg.kind !== "default" && bg.kind !== "animated" && bg.kind !== "weather") {
+		if (
+			bg.kind !== "default" &&
+			bg.kind !== "harbour" &&
+			bg.kind !== "animated" &&
+			bg.kind !== "weather"
+		) {
 			const desc =
 				bg.kind === "color"
 					? t().dashboards.backgroundValueDesc.color

@@ -155,70 +155,29 @@ export const en = {
 	setup: {
 		/** Short labels on the progress rail. */
 		stepNames: {
-			welcome: "Welcome",
-			vault: "Your vault",
-			look: "Look",
 			purpose: "What for",
-			integrations: "Integrations",
-			finish: "Finish",
+			look: "Look",
+			finish: "Your board",
 		},
 		/** The heading at the top of each step. */
 		stepTitles: {
-			welcome: "Welcome to Hearth",
-			vault: "Name your home screen",
+			purpose: "What's your vault for?",
 			look: "Pick a look",
-			purpose: "What do you use your vault for?",
-			integrations: "Found in your vault",
-			finish: "Here's your dashboard",
+			finish: "Here's your home screen",
 		},
 		/** The line under each heading. */
 		stepDescs: {
-			welcome: "A few questions, then Hearth builds your first dashboard.",
-			vault: "The title and its icon across the top of this board.",
-			look:
-				"This applies to the board being built — every other board keeps its " +
-				"own look. You can change any of it later from the board's own settings.",
-			purpose: "Pick as many as you like — each one adds cards to your board.",
-			integrations:
-				"Hearth found these already installed. Turn on the ones you'd like it to use.",
-			finish:
-				"Nothing has been changed yet. Here's what will be built — as one " +
-				"dashboard, leaving your vault-wide settings alone.",
+			purpose:
+				"Pick as many as you like and Hearth picks the cards. Three quick steps, " +
+				"and all of it can be changed later.",
+			look: "For the board being built. Every other board keeps its own look.",
+			finish: "Nothing has been changed yet. This is what will be built.",
 		},
 		nav: {
 			back: "Back",
 			next: "Next",
 			finish: "Build my dashboard",
 			skip: "Skip setup",
-		},
-		welcome: {
-			lead:
-				"Hearth turns a tab into a home screen for your vault — search, a dashboard " +
-				"of cards, and a launcher. This wizard sets up a board that fits how you " +
-				"actually work, so you're not starting from a blank grid.",
-			bullets: [
-				{
-					icon: "layout-dashboard",
-					title: "A dashboard built for you",
-					desc: "Tell Hearth what you use your vault for and it picks the cards.",
-				},
-				{
-					icon: "plug",
-					title: "Your plugins, already wired up",
-					desc:
-						"Hearth looks for TaskNotes, Dataview, Git and more, and offers to " +
-						"connect them — reading their own settings so cards work right away.",
-				},
-				{
-					icon: "palette",
-					title: "A look you choose",
-					desc: "Background, card style and density, set in one step.",
-				},
-			],
-			detected: (names: string) => `Found in this vault: ${names}.`,
-			detectedNone:
-				"No supported plugins detected yet — that's fine, Hearth works on its own " +
-				"and you can connect them later.",
 		},
 		vault: {
 			title: "Title",
@@ -241,6 +200,8 @@ export const en = {
 			showSearchDesc: "The search and command field under the title.",
 		},
 		look: {
+			designHeading: "Design",
+			designNote: "This one applies to all of Hearth, not just this board. Change it any time in Settings → Hearth → Appearance.",
 			surfaceHeading: "Cards",
 			backgroundHeading: "Background",
 			color: "Colour",
@@ -274,11 +235,28 @@ export const en = {
 				desc: "No card surface at all — content floating on the background.",
 			},
 		},
+		designs: {
+			classic: {
+				icon: "square",
+				name: "Classic",
+				desc: "Hearth as it has always looked: quiet surfaces, fine borders.",
+			},
+			expressive: {
+				icon: "shapes",
+				name: "Expressive",
+				desc: "Material 3 Expressive across all of Hearth — cards, buttons, menus, dialogs and settings — in tones of your accent colour.",
+			},
+		},
 		backgrounds: {
 			default: {
 				icon: "image",
 				name: "Hearth's wallpaper",
-				desc: "The image that ships with Hearth.",
+				desc: "Hills drawn by Hearth, by day or by night with your theme.",
+			},
+			harbour: {
+				icon: "anchor",
+				name: "A harbour town",
+				desc: "A lighthouse, boats and houses on the hill, drawn in flat Expressive shapes in your accent colour.",
 			},
 			weather: {
 				icon: "cloud-sun",
@@ -315,7 +293,7 @@ export const en = {
 			},
 			capture: {
 				name: "Quick capture & launching",
-				desc: "Tiles for the notes and commands you reach for constantly.",
+				desc: "A row of quick actions: new note, search, the command palette.",
 			},
 			insights: {
 				name: "Vault statistics",
@@ -323,16 +301,22 @@ export const en = {
 			},
 			reading: {
 				name: "Reading & feeds",
-				desc: "An RSS card for the sites you follow.",
+				desc: "An RSS card for a site you follow.",
 			},
 			ambience: {
 				name: "A bit of life",
-				desc: "Weather, and a small pet that lives on your board.",
+				desc: "Weather where you are, and a small pet that lives on your board.",
 			},
 		},
 		purpose: {
 			count: (n: number) =>
 				n === 1 ? "That's 1 card so far." : `That's ${n} cards so far.`,
+			integrationsHeading: "Found in your vault",
+			feed: "Feed to follow",
+			feedDesc: "The RSS or Atom address of a site you read. More can be added on the card.",
+			feedMissing: "Add a feed address and the Reading card joins the board.",
+			weatherPlace: "Weather for",
+			weatherMissing: "Pick a place and the Weather card joins the board.",
 		},
 		integrations: {
 			lead:
@@ -383,19 +367,14 @@ export const en = {
 			/** Seed for the new dashboard's name; numbered if already taken. */
 			defaultName: "Home",
 			calloutTitle: "A starting point, not a preset",
-			calloutLead:
-				"This board should be a solid start — enough to show you what Hearth can " +
-				"do for you.",
-			calloutBody:
-				"But Hearth is built above all to be heavily customizable, and this wizard " +
-				"only touches a fraction of it. Every card can be moved, resized, retitled, " +
-				"recoloured, reconfigured or thrown out, boards can be added and switched " +
-				"between, and there is a great deal more in the settings than was asked " +
-				"about here. Dig around in there and edit everything to your liking — that " +
-				"is what Hearth is for.",
 			calloutHint:
-				"Arrange (top-right of the board) edits the cards; Settings → Hearth has the " +
-				"rest. You can run this wizard again any time from Settings → About.",
+				"Every card can be moved, resized, reconfigured or removed with Arrange " +
+				"(top-right of the board); Settings → Hearth has the rest. You can run this " +
+				"wizard again any time from Settings → About.",
+			clock: "Clock",
+			clockDesc: "A small clock and greeting at the top of the side column.",
+			more: "Title and header",
+			why: "Why these cards",
 		},
 		plan: {
 			/** Fallback names for planned cards that carry no title of their own. */
@@ -408,7 +387,6 @@ export const en = {
 				recent: "Recent files",
 				favorites: "Favorites",
 				bookmarks: "Bookmarks",
-				links: "Links",
 				commands: "Commands",
 				stats: "Vault statistics",
 				heatmap: "Activity",
@@ -420,9 +398,17 @@ export const en = {
 				git: "Git",
 				base: "Base",
 			},
+			/** The Quick actions card's seeded buttons. */
+			actions: {
+				newNote: "New note",
+				today: "Today's note",
+				switcher: "Quick switcher",
+				search: "Search",
+				palette: "Commands",
+			},
 			/** Why each card is on the board, shown beside it in the review list. */
 			reasons: {
-				always: "Every Hearth board starts with one",
+				clock: "You asked for a clock",
 				daily: "Daily notes & journaling",
 				dailyNotes: "Daily notes is enabled",
 				tasks: "Tasks & to-dos",
@@ -514,6 +500,7 @@ export const en = {
 		deleteConfirm: "Delete",
 		modal: {
 			title: "Dashboard settings",
+			deleteDashboard: "Delete dashboard",
 			/** Tabs across the top of the dashboard settings modal. */
 			tabs: {
 				general: "General",
@@ -629,6 +616,14 @@ export const en = {
 			skyAnimateStateOff: "still",
 			skyAnimateOptionOn: "Animate",
 			skyAnimateOptionOff: "Hold still",
+			cardDesign: "Design",
+			cardDesignDesc:
+				"How this board is drawn — its cards, its buttons and the dialogs and menus opened from it — unless a card chooses for itself: Classic, or Material 3 Expressive.",
+			skyDesign: "Background design",
+			skyDesignDesc:
+				"The classic painted sky, or the flat Material 3 Expressive one, on this board.",
+			wallpaperDesignDesc:
+				"Hearth's wallpaper on this board: classic hills, or flat Material 3 Expressive shapes in your accent colour.",
 			visibilityDefaultPlugin: (state: string) =>
 				`Default on a plugin board (${state})`,
 			visibilityShown: "shown",
@@ -719,6 +714,7 @@ export const en = {
 			default: "Use global default",
 			none: "None",
 			hdefault: "Hearth default",
+			harbour: "Harbour town",
 			animated: "Hearth animated GIF",
 			color: "Solid color",
 			image: "Vault image",
@@ -753,7 +749,7 @@ export const en = {
 		/** One line per category, shown on its index row and again at the top of
 		 * its page: what a reader will find if they open it. */
 		tabDescs: {
-			appearance: "Title, title icon, background, and low power mode.",
+			appearance: "Design, title, title icon, background, and low power mode.",
 			search: "The search bar and which results it offers.",
 			dashboard: "Grid, card surface, and the controls around the board.",
 			behaviour: "Startup, how notes open, and privacy.",
@@ -990,6 +986,13 @@ export const en = {
 			effectLiveRefresh: "the dashboard stops rebuilding itself on vault changes",
 			effectClock: "clock cards drop seconds and the sweeping second hand",
 			effectSlideshow: "slideshow cards hold one picture instead of rotating",
+			/** Shown beside the card blur when Obsidian's translucent window is on
+			 * and the blur is therefore being withheld (#272). */
+			vibrancyFrost:
+				"Frosted glass is off while Obsidian's Translucent window is on: a " +
+				"blur and macOS vibrancy re-blend the whole window against each " +
+				"other, which flickers the tab bar. Your blur setting is kept and " +
+				"comes back as soon as you turn the translucent window off.",
 			/** Shown in the sections whose settings the tier currently overrides. */
 			overridden:
 				"The performance tier overrides these right now. They are kept as " +
@@ -1034,6 +1037,7 @@ export const en = {
 				"Run the banner edge to edge instead of lining it up with the content below.",
 			labels: {
 				default: "Hearth default",
+				harbour: "Harbour town",
 				animated: "Hearth animated GIF",
 				none: "None",
 				color: "Solid color",
@@ -1065,6 +1069,15 @@ export const en = {
 			skyAnimateDesc:
 				"Drifting clouds, falling rain and twinkling stars behind the board. Always " +
 				"off in low power mode, and for readers whose system asks for reduced motion.",
+			skyDesign: "Design",
+			skyDesignDesc:
+				"The classic painted sky, or a flat Material 3 Expressive one with hills, bubbly clouds and a turning sun.",
+			wallpaperDesignDesc:
+				"Classic hills with a cabin — a morning in a light theme, a moonlit night in a dark one — " +
+				"or flat Material 3 Expressive shapes in tones of your accent colour. Drawn by Hearth, " +
+				"so nothing is downloaded.",
+			skyDesignClassic: "Classic (painted)",
+			skyDesignExpressive: "Expressive (flat)",
 		},
 		behaviour: {
 			heading: "Behaviour",
@@ -1302,6 +1315,14 @@ export const en = {
 						"The same for Iconize (formerly Obsidian Icon Folder), including icons " +
 						"set through a frontmatter property.",
 				},
+				vaultPet: {
+					name: "Vault Pet",
+					desc:
+						"The Vault Pet card houses the plugin on your board — either its " +
+						"own pet card, live and clickable, or its whole pet house with " +
+						"quests, dex, badges and stats. The pet, its XP and everything " +
+						"it unlocks stay Vault Pet's; Hearth only gives it the space.",
+				},
 				excalidraw: {
 					name: "Excalidraw",
 					desc:
@@ -1374,6 +1395,10 @@ export const en = {
 					desc:
 						"The Calculator card converts currencies using ECB rates from the free, " +
 						"key-less Frankfurter API.",
+				},
+				markets: {
+					name: "Market quotes",
+					desc: "Markets cards read quotes from free, key-less sources: Yahoo Finance for most of the world's exchanges, forex and crypto; Tencent for Shanghai, Shenzhen, Beijing and Hong Kong listings; Eastmoney for Chinese off-exchange funds; CoinGecko for coins; and the ECB via Frankfurter for currency pairs. None is an official API, so a card falls back to another source when one fails. Only the symbols on your cards are sent.",
 				},
 				weather: {
 					name: "Weather forecasts",
@@ -1529,6 +1554,14 @@ export const en = {
 			cardBorderWidth: "Card border",
 			cardBorderWidthDesc:
 				"Thickness of the card border and header divider, in pixels. 0 hides the border.",
+			cardSurfaceExpressive:
+				"Expressive cards sit on an opaque tonal surface with large, rounded corners, so opacity, blur, corner radius and border apply only to Classic cards.",
+			cardDesign: "Design",
+			cardDesignDesc:
+				"How Hearth is drawn: Classic, or Material 3 Expressive — tonal containers in your accent colour, pills and soft shapes, heavier type. Expressive reaches all of Hearth's interface: the cards, the board's buttons, every dialog and menu, and this settings pane. A dashboard or a card can still choose for itself; cards whose content is your own (notes, embeds, web pages) keep that content as it is and take only the Expressive frame.",
+			designClassicDesc: "Quiet surfaces and fine borders — Hearth as it has always looked.",
+			designExpressiveDesc: "Material 3 Expressive everywhere: tonal colour from your accent, pills and soft shapes, bold type.",
+			designInUse: "In use",
 			cards: "Cards",
 			cardsDesc:
 				"Add and configure cards on the dashboard itself: open the home view, " +
@@ -1613,6 +1646,7 @@ export const en = {
 			favorites: "Favorites",
 			text: "Text / jot-down",
 			recent: "Recent files",
+			folder: "Folder contents",
 			links: "Links / launchpad",
 			commands: "Commands",
 			templater: "New note from template",
@@ -1630,10 +1664,12 @@ export const en = {
 			rss: "RSS feed",
 			jira: "Jira filter",
 			weather: "Weather",
+			market: "Markets",
 			git: "Git",
 			operon: "Operon",
 			leaf: "Plugin view (beta)",
 			pet: "Pet",
+			vaultpet: "Vault Pet",
 		},
 		linkTypes: {
 			note: "Note",
@@ -1863,6 +1899,10 @@ export const en = {
 			refreshIntervalAria: "Refresh interval in seconds",
 		},
 		recent: {
+			display: "Display",
+			displayDesc: "A compact list of rows, or a grid of tiles with the icon above the name.",
+			displayList: "List",
+			displayTiles: "Tiles",
 			fit: "Fit to card height",
 			fitDesc:
 				"List as many files as the card is tall enough to show, instead of a " +
@@ -1873,6 +1913,51 @@ export const en = {
 				`far back as Hearth's recent-file history goes.`,
 			types: "File types",
 			typesDesc: "Only list files of the selected types. Pick any combination; none selected shows every type.",
+		},
+		folder: {
+			folder: "Folder",
+			folderDesc: "The folder this card lists. Leave it empty for the vault root.",
+			folderPlaceholder: "Projects/2026",
+			pickFolder: "Pick a folder",
+			sort: "Order",
+			sortDesc:
+				"How the contents are ordered. Under Hearth's own orders folders lead " +
+				"and sort by name, the way the file explorer does.",
+			sorts: {
+				explorer: "Same as the file explorer",
+				name: "Name (A–Z)",
+				nameDesc: "Name (Z–A)",
+				modified: "Modified (newest first)",
+				modifiedAsc: "Modified (oldest first)",
+				created: "Created (newest first)",
+				createdAsc: "Created (oldest first)",
+			},
+			show: "Show",
+			showDesc: "Which of the folder's contents the card lists.",
+			showAll: "Folders and files",
+			showFolders: "Folders only",
+			showFiles: "Files only",
+			display: "Display",
+			displayDesc: "A list of rows, or a grid of icon tiles.",
+			displayList: "List",
+			displayTiles: "Tiles",
+			count: "Number of items",
+			countDesc:
+				"How many the card lists before it says how many are left. The browser " +
+				"it opens is never capped.",
+			counts: "Item counts",
+			countsDesc: "Show how many things each subfolder holds.",
+			navigate: "Opening a subfolder",
+			navigateDesc:
+				"In a dialog, or in the card itself — which then grows a path row " +
+				"with a way back up, and stays where you left it.",
+			navigateModal: "In the folder browser",
+			navigateCard: "In the card",
+			browse: "Open the browser from the card",
+			browseDesc:
+				"Clicking the card's empty space — or its folder button — opens the " +
+				"folder in a browser with a breadcrumb, where every folder can be " +
+				"stepped into.",
 		},
 		calendar: {
 			view: "Layout",
@@ -1963,6 +2048,21 @@ export const en = {
 			chipRecurringDesc: "The “Recurring” badge on a repeating task.",
 			chipTimeblock: "Timeblock marker",
 			chipTimeblockDesc: "The “Timeblock” badge on a timeblock.",
+			checkboxHeading: "Checkbox tasks",
+			checkboxDesc:
+				"Draw Markdown checkbox tasks (- [ ] …) on the calendar by the dates written on them in the Tasks format: 📅 due and ⏳ scheduled. Tasks without a date aren't shown.",
+			checkboxEnabled: "Use checkbox tasks",
+			checkboxEnabledDesc: "Read dated checkbox tasks from your notes.",
+			checkboxScheduled: "Scheduled date",
+			checkboxScheduledDesc: "Draw a task on its ⏳ scheduled date.",
+			checkboxDue: "Due date",
+			checkboxDueDesc: "Draw a task on its 📅 due date.",
+			checkboxCompletedDesc: "Keep ticked-off tasks on the calendar, struck through.",
+			checkboxCompleteDesc: "Show a checkbox on each task that ticks it off in its note.",
+			checkboxFolders: "Folders",
+			checkboxFoldersDesc: "Only read notes in these folders (comma-separated). Empty reads the whole vault.",
+			checkboxColor: "Colour",
+			checkboxColorDesc: "Colour of checkbox-task entries.",
 			taskNotesHeading: "TaskNotes",
 			taskNotesDesc:
 				"Use TaskNotes as an event source. The card mirrors what TaskNotes' own calendar shows — scheduled tasks, due dates, recurring occurrences, timeblocks and the calendars subscribed inside TaskNotes — using TaskNotes' own field names, statuses and colours.",
@@ -2523,6 +2623,10 @@ export const en = {
 			foldersDesc: "One folder path per line.",
 		},
 		favorites: {
+			display: "Display",
+			displayDesc: "A compact list of rows, or a grid of tiles with the icon above the name.",
+			displayList: "List",
+			displayTiles: "Tiles",
 			heading: "Favorites",
 			headingDesc: "Notes shown by every favorites card.",
 			ownList: "Give this card its own list",
@@ -2539,6 +2643,14 @@ export const en = {
 			style: "Style",
 			styleDigital: "Digital",
 			styleAnalog: "Analog",
+			styleStacked: "Stacked",
+			styleFlip: "Flip",
+			styleRing: "Rings",
+			styleShapes: "Shapes (Expressive)",
+			styleOrbit: "Orbit (Expressive)",
+			styleExpressiveDesc: "The Expressive design (Style tab) adds the Shapes and Orbit faces.",
+			styleFallbackDesc: (face: string) =>
+				`This face comes with the Expressive design (Style tab); a Classic card draws ${face} instead.`,
 			hourFormat: "Time format",
 			hourFormatAuto: "Automatic (locale)",
 			hourFormat12: "12-hour",
@@ -2766,6 +2878,70 @@ export const en = {
 			showDate: "Show date",
 			showDateDesc: "Show each item's publish time.",
 		},
+		market: {
+			symbols: "Symbols",
+			symbolsDesc: "What the card follows, in the order it's drawn. One-instrument styles show the first.",
+			noSymbols: "Nothing yet — search below, or type a symbol and add it as it is.",
+			moveUp: "Move up",
+			moveDown: "Move down",
+			remove: "Remove",
+			holding: "Holding",
+			quantity: "Units",
+			cost: "Average cost",
+			search: "Add",
+			searchDesc:
+				"Search by name or symbol, or type one and add it as typed: AAPL, 0700.HK, 510300, EUR/USD, BTC-USD, fund:161725, cg:bitcoin.",
+			searchDisabled: "Search is off while external calls are disabled. A typed symbol can still be added.",
+			searchPlaceholder: "Apple, 沪深300, EUR/USD…",
+			searchEmpty: "Type a name or a symbol first",
+			searchButton: "Search",
+			addTyped: "Add as typed",
+			noResults: "Nothing found. Try the symbol itself, or add it as typed.",
+			add: "Add",
+			added: "Added",
+			appearance: "Appearance",
+			style: "Style",
+			styleDesc: "Minimal, spotlight and chart show one instrument; the others show them all.",
+			styles: {
+				minimal: "Minimal — the price and its move",
+				spotlight: "Spotlight — price, chart and stats",
+				chart: "Chart — edge to edge",
+				list: "Watchlist",
+				tiles: "Tiles",
+				ticker: "Ticker tape",
+				portfolio: "Portfolio",
+				lookup: "Lookup — search on the card",
+			},
+			design: "Design",
+			designDesc: "Classic, or Material 3 Expressive: chips, tonal containers in your accent colour and soft shapes.",
+			designClassic: "Classic",
+			designExpressive: "Expressive",
+			upColor: "Rising colour",
+			upColorDesc: "Green for a rise in most of the world; red in China, Japan and Korea. Automatic follows Obsidian's language.",
+			upColorAuto: "Automatic",
+			upColorGreen: "Green up, red down",
+			upColorRed: "Red up, green down",
+			range: "Chart range",
+			rangeDesc: "The span the sparklines cover.",
+			rangeDescSingle: "The range the chart opens on. The chips on the card switch it.",
+			change: "Show the move as",
+			changePercent: "Percentage",
+			changeAbsolute: "Amount",
+			changeBoth: "Both",
+			baseCurrency: "Portfolio currency",
+			baseCurrencyDesc: "Totals are converted into it at the ECB's daily rates.",
+			baseCurrencyAuto: "Automatic (most holdings)",
+			animate: "Scroll the tape",
+			animateDesc: "Off, the tape sits still and scrolls by hand. Always off on a reduced performance tier.",
+			display: "What to display",
+			showName: "Names",
+			showSparkline: "Sparklines",
+			showStats: "Stats",
+			showMarketState: "Market open or closed",
+			showUpdated: "Last updated",
+			refresh: "Refresh every (minutes)",
+			refreshDesc: "0 refreshes only when the board opens. Quotes are shared between cards, and a closed market is checked at most every half hour.",
+		},
 		weather: {
 			location: "Location",
 			search: "Find a place",
@@ -2801,9 +2977,24 @@ export const en = {
 			styleDetailed: "Detailed (metrics grid)",
 			styleForecast: "Forecast (hourly curve)",
 			styleArtistic: "Artistic (painted sky)",
+			styleMoon: "Moon (tonight's phase)",
+			design: "Design",
+			designDesc:
+				"Classic line icons and a painted sky, or Material 3 Expressive: flat weather drawings, chips and tonal containers in your accent colour.",
+			designClassic: "Classic",
+			designExpressive: "Expressive",
+			styleDaylight: "Daylight (the sun's arc)",
 			animate: "Animate the sky",
 			animateDesc:
 				"Drifting clouds, falling rain and twinkling stars. Always off in low power mode.",
+			animateMoonDesc:
+				"The moon rises into place and floats, its shape turns and the stars twinkle. Always off in low power mode.",
+			animateSunDesc:
+				"The sun walks its arc up to the hour and turns there. Always off in low power mode.",
+			moonLayout: "Layout",
+			moonLayoutDesc: "Everything about tonight's moon, or just the moon and where it is in the month.",
+			moonLayoutFull: "Full (night sky and details)",
+			moonLayoutClean: "Clean (moon and month)",
 
 			units: "Units",
 			tempUnit: "Temperature",
@@ -2959,6 +3150,33 @@ export const en = {
 			showMood: "Show mood",
 			showActivity: "Show today's activity",
 		},
+		vaultPet: {
+			missing: "Vault Pet isn't installed",
+			missingDesc:
+				"This card houses the Vault Pet community plugin. Install and enable " +
+				"it and the card fills itself in — these settings are kept either way.",
+			display: "Show",
+			displayDesc:
+				"Both are Vault Pet's own: the small card it can insert into a note, " +
+				"or its house view, hosted here instead of in the sidebar.",
+			displayPet: "The pet",
+			displayHouse: "The pet house",
+			showHeader: "Keep the house's title bar",
+			showHeaderDesc:
+				"The hosted view's own header is hidden by default — the card already " +
+				"has one.",
+			openButton: "“Open the pet house” button",
+			openButtonDesc:
+				"A button in the card's corner that opens Vault Pet's house in the " +
+				"sidebar, the same as its ribbon icon.",
+		},
+		design: {
+			name: "Design",
+			desc: "Classic, or Material 3 Expressive: tonal containers in your accent colour, pills and soft shapes.",
+			classic: "Classic",
+			expressive: "Expressive",
+			followDefault: (design: string) => `Default (${design})`,
+		},
 		colors: {
 			heading: "Colors",
 			headingDesc: "Accent and background tint for this card.",
@@ -3017,6 +3235,9 @@ export const en = {
 			bookmarksEmpty: "No bookmarks yet",
 			favoritesEmpty: "Add favorites in settings",
 			recentEmpty: "No recent files",
+			folderEmpty: "This folder is empty",
+			folderMissing: (path: string) =>
+				path ? `No folder at "${path}"` : "Pick a folder in card settings",
 			linksEmpty: "Add links in settings",
 			commandsEmpty: "Add commands in card settings",
 			templaterEnable: "Enable the Templater plugin to create notes from templates",
@@ -3039,12 +3260,16 @@ export const en = {
 			gitNotReady: "No repository open yet — set one up in the Git plugin",
 			rssNoSources: "Add a feed in card settings",
 			weatherNoLocation: "Pick a location in card settings",
+			marketNoSymbols: "Add a stock, fund, currency or coin in card settings",
 			renderFailed: "This card couldn't be drawn — see the console for details",
 			leafPickView: "Pick a plugin view in card settings",
 			boardPickView: "Pick a view for this board in dashboard settings",
 			boardNeedsFile: "Pick a file for this board in dashboard settings",
 			leafViewMissing:
 				"This view isn't available — enable the plugin that provides it",
+			vaultPetInstall: "Install the Vault Pet plugin to keep a pet here",
+			vaultPetNoHouse:
+				"Vault Pet's house isn't available — enable the plugin, or update it",
 			operonEnable: "Enable the Operon plugin to show its tasks",
 			operonDisabled:
 				"The Operon integration is off — turn it on in Settings → Hearth → Integrations",
@@ -3061,6 +3286,15 @@ export const en = {
 			operonNoTasks: "No Operon tasks match",
 			operonNoAgenda: "Nothing scheduled in this window",
 			operonNoColumns: "No Operon statuses to show — pick a pipeline in card settings",
+		},
+		folder: {
+			browse: "Browse this folder",
+			/** The card's last row: what it isn't showing. */
+			more: (n: number) => `${n} more…`,
+			missing: "This folder is no longer in the vault.",
+			/** The path row's back arrow, and the vault's own name in it. */
+			up: (name: string) => `Up to ${name}`,
+			vaultRoot: "the vault root",
 		},
 		operon: {
 			loading: "Reading Operon…",
@@ -3128,6 +3362,9 @@ export const en = {
 					: `${count} note${count === 1 ? "" : "s"} today`,
 			streak: (days: number) => `${days}-day streak`,
 		},
+		vaultPet: {
+			openHouse: "Open the pet house",
+		},
 		embed: {
 			openFile: "Open this file",
 			editHint: "Double-click to edit",
@@ -3159,6 +3396,84 @@ export const en = {
 			disabled: "Feeds are off (external calls disabled)",
 			refresh: "Refresh",
 		},
+		market: {
+			types: {
+				equity: "Stock",
+				etf: "ETF",
+				fund: "Fund",
+				index: "Index",
+				currency: "Currency",
+				crypto: "Crypto",
+				future: "Future",
+				other: "",
+			},
+			states: {
+				open: "Open",
+				pre: "Pre-market",
+				post: "After hours",
+				closed: "Closed",
+			},
+			/** The range switcher's chips — keep them short. */
+			ranges: {
+				"1d": "1D",
+				"5d": "5D",
+				"1mo": "1M",
+				"6mo": "6M",
+				"1y": "1Y",
+				"5y": "5Y",
+			},
+			rangeNames: {
+				"1d": "One day",
+				"5d": "Five days",
+				"1mo": "One month",
+				"6mo": "Six months",
+				"1y": "One year",
+				"5y": "Five years",
+			},
+			sources: {
+				yahoo: "Yahoo Finance",
+				tencent: "Tencent",
+				eastmoney: "Eastmoney",
+				coingecko: "CoinGecko",
+				frankfurter: "ECB (Frankfurter)",
+			},
+			updated: (time: string) => `Updated ${time}`,
+			loadingShort: "Loading…",
+			unavailable: "Unavailable",
+			disabled: "External calls are off — quotes can't be fetched",
+			noChart: "No chart for this range",
+			dayRange: "Day's range",
+			yearRange: "52-week range",
+			open: "Open",
+			prevClose: "Previous close",
+			volume: "Volume",
+			currency: "Currency",
+			source: "Source",
+			asOf: "As of",
+			totalValue: "Total value",
+			noHoldings: "Set how many units you hold in card settings",
+			today: "Today",
+			totalGain: "Total",
+			notConverted: (n: number) =>
+				n === 1 ? "1 holding left out: no exchange rate for its currency" : `${n} holdings left out: no exchange rate for their currency`,
+			units: (n: number) => `${n.toLocaleString()} units`,
+			position: "Your position",
+			unitsLabel: "Units",
+			value: "Value",
+			avgCost: "Average cost",
+			costBasis: "Cost basis",
+			openInBrowser: "Open in browser",
+			refresh: "Refresh",
+			searchPlaceholder: "Search a stock, fund, currency or coin",
+			searchDisabled: "Search is off while external calls are disabled",
+			searching: "Searching…",
+			noResults: "Nothing found",
+			lookupHint: "Search for anything above — a name, a ticker, a fund code, a currency pair — and add it with one click.",
+			back: "Back",
+			addToCard: "Add to card",
+			onCard: "On the card",
+			added: (name: string) => `Added ${name}`,
+		},
 		weather: {
 			loading: "Loading forecast…",
 			error: "Couldn't load the forecast",
@@ -3178,6 +3493,40 @@ export const en = {
 			/** Compass points, clockwise from north. Indexed by the bearing's
 			 * eighth — keep all eight, in this order. */
 			compass: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+			/** A span of time: "3 h 12 min", or just "40 min" under an hour. */
+			duration: (h: number, m: number) => (h ? `${h} h ${m} min` : `${m} min`),
+			/** The moon style, and the moon's line in the full forecast. */
+			moon: {
+				label: "Moon",
+				/** One per phase; see `moonPhaseKey`. */
+				phases: {
+					new: "New moon",
+					waxingCrescent: "Waxing crescent",
+					firstQuarter: "First quarter",
+					waxingGibbous: "Waxing gibbous",
+					full: "Full moon",
+					waningGibbous: "Waning gibbous",
+					lastQuarter: "Last quarter",
+					waningCrescent: "Waning crescent",
+				},
+				illuminated: (percent: string) => `${percent} illuminated`,
+				age: (days: number) => `Day ${days} of 29`,
+				nextFull: "Full moon",
+				nextNew: "New moon",
+				moonrise: "Moonrise",
+				moonset: "Moonset",
+				inDays: (days: number) =>
+					days <= 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`,
+				cycle: "Where tonight sits in the lunar month",
+			},
+			/** The daylight style: the sun on its arc. */
+			daylight: {
+				until: (span: string) => `in ${span}`,
+				dayLength: (span: string) => `${span} of daylight`,
+				polarDay: "The sun doesn't set today",
+				polarNight: "The sun doesn't rise today",
+				arc: "The sun's path from sunrise to sunset",
+			},
 			/** The full-forecast dialog a weather card opens when it is clicked:
 			 * every reading the response carries, whatever the card shows. */
 			detail: {
@@ -3353,6 +3702,7 @@ export const en = {
 			createEventNote: "Create note",
 			openEventNote: "Open note",
 			taskNotesSource: "TaskNotes",
+			checkboxSource: "Tasks",
 			taskDue: "Due",
 			taskTimeblock: "Timeblock",
 			taskComplete: "Complete",
@@ -3361,6 +3711,7 @@ export const en = {
 				minutes >= 60
 					? `${Math.floor(minutes / 60)}h${minutes % 60 ? ` ${minutes % 60}m` : ""}`
 					: `${minutes}m`,
+			openTaskLine: "Open in note",
 			openTaskNote: "Open task",
 		},
 		schedule: {
@@ -3390,6 +3741,8 @@ export const en = {
 		},
 		bookmarks: {
 			untitled: "Untitled",
+			needsSearch: "Enable the core Search plugin to open a saved search",
+			needsGraph: "Enable the core Graph view plugin to open a saved graph",
 		},
 		tasks: {
 			createNewTask: "Create new task",
@@ -3604,6 +3957,7 @@ export const en = {
 		bookmarks: "Bookmarks",
 		favorites: "Favorites",
 		recent: "Recent files",
+		folder: "Folder",
 		links: "Links / launchpad",
 		commands: "Commands",
 		templater: "New note from template",
@@ -3622,6 +3976,7 @@ export const en = {
 		rss: "RSS feed",
 		jira: "Jira filter",
 		weather: "Weather",
+		market: "Markets",
 		git: "Git",
 		"operon-tasks": "Operon tasks",
 		"operon-board": "Operon board",
@@ -3629,6 +3984,8 @@ export const en = {
 		"operon-timer": "Operon timer",
 		leaf: "Plugin view (beta)",
 		pet: "Pet",
+		"vault-pet": "Vault Pet",
+		"vault-pet-house": "Vault Pet house",
 	},
 
 	/** One line per template, shown under its name in the add-card picker and
@@ -3648,6 +4005,7 @@ export const en = {
 		bookmarks: "Your Obsidian bookmarks, one click away",
 		favorites: "The notes you starred in Hearth",
 		recent: "The files you opened most recently",
+		folder: "What is in a folder, one level down, with a browser behind it",
 		links: "A launchpad of links, notes and folders",
 		commands: "Buttons that run Obsidian commands",
 		templater: "Buttons that make a note from a Templater template, in a folder you pick",
@@ -3666,6 +4024,7 @@ export const en = {
 		rss: "Headlines from the feeds you follow",
 		jira: "Issues from a Jira filter or JQL search",
 		weather: "The forecast for a place you pick",
+		market: "Stocks, funds, forex and crypto, live",
 		git: "Repository status, with commit, pull and push",
 		"operon-tasks": "Your Operon tasks, filtered the way you like",
 		"operon-board": "Operon's pipeline statuses as board columns",
@@ -3673,6 +4032,8 @@ export const en = {
 		"operon-timer": "Operon's running time tracker, ticking live",
 		leaf: "Another plugin's side panel, hosted in a card",
 		pet: "A small companion that lives on your board",
+		"vault-pet": "The Vault Pet plugin's pet, growing as you write",
+		"vault-pet-house": "Vault Pet's house — quests, dex, badges and stats",
 	},
 
 	// ---- Add-card picker -----------------------------------------------
@@ -3750,7 +4111,7 @@ export const en = {
 			// same four things and somebody reading both should be able to tell.
 			publishRemoves: [
 				"Note and folder paths — everything the board points at in your vault",
-				"Calendar feeds, private hosts and your location",
+				"Calendar feeds, private hosts, your location and holdings",
 				"Text you typed on the board — a text card's body, a calculator's last sum",
 				"Credentials — a Jira token, and anything else a card can hold",
 			],
@@ -3878,14 +4239,14 @@ export const en = {
 			// from a heading two rows above it.
 			groups: {
 				paths: "Remove note and folder paths",
-				private: "Remove calendar feeds, private hosts and your location",
+				private: "Remove calendar feeds, private hosts, your location and holdings",
 				content: "Remove text you typed on the board",
 				queries: "Remove searches and Dataview queries",
 				plugins: "Remove command ids and view types",
 			},
 			groupDesc: {
 				paths: "Everything this board points at in your vault, and the folder each embedded picture came from. The pictures themselves still travel when the wallpaper switch above is on — it's the folder they lived in that goes.",
-				private: "ICS calendar links (anyone holding one can read that calendar), an internal Jira host, and the place a weather card is set to.",
+				private: "ICS calendar links (anyone holding one can read that calendar), an internal Jira host, the place a weather card is set to, and the units and costs on a portfolio.",
 				content: "A text card's body and a calculator's last input — whatever you happened to jot on your own dashboard.",
 				queries: "Off by default: a board without its queries stops doing anything. Worth turning on if a query names a private folder.",
 				plugins: "Off by default: these name plugins, not you. Removing them leaves the buttons that ran them doing nothing.",

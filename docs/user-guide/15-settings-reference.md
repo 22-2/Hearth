@@ -76,10 +76,10 @@ The full effects of each tier are in [chapter 12](12-performance.md).
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| *Background type* | Hearth default | **Hearth default**, **None**, **Solid color**, **Vault image**, **Image URL**, **Live weather sky** |
+| *Background type* | Hearth default | **Hearth default**, **Harbour town**, **None**, **Solid color**, **Vault image**, **Image URL**, **Live weather sky** |
 | *Background value* | — | A CSS colour, a vault image path, or a direct image URL, depending on the type |
-| *Opacity* | 0.35 | How much the background shows through |
-| *Blur* | 2 px | Background blur |
+| *Opacity* | 0.8 | How much the background shows through |
+| *Blur* | 0 px | Background blur |
 | *Background layout* | Full background | **Full background** or **Banner** |
 | *Banner height* | 220 px | How tall the banner strip is, in pixels |
 | *Fade the lower edge* | On | Let the banner dissolve into the page |
@@ -189,7 +189,7 @@ Three sections: Startup & tabs, Opening notes, Privacy & network.
 | *Open on startup* | On | Open the home view when the vault loads |
 | *Replace new tabs* | On | Show the home view instead of an empty new tab |
 | *Focus search on open* | Off | Place the cursor in the search field whenever a home view opens. Desktop only |
-| *Live refresh on vault changes* | Off | Keep an open home view current as the vault changes — Recent, Bookmarks and saved-query cards update without reopening the tab. Switching back to the Hearth tab always refreshes it regardless |
+| *Live refresh on vault changes* | Off | Keep an open home view current as the vault changes — Recent and saved-query cards update without reopening the tab. Switching back to the Hearth tab always refreshes it regardless |
 | *Pick up synced changes* | On | Apply dashboard changes made on another device as soon as sync brings them in, instead of at the next Obsidian restart |
 
 ### Opening notes
@@ -235,7 +235,7 @@ Two sections: Layout, Mobile action bar.
 | --- | --- | --- |
 | *Mobile mode (search only)* | Off | On phones and tablets, hide the dashboard and show only the search field. No effect on desktop |
 | *Stack cards on narrow screens* | On | When the board is too narrow for its layout, show the cards as one full-width column instead. Your layout is untouched and comes back at full width |
-| *Narrow below* | 600 px | The board width at or below which the board counts as narrow. 320-1200 px. Raise it to have a half-screen window switch to the narrow layout; lower it to keep the free-form layout in tighter panes. Individual dashboards can override it |
+| *Narrow below* | 700 px | The board width at or below which the board counts as narrow. 320-1200 px. Raise it to have a half-screen window switch to the narrow layout; lower it to keep the free-form layout in tighter panes. Individual dashboards can override it |
 | *Performance tier on mobile* | Balanced | The tier to use on phones and tablets. Can also be **Match desktop**. Your desktop tier is kept separately and is not changed |
 
 ### Mobile action bar

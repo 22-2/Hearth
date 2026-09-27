@@ -4,7 +4,9 @@ import {
 	type CalculatorConfig,
 	type CalendarConfig,
 	type CardKind,
+	CLOCK_FACES,
 	type ClockConfig,
+	type ClockFace,
 	type CommandItem,
 	type Dashboard,
 	type DashboardCard,
@@ -35,6 +37,7 @@ import {
 	type PetConfig,
 	type PetSpecies,
 	type PeriodicCardConfig,
+	type FolderCardConfig,
 	type SavedSearchConfig,
 	type ScheduleConfig,
 	type ScheduleView,
@@ -63,6 +66,11 @@ import {
 	type WeatherConfig,
 	type WeatherPlace,
 	type WeatherStyle,
+	type MarketConfig,
+	type MarketItem,
+	type MarketProviderId,
+	type MarketRange,
+	type MarketStyle,
 	ALL_STATS,
 	activeDashboard,
 	CARD_BORDER_WIDTH_MAX,
@@ -87,6 +95,7 @@ import {
 	SLIDESHOW_TRANSITIONS,
 } from "./slideshow";
 import { DATACORE_LANGUAGES, type DatacoreLanguage } from "./datacore";
+import { asFolderSort } from "./foldercontents";
 import {
 	type EventField,
 	type EventFieldAction,
@@ -253,6 +262,7 @@ export function exportSettingsPayload(s: HomeSettings): Record<string, unknown> 
 		lowPowerBackgroundColor: s.lowPowerBackgroundColor,
 		pauseWhenUnfocused: s.pauseWhenUnfocused,
 		backgroundSkyAnimate: s.backgroundSkyAnimate,
+		backgroundSkyDesign: s.backgroundSkyDesign,
 
 		// Behaviour
 		openOnStartup: s.openOnStartup,
@@ -278,6 +288,7 @@ export function exportSettingsPayload(s: HomeSettings): Record<string, unknown> 
 		cardBlur: s.cardBlur,
 		cardRadius: s.cardRadius,
 		cardBorderWidth: s.cardBorderWidth,
+		cardDesign: s.cardDesign,
 
 		// Search filters
 		hiddenFilters: s.hiddenFilters,
@@ -489,6 +500,7 @@ export function sanitizeCard(raw: unknown, index: number): DashboardCard | null 
 	if (background !== undefined) card.background = background;
 	if (typeof r.count === "number") card.count = r.count;
 	if (typeof r.recentAuto === "boolean") card.recentAuto = r.recentAuto;
+	if (r.fileView === "list" || r.fileView === "tiles") card.fileView = r.fileView;
 	if (typeof r.scale === "number") card.scale = r.scale;
 	const cardImageFit = sanitizeImageFit(r.imageFit);
 	if (cardImageFit !== undefined) card.imageFit = cardImageFit;
@@ -513,6 +525,7 @@ export function sanitizeCard(raw: unknown, index: number): DashboardCard | null 
 	if (typeof r.pinned === "boolean") card.pinned = r.pinned;
 	if (typeof r.cardOpacity === "number") card.cardOpacity = r.cardOpacity;
 	if (typeof r.cardBlur === "number") card.cardBlur = r.cardBlur;
+	if (r.design === "classic" || r.design === "expressive") card.design = r.design;
 	if (typeof r.cardBorderWidth === "number") {
 		card.cardBorderWidth = clampNum(
 			r.cardBorderWidth,
@@ -558,6 +571,9 @@ export function sanitizeCard(raw: unknown, index: number): DashboardCard | null 
 	if (r.weather && typeof r.weather === "object") {
 		card.weather = sanitizeWeather(r.weather as Record<string, unknown>);
 	}
+	if (r.market && typeof r.market === "object") {
+		card.market = sanitizeMarket(r.market as Record<string, unknown>);
+	}
 	if (r.pet && typeof r.pet === "object") {
 		card.pet = sanitizePet(r.pet as Record<string, unknown>);
 	}
@@ -568,6 +584,9 @@ export function sanitizeCard(raw: unknown, index: number): DashboardCard | null 
 	// follows the vault keeps following it.
 	if (Array.isArray(r.favorites)) {
 		card.favorites = r.favorites.filter((v): v is string => typeof v === "string");
+	}
+	if (r.folder && typeof r.folder === "object") {
+		card.folder = sanitizeFolder(r.folder as Record<string, unknown>);
 	}
 	if (r.savedSearch && typeof r.savedSearch === "object") {
 		card.savedSearch = sanitizeSavedSearch(
@@ -625,7 +644,9 @@ function sanitizeCommand(raw: unknown): CommandItem | null {
 
 function sanitizeClock(r: Record<string, unknown>): ClockConfig {
 	const clock: ClockConfig = {};
-	if (r.mode === "digital" || r.mode === "analog") clock.mode = r.mode;
+	if (typeof r.mode === "string" && (CLOCK_FACES as readonly string[]).includes(r.mode)) {
+		clock.mode = r.mode as ClockFace;
+	}
 	if (r.hourFormat === "auto" || r.hourFormat === "12" || r.hourFormat === "24") {
 		clock.hourFormat = r.hourFormat;
 	} else if (typeof r.use24Hour === "boolean") {
@@ -1202,6 +1223,8 @@ const WEATHER_STYLES: readonly WeatherStyle[] = [
 	"detailed",
 	"forecast",
 	"artistic",
+	"moon",
+	"daylight",
 ];
 
 /** The place a weather card is set to. Coordinates are the whole value here, so
@@ -1255,9 +1278,65 @@ function sanitizeWeather(r: Record<string, unknown>): WeatherConfig {
 	for (const flag of flags) {
 		if (typeof r[flag] === "boolean") cfg[flag] = r[flag];
 	}
+	if (r.moonLayout === "full" || r.moonLayout === "clean") cfg.moonLayout = r.moonLayout;
+	if (r.design === "classic" || r.design === "expressive") cfg.design = r.design;
 	if (typeof r.hourlyCount === "number") cfg.hourlyCount = clampNum(r.hourlyCount, 0, 48, 6);
 	if (typeof r.dailyCount === "number") cfg.dailyCount = clampNum(r.dailyCount, 0, 16, 4);
 	if (typeof r.refreshMin === "number") cfg.refreshMin = clampNum(r.refreshMin, 0, 24 * 60, 30);
+	return cfg;
+}
+
+const MARKET_STYLES: readonly MarketStyle[] = [
+	"minimal",
+	"spotlight",
+	"chart",
+	"list",
+	"tiles",
+	"ticker",
+	"portfolio",
+	"lookup",
+];
+const MARKET_PROVIDERS: readonly MarketProviderId[] = ["yahoo", "tencent", "eastmoney", "coingecko", "frankfurter"];
+const MARKET_RANGES: readonly MarketRange[] = ["1d", "5d", "1mo", "6mo", "1y", "5y"];
+/** More than any board could draw; a bound on what an import can hand us. */
+const MARKET_ITEMS_MAX = 200;
+
+/** One instrument: a symbol is the whole of it, the rest is optional. A
+ * holding is a finite number or nothing. */
+function sanitizeMarketItem(raw: unknown): MarketItem | undefined {
+	if (!raw || typeof raw !== "object") return undefined;
+	const r = raw as Record<string, unknown>;
+	const symbol = str(r.symbol)?.trim().slice(0, 64);
+	if (!symbol) return undefined;
+	const item: MarketItem = { symbol };
+	if (MARKET_PROVIDERS.includes(r.provider as MarketProviderId)) item.provider = r.provider as MarketProviderId;
+	const name = str(r.name)?.slice(0, 200);
+	if (name) item.name = name;
+	if (typeof r.quantity === "number" && Number.isFinite(r.quantity)) item.quantity = r.quantity;
+	if (typeof r.cost === "number" && Number.isFinite(r.cost)) item.cost = r.cost;
+	return item;
+}
+
+function sanitizeMarket(r: Record<string, unknown>): MarketConfig {
+	const cfg: MarketConfig = {};
+	if (Array.isArray(r.items)) {
+		cfg.items = r.items
+			.slice(0, MARKET_ITEMS_MAX)
+			.map(sanitizeMarketItem)
+			.filter((item): item is MarketItem => item !== undefined);
+	}
+	if (MARKET_STYLES.includes(r.style as MarketStyle)) cfg.style = r.style as MarketStyle;
+	if (r.design === "classic" || r.design === "expressive") cfg.design = r.design;
+	if (r.upColor === "green" || r.upColor === "red") cfg.upColor = r.upColor;
+	if (MARKET_RANGES.includes(r.range as MarketRange)) cfg.range = r.range as MarketRange;
+	if (r.change === "percent" || r.change === "absolute" || r.change === "both") cfg.change = r.change;
+	const flags = ["showName", "showSparkline", "showStats", "showMarketState", "showUpdated", "animate"] as const;
+	for (const flag of flags) {
+		if (typeof r[flag] === "boolean") cfg[flag] = r[flag];
+	}
+	const base = str(r.baseCurrency)?.trim().toLowerCase();
+	if (base && /^[a-z]{3}$/.test(base)) cfg.baseCurrency = base;
+	if (typeof r.refreshMin === "number") cfg.refreshMin = clampNum(r.refreshMin, 0, 24 * 60, 5);
 	return cfg;
 }
 
@@ -1354,6 +1433,21 @@ function sanitizeOperon(r: Record<string, unknown>): OperonConfig {
 	] as const) {
 		if (typeof r[key] === "boolean") cfg[key] = r[key];
 	}
+	return cfg;
+}
+
+function sanitizeFolder(r: Record<string, unknown>): FolderCardConfig {
+	const cfg: FolderCardConfig = {};
+	const path = str(r.path);
+	if (path !== undefined) cfg.path = path;
+	const sort = asFolderSort(r.sort);
+	if (sort !== undefined) cfg.sort = sort;
+	if (r.show === "all" || r.show === "folders" || r.show === "files") cfg.show = r.show;
+	if (typeof r.count === "number") cfg.count = r.count;
+	if (r.view === "list" || r.view === "tiles") cfg.view = r.view;
+	if (typeof r.counts === "boolean") cfg.counts = r.counts;
+	if (typeof r.browse === "boolean") cfg.browse = r.browse;
+	if (r.navigate === "card") cfg.navigate = "card";
 	return cfg;
 }
 
@@ -1600,10 +1694,22 @@ function sanitizeLeafView(r: Record<string, unknown>): LeafViewConfig {
 function sanitizeBackground(raw: unknown): BackgroundConfig | undefined {
 	if (!raw || typeof raw !== "object") return undefined;
 	const r = raw as Record<string, unknown>;
-	const kinds: BackgroundKind[] = ["none", "color", "image", "url", "weather", "animated"];
-	if (!kinds.includes(r.kind as BackgroundKind)) return undefined;
+	const kinds: BackgroundKind[] = [
+		"none",
+		"default",
+		"harbour",
+		"animated",
+		"color",
+		"image",
+		"url",
+		"weather",
+	];
+	// "hdefault" is what the board settings once stored for "Hearth default" —
+	// the dropdown's key for it rather than the kind — so read it as that.
+	const kind = r.kind === "hdefault" ? "default" : r.kind;
+	if (!kinds.includes(kind as BackgroundKind)) return undefined;
 	return {
-		kind: r.kind as BackgroundKind,
+		kind: kind as BackgroundKind,
 		value: str(r.value) ?? "",
 		opacity: Math.max(0, Math.min(1, num(r.opacity, 0.15))),
 		blur: Math.max(0, Math.min(40, num(r.blur, 0))),
@@ -1707,6 +1813,9 @@ export function sanitizeDashboard(
 	}
 	if (typeof r.backgroundSkyAnimate === "boolean")
 		dash.backgroundSkyAnimate = r.backgroundSkyAnimate;
+	if (r.backgroundSkyDesign === "classic" || r.backgroundSkyDesign === "expressive")
+		dash.backgroundSkyDesign = r.backgroundSkyDesign;
+	if (r.cardDesign === "classic" || r.cardDesign === "expressive") dash.cardDesign = r.cardDesign;
 	// Only "plugin" is carried: anything else — including a mode from a newer
 	// Hearth this build can't render — is left off, so the board imports as the
 	// cards board it also is. Its `cards` came through above either way.
@@ -2073,6 +2182,7 @@ export function applySettings(s: HomeSettings, data: Record<string, unknown>): v
 	const bgKinds: BackgroundKind[] = [
 		"none",
 		"default",
+		"harbour",
 		"animated",
 		"color",
 		"image",
@@ -2118,6 +2228,12 @@ export function applySettings(s: HomeSettings, data: Record<string, unknown>): v
 	if (typeof data.backgroundSkyAnimate === "boolean") {
 		s.backgroundSkyAnimate = data.backgroundSkyAnimate ? undefined : false;
 	}
+	// Absent leaves the vault's choice alone; classic, the default, is stored as
+	// absence.
+	if (data.backgroundSkyDesign === "expressive") s.backgroundSkyDesign = "expressive";
+	else if (data.backgroundSkyDesign === "classic") s.backgroundSkyDesign = undefined;
+	if (data.cardDesign === "expressive") s.cardDesign = "expressive";
+	else if (data.cardDesign === "classic") s.cardDesign = undefined;
 	const lowPowerColor = str(data.lowPowerBackgroundColor)?.trim();
 	if (lowPowerColor) s.lowPowerBackgroundColor = lowPowerColor;
 	if (typeof data.pauseWhenUnfocused === "boolean") {

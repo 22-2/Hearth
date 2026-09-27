@@ -34,15 +34,15 @@ function settings(): HomeSettings {
 const classify = (raw: string) => classifyTitleIcon(raw, () => false);
 
 describe("backgroundIsRemote", () => {
-	it("names the two kinds that are fetched over the network", () => {
+	it("names the kinds that are fetched over the network", () => {
 		expect(backgroundIsRemote("url")).toBe(true);
-		// The bundled default is not bundled: it is served from GitHub.
-		expect(backgroundIsRemote("default")).toBe(true);
 		// The legacy animated wallpaper is also served from a pinned GitHub URL.
 		expect(backgroundIsRemote("animated")).toBe(true);
 	});
 
 	it("leaves the local kinds alone", () => {
+		// Hearth's own wallpaper is drawn in the plugin, not downloaded.
+		expect(backgroundIsRemote("default")).toBe(false);
 		expect(backgroundIsRemote("none")).toBe(false);
 		expect(backgroundIsRemote("color")).toBe(false);
 		expect(backgroundIsRemote("image")).toBe(false);
@@ -64,21 +64,22 @@ describe("backgroundPaintable", () => {
 		expect(backgroundPaintable(bg("none"), false)).toBe(false);
 	});
 
-	it("handles built-in kinds without a value field", () => {
+	it("needs a value for every kind but the drawn ones", () => {
 		expect(backgroundPaintable(bg("default"), false)).toBe(true);
+		expect(backgroundPaintable(bg("harbour"), false)).toBe(true);
 		expect(backgroundPaintable(bg("animated"), false)).toBe(true);
 		expect(backgroundPaintable(bg("url"), false)).toBe(false);
 		expect(backgroundPaintable(bg("url", "https://example.com/bg.png"), false)).toBe(true);
 		expect(backgroundPaintable(bg("color", "#123456"), false)).toBe(true);
 	});
 
-	it("drops the remote kinds once external calls are off", () => {
+	it("drops the remote kind once external calls are off", () => {
 		expect(backgroundPaintable(bg("url", "https://example.com/bg.png"), true)).toBe(false);
-		expect(backgroundPaintable(bg("default"), true)).toBe(false);
 		expect(backgroundPaintable(bg("animated"), true)).toBe(false);
 	});
 
 	it("keeps the local kinds when external calls are off", () => {
+		expect(backgroundPaintable(bg("default"), true)).toBe(true);
 		expect(backgroundPaintable(bg("color", "#123456"), true)).toBe(true);
 		expect(backgroundPaintable(bg("image", "Assets/wall.png"), true)).toBe(true);
 		expect(backgroundPaintable(bg("weather", "50.1,14.4,Prague"), true)).toBe(true);

@@ -4,6 +4,7 @@ import { normalizeAuthorKey } from "./identity";
 import { DEFAULT_GALLERY_URL, normalizeGalleryUrl } from "./gallery/client";
 import { type PublishedEntry, readGalleryEntries } from "./gallery/published";
 import type { EventNoteConfig } from "./eventnote";
+import type { FolderShow, FolderSort } from "./foldercontents";
 import type { Granularity } from "./periodic";
 import { DEFAULT_WEB_SEARCH_ENGINE, type WebSearchEngineId } from "./websearch";
 import type {
@@ -24,6 +25,7 @@ export type CardKind =
 	| "favorites"
 	| "text"
 	| "recent"
+	| "folder"
 	| "links"
 	| "commands"
 	| "templater"
@@ -41,10 +43,12 @@ export type CardKind =
 	| "rss"
 	| "jira"
 	| "weather"
+	| "market"
 	| "git"
 	| "operon"
 	| "leaf"
-	| "pet";
+	| "pet"
+	| "vaultpet";
 
 /** A refinement control available on a Jira saved-filter card. */
 export type JiraControl =
@@ -528,6 +532,9 @@ export interface CalendarSourcesConfig {
 	 * instances, timeblocks and TaskNotes' own calendar subscriptions, drawn on
 	 * this card alongside any ICS feeds. Off unless `enabled`. */
 	taskNotes?: TaskNotesSourceConfig;
+	/** Markdown checkbox tasks (`- [ ] … 📅 2026-10-01`) as an event source,
+	 * drawn on their due and scheduled dates. Off unless `enabled`. */
+	checkboxTasks?: CheckboxTasksSourceConfig;
 	/** Which chips each listed entry shows. Omitted (or an omitted field) keeps
 	 * the default set. */
 	chips?: CalendarChipConfig;
@@ -679,6 +686,31 @@ export interface TaskNotesSourceConfig {
 	allowComplete?: boolean;
 }
 
+/**
+ * Per-card configuration for the checkbox-task calendar source: every
+ * `- [ ]` line carrying a Tasks-plugin due (📅) or scheduled (⏳) date.
+ */
+export interface CheckboxTasksSourceConfig {
+	/** Master switch. Off (the default) means the card reads no notes for
+	 * tasks at all. */
+	enabled?: boolean;
+	/** Draw tasks on their scheduled (⏳) date. Default true. */
+	scheduled?: boolean;
+	/** Draw tasks on their due (📅) date. Default true. */
+	due?: boolean;
+	/** Include finished tasks (shown struck through). Default true. */
+	completed?: boolean;
+	/** Only read notes inside these folders. Empty (the default) reads the
+	 * whole vault. */
+	folders?: string[];
+	/** Colour of the entries. Falls back to the accent colour. */
+	color?: string;
+	/** Separate colour for due-date entries. */
+	dueColor?: string;
+	/** Offer ticking a task off straight from the calendar. Default true. */
+	allowComplete?: boolean;
+}
+
 /** Every chip an agenda entry can carry, resolved to a plain on/off. */
 export type ResolvedChips = Required<CalendarChipConfig>;
 
@@ -700,6 +732,9 @@ export function calendarChips(cfg: CalendarChipConfig | undefined): ResolvedChip
 }
 
 
+/** How a favourites or recent-files card draws its files. */
+export type FileView = "list" | "tiles";
+
 /** Per-card configuration for a "search" (query) card. */
 export interface SavedSearchConfig {
 	/** The query, using the same syntax as the top search bar (plain text,
@@ -710,6 +745,39 @@ export interface SavedSearchConfig {
 	/** Display layout: "list" (default) renders a vertical list; "tiles"
 	 * renders results as a grid of icon tiles (like the links card). */
 	view?: "list" | "tiles";
+}
+
+/** Per-card configuration for a "folder" (folder contents) card. */
+export interface FolderCardConfig {
+	/** The folder listed, vault-relative. Empty or omitted is the vault root,
+	 * so a card added from the picker shows something before it is configured. */
+	path?: string;
+	/** How the contents are ordered. Omitted means `explorer` — the order the
+	 * sidebar's file explorer is showing (see src/explorerorder.ts). */
+	sort?: FolderSort;
+	/** Which children are listed. Omitted means everything. */
+	show?: FolderShow;
+	/** Max rows/tiles on the card itself. Omitted means 12. The browser opened
+	 * from the card is never capped — that is what it is for. */
+	count?: number;
+	/** Display layout, as on the query card: "list" (default) is a vertical
+	 * list of rows, "tiles" a grid of icon tiles. */
+	view?: "list" | "tiles";
+	/** Show how many items each subfolder holds. Off by default: it is the one
+	 * setting that reads below the card's own level. */
+	counts?: boolean;
+	/** Clicking the card's empty space opens the folder browser. Default on;
+	 * set false for a card that should only ever open what it lists. */
+	browse?: boolean;
+	/** Where clicking a subfolder goes. Omitted is the browser dialog; "card"
+	 * walks the card itself into the folder, which then grows a path row with
+	 * a way back up.
+	 *
+	 * Either way the folder a card has been walked to is *not* stored here: it
+	 * is where the reader currently is, not what the card is, and a board that
+	 * rewrote itself (and synced) on every click into a subfolder would be a
+	 * board nobody could share. See `browsedPath` in `cards/folder.ts`. */
+	navigate?: "card";
 }
 
 /** Per-card configuration for a "searchbar" (live search field) card. */
@@ -1113,13 +1181,19 @@ export interface WeatherPlace {
  * - `forecast` — an hourly temperature curve with a daily strip under it.
  * - `artistic` — an edge-to-edge painted sky that follows the real conditions
  *   and the time of day, with drifting clouds, rain, snow and stars.
+ * - `moon`     — tonight's moon, drawn in its real phase on a night sky, with
+ *   the next full and new moon and when it rises and sets.
+ * - `daylight` — the sun on its arc from sunrise to sunset, with the time of the
+ *   next one and how long until it.
  */
 export type WeatherStyle =
 	| "minimal"
 	| "compact"
 	| "detailed"
 	| "forecast"
-	| "artistic";
+	| "artistic"
+	| "moon"
+	| "daylight";
 
 /** Temperature unit for a weather card. Default "c". */
 export type TemperatureUnit = "c" | "f";
@@ -1144,6 +1218,11 @@ export interface WeatherConfig {
 	place?: WeatherPlace;
 	/** Visual style. Default "compact". */
 	style?: WeatherStyle;
+	/** How the style is drawn: "classic" (line icons, a painted sky) or
+	 * "expressive" (Material 3 Expressive — flat weather drawings, chips and
+	 * tonal containers in the accent colour, a flat illustrated sky). The moon
+	 * and daylight styles are always expressive. Default "classic". */
+	design?: "classic" | "expressive";
 
 	// ---- Units ----
 	/** Temperature unit. Default "c". */
@@ -1181,10 +1260,15 @@ export interface WeatherConfig {
 	/** How many days the daily strip covers. 0 hides it. Default 4. */
 	dailyCount?: number;
 
-	// ---- Artistic style ----
-	/** Animate the painted sky (drifting clouds, falling rain, twinkling stars).
-	 * Default true; forced off from the `reduced` tier down. */
+	// ---- Artistic, moon and daylight styles ----
+	/** Animate the painted sky (drifting clouds, falling rain, twinkling stars),
+	 * the moon's glow, or the sun's walk along its arc. Default true; forced off
+	 * from the `reduced` tier down. */
 	animate?: boolean;
+	/** The moon style's layout: "full" is the moon on a night sky with its
+	 * name, the month's track and the next full and new moon; "clean" is just
+	 * the moon and the track, on the card's own surface. Default "full". */
+	moonLayout?: "full" | "clean";
 
 	// ---- Refresh ----
 	/** Auto-refresh interval in minutes. 0 means "only when opened or refreshed
@@ -1192,17 +1276,137 @@ export interface WeatherConfig {
 	refreshMin?: number;
 }
 
+/**
+ * Where a "market" card's quotes come from. Every one is free and key-less:
+ *
+ * - `yahoo`       — Yahoo Finance's chart API: stocks, ETFs, funds and indices
+ *   on most of the world's exchanges, forex pairs, crypto and futures.
+ * - `tencent`     — Tencent's quote service: Shanghai, Shenzhen and Beijing
+ *   listings (on-exchange funds among them), Hong Kong and US.
+ * - `eastmoney`   — Eastmoney's fund estimates: Chinese off-exchange (OTC)
+ *   mutual funds, valued through the trading day.
+ * - `coingecko`   — CoinGecko: every coin it lists, against any currency.
+ * - `frankfurter` — ECB reference rates: daily forex, the fallback for pairs.
+ */
+export type MarketProviderId = "yahoo" | "tencent" | "eastmoney" | "coingecko" | "frankfurter";
+
+/** One instrument on a "market" card. */
+export interface MarketItem {
+	/** The symbol as typed or picked: a provider-native one ("AAPL",
+	 * "510300.SS", "EURUSD=X", "sh510300", "bitcoin") or a shorthand the card
+	 * resolves ("510300", "EUR/USD", "fund:161725", "cg:bitcoin"). */
+	symbol: string;
+	/** The source a search picked it from. Undefined = work it out from the
+	 * symbol's shape (see resolveSymbol in market.ts). */
+	provider?: MarketProviderId;
+	/** Display name, from the search or typed; the quote's own name otherwise. */
+	name?: string;
+	/** Portfolio: units held. Undefined = watched, not held. */
+	quantity?: number;
+	/** Portfolio: average cost per unit, in the instrument's own currency. */
+	cost?: number;
+}
+
+/**
+ * How a "market" card draws itself.
+ *
+ * One instrument (the first on the card; a spotlight with more gets a switcher):
+ * - `minimal`   — the price and its move, nothing else.
+ * - `spotlight` — name, price, move, a chart with a range switcher, key stats.
+ * - `chart`     — the chart edge to edge, with the price laid over it.
+ *
+ * Several:
+ * - `list`      — a watchlist: one row each, with a sparkline.
+ * - `tiles`     — a grid of tiles.
+ * - `ticker`    — a scrolling ticker tape.
+ * - `portfolio` — holdings valued in one currency, with the day's and the
+ *   overall gain or loss and an allocation bar.
+ * - `lookup`    — a search field over a watchlist: look anything up on the card
+ *   and add it with one click.
+ */
+export type MarketStyle =
+	| "minimal"
+	| "spotlight"
+	| "chart"
+	| "list"
+	| "tiles"
+	| "ticker"
+	| "portfolio"
+	| "lookup";
+
+/** A chart's time span. */
+export type MarketRange = "1d" | "5d" | "1mo" | "6mo" | "1y" | "5y";
+
+/**
+ * Per-card configuration for a "market" card. Every field is optional and the
+ * defaults draw a watchlist in the Classic design.
+ */
+export interface MarketConfig {
+	/** The instruments, in the order they are drawn. */
+	items?: MarketItem[];
+	/** Visual style. Default "list". */
+	style?: MarketStyle;
+	/** "classic" or "expressive" (Material 3 Expressive — chips, tonal
+	 * containers in the accent colour, soft shapes). Default "classic". */
+	design?: "classic" | "expressive";
+	/** Which colour a rise is: "green" (most of the world) or "red" (China,
+	 * Japan, Korea). Undefined follows the interface language. */
+	upColor?: "green" | "red";
+	/** Span of the sparklines and the chart. Default "1d". */
+	range?: MarketRange;
+	/** How a move is written: "percent", "absolute" or "both". Default "both"
+	 * for one instrument, "percent" for several. */
+	change?: "percent" | "absolute" | "both";
+	/** Show the instrument's name rather than only its symbol. Default true. */
+	showName?: boolean;
+	/** Draw sparklines in the list, tiles and ticker. Default true. */
+	showSparkline?: boolean;
+	/** Show the spotlight's stats (day and 52-week range, open, volume).
+	 * Default true. */
+	showStats?: boolean;
+	/** Show whether the market is open. Default true. */
+	showMarketState?: boolean;
+	/** Show when the quotes were fetched. Default false. */
+	showUpdated?: boolean;
+	/** Scroll the ticker tape. Default true; forced off from the `reduced`
+	 * performance tier down. */
+	animate?: boolean;
+	/** Portfolio: the currency totals are shown in (ISO code, lowercase).
+	 * Undefined = the currency most of the holdings are in. */
+	baseCurrency?: string;
+	/** Auto-refresh interval in minutes. 0 = only when opened or refreshed by
+	 * hand. Default 5. */
+	refreshMin?: number;
+}
+
 /** Per-card configuration for a "clock" card. All fields are optional; omitted
  * fields fall back to the defaults that match the original clock behaviour. */
+/** The faces a clock card can draw. */
+export const CLOCK_FACES = ["digital", "analog", "stacked", "flip", "ring", "shapes", "orbit"] as const;
+export type ClockFace = (typeof CLOCK_FACES)[number];
+
+/** Faces drawn only in the Expressive design, each with the Classic face a
+ * Classic card draws in its place. */
+export const CLOCK_CLASSIC_FALLBACK: Partial<Record<ClockFace, ClockFace>> = {
+	shapes: "stacked",
+	orbit: "analog",
+};
+
+/** The face a clock actually draws: its chosen one, or — for an
+ * Expressive-only face on a Classic card — that face's Classic stand-in. */
+export function resolveClockFace(mode: ClockFace | undefined, expressive: boolean): ClockFace {
+	const face = mode ?? "digital";
+	return expressive ? face : CLOCK_CLASSIC_FALLBACK[face] ?? face;
+}
+
 export interface ClockConfig {
-	/** Digital (default) or analogue clock face. */
-	mode?: "digital" | "analog";
+	/** The clock face (default digital). Every face has a Classic and an
+	 * Expressive look; `shapes` and `orbit` exist only in the Expressive design
+	 * and fall back to {@link CLOCK_CLASSIC_FALLBACK} in a Classic card. */
+	mode?: ClockFace;
 	/** Time format: "auto" follows the locale default, "12"/"24" force a
 	 * 12- or 24-hour clock regardless of locale. Default "auto". */
 	hourFormat?: "auto" | "12" | "24";
-	/** @deprecated Superseded by `hourFormat`. Kept for migration only:
-	 * `true` maps to `hourFormat: "24"`. */
-	use24Hour?: boolean;
 	/** Show seconds in the time. */
 	showSeconds?: boolean;
 	/** Show the greeting line (default true). */
@@ -1287,6 +1491,30 @@ export interface PetConfig {
 	lastPlayedAt?: number;
 }
 
+/** Which of the Vault Pet plugin's own surfaces a `vaultpet` card houses:
+ * "pet" — its compact `vault-pet` block (the default), "house" — its pet-house
+ * view, hosted in the card. */
+export type VaultPetDisplay = "pet" | "house";
+
+/** Per-card settings for the Vault Pet card.
+ *
+ * Deliberately thin. Everything that makes the pet a pet — its species, name,
+ * XP, quests, badges, wardrobe, sounds and language — belongs to the Vault Pet
+ * plugin and is set in *its* settings; a copy of any of it here could only go
+ * stale or, worse, disagree. What is left is Hearth's half of the arrangement:
+ * which surface to show, and how much chrome to put around it. */
+export interface VaultPetConfig {
+	/** Which surface the card shows. Default "pet". */
+	display?: VaultPetDisplay;
+	/** Keep the hosted house view's own title bar, which is otherwise hidden —
+	 * the card has a header of its own. Only read when `display` is "house".
+	 * Default false. */
+	showHeader?: boolean;
+	/** Drop the floating "open the pet house" button. Default false — the
+	 * button is there. */
+	hideOpenButton?: boolean;
+}
+
 /** A single button in the mobile action bar (shown under the search bar and
  * filters in Mobile mode). Like a launchpad tile, a button can run an Obsidian
  * command, open a vault note/file, or open a URL — chosen by `type`. Hearth's
@@ -1297,18 +1525,20 @@ export interface MobileActionButton {
 	id: string;
 	label: string;
 	icon: string;
-	/** What the button does. Defaults to "command" when absent (older buttons
-	 * stored only `commandId`). */
+	/** What the button does. Defaults to "command" when absent (buttons saved
+	 * before 1.9.0 stored only the legacy `commandId`, which `migrateSettings`
+	 * folds into `target`). */
 	type?: "command" | "note" | "url";
 	/** Command id, vault path, or URL depending on `type`. */
 	target?: string;
-	/** @deprecated Legacy command id from before `type`/`target` existed.
-	 * `migrateSettings` folds it into `target` on load (one-way); the fallback
-	 * read in `actionTarget` is a transitional safety net.
-	 * Remove in 1.11.0 or later — two minor releases after 1.9.0, once the
-	 * migration has run for everyone — together with that fallback. */
-	commandId?: string;
 }
+
+/** A mobile action button as saved before 1.9.0, when a button could only run
+ * a command and stored it as `commandId`. Deliberately *not* part of
+ * `MobileActionButton`: the field is read in exactly two places — the fold in
+ * `migrateSettings` and the one in `sanitizeMobileActionButton` — and nothing
+ * downstream should have to know it ever existed. */
+export type LegacyMobileActionButton = MobileActionButton & { commandId?: string };
 
 /**
  * How an embedded picture fills its card.
@@ -1523,6 +1753,9 @@ export interface DashboardCard {
 	 * Any combination of the search filter's types; undefined or empty means all
 	 * types are shown. */
 	recentTypes?: string[];
+	/** kind === "folder": which folder the card lists, how it is ordered and
+	 * how it is drawn. */
+	folder?: FolderCardConfig;
 	/**
 	 * kind === "favorites": this card's own list of note paths, instead of the
 	 * vault-wide one in `settings.favorites`.
@@ -1536,6 +1769,17 @@ export interface DashboardCard {
 	 * vault reads from.
 	 */
 	favorites?: string[];
+	/**
+	 * kind === "favorites" | "recent": how the card draws its files — "list" is
+	 * a row per file with the icon beside the name, "tiles" a grid of cards with
+	 * the icon above it.
+	 *
+	 * Undefined keeps each kind's historic look: tiles for favourites, a list
+	 * for recent files. A favourites card added from the picker is built with
+	 * "list", so a new board matches every other file-listing card (#358)
+	 * without restyling one somebody already arranged.
+	 */
+	fileView?: FileView;
 	/** kind === "clock": time/greeting/date display options. */
 	clock?: ClockConfig;
 	/** kind === "tasks": source, folder scope and display options. */
@@ -1567,6 +1811,8 @@ export interface DashboardCard {
 	jira?: JiraConfig;
 	/** kind === "weather": place, style, units and what to display. */
 	weather?: WeatherConfig;
+	/** kind === "market": instruments, holdings, style and what to display. */
+	market?: MarketConfig;
 	/** kind === "git": sections, action buttons and commit behaviour. */
 	git?: GitConfig;
 	/** kind === "operon": view, Operon filters and display options. */
@@ -1575,6 +1821,9 @@ export interface DashboardCard {
 	leafView?: LeafViewConfig;
 	/** kind === "pet": species, colors, name and what feeds its mood. */
 	pet?: PetConfig;
+	/** kind === "vaultpet": which of the Vault Pet plugin's surfaces the card
+	 * houses, and the chrome around it. */
+	vaultPet?: VaultPetConfig;
 
 	// ---- Live content ----
 	/** Auto-refresh interval in seconds for live content (embed / web). 0 or
@@ -1687,6 +1936,14 @@ export interface DashboardCard {
 	/** Override the card border width for this card, in pixels (undefined =
 	 * dashboard / global). 0 removes the visible border and the header rule. */
 	cardBorderWidth?: number;
+	/** How the card's content is drawn: "classic", or "expressive" (Material 3
+	 * Expressive — tonal containers in the accent colour, pills and soft
+	 * shapes, heavy tight type). Undefined follows the vault's
+	 * {@link HomeSettings.cardDesign}. Every card's frame follows it; only
+	 * kinds whose definition declares `expressive` also draw their content
+	 * with it. The weather and market cards keep theirs in their own config.
+	 * See {@link effectiveCardDesign} and `resolveCardDesign` in cards/. */
+	design?: CardDesign;
 
 	// ---- Layout (legacy grid cell units) ----
 	// Kept as the seed for the free-form coordinates below: older layouts (and
@@ -1746,13 +2003,14 @@ export interface MobileCardOptions {
 	collapsed?: boolean;
 }
 
-/** Background mode for the home view. "default" uses Hearth's current bundled
- * background, "animated" uses the older animated release background, and
- * "weather" paints the live sky for a place (see sky.ts); the other kinds use
- * the user's own value. */
+/** Background mode for the home view. "default" draws Hearth's own wallpaper
+ * and "harbour" its harbour town (both in wallpaper.ts), "animated" uses the
+ * earlier animated GIF, and "weather" paints the
+ * live sky for a place (see sky.ts); the other kinds use the user's own value. */
 export type BackgroundKind =
 	| "none"
 	| "default"
+	| "harbour"
 	| "animated"
 	| "color"
 	| "image"
@@ -2002,6 +2260,15 @@ export interface Dashboard extends BannerOverrides {
 	 * performance tier and the reader's reduced-motion preference both still
 	 * override it downwards; this can ask for motion, never insist on it. */
 	backgroundSkyAnimate?: boolean;
+	/** Override how the drawn backgrounds (the weather sky, Hearth's own
+	 * wallpaper) are drawn on this board (undefined = follow
+	 * {@link HomeSettings.backgroundSkyDesign}). Beside {@link background} for
+	 * the same reason as {@link backgroundSkyAnimate}. */
+	backgroundSkyDesign?: "classic" | "expressive";
+	/** Override the design this board's cards are drawn in when a card doesn't
+	 * choose one itself (undefined = follow {@link HomeSettings.cardDesign}).
+	 * See {@link effectiveCardDesign}. */
+	cardDesign?: CardDesign;
 	/**
 	 * Identity of the *shared work* this board is a copy of, if it is one.
 	 *
@@ -2151,6 +2418,10 @@ export interface HomeSettings {
 	 * power mode replaces the whole background anyway, and a reader who has
 	 * asked their OS for reduced motion gets a still sky regardless. */
 	backgroundSkyAnimate?: boolean;
+	/** How the drawn backgrounds — the "weather" sky and Hearth's own "default"
+	 * wallpaper — are drawn: classic, or flat Material 3 Expressive. Default
+	 * "classic". */
+	backgroundSkyDesign?: "classic" | "expressive";
 
 	// ---- Behaviour ----
 	openOnStartup: boolean;
@@ -2275,6 +2546,10 @@ export interface HomeSettings {
 	/** Card border width in pixels. 0 removes the visible card border and the
 	 * header divider line. */
 	cardBorderWidth: number;
+	/** The design a card is drawn in when it doesn't choose one itself —
+	 * "classic", or Material 3 "expressive". Default (absent) "classic". Read
+	 * through {@link effectiveCardDesign}. */
+	cardDesign?: CardDesign;
 
 	// ---- Search filters ----
 	/** Group ids the user has hidden from the auto-detected filter row. */
@@ -2456,11 +2731,13 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 
 	backgroundKind: "default",
 	backgroundValue: "",
-	/* Ambient: the background is visible but doesn't compete with content.
-	 * Opacity is low enough that foreground reads clearly; blur is gentle so
-	 * the image is still recognizable, not a wash of colour. */
-	backgroundOpacity: 0.35,
-	backgroundBlur: 2,
+	/* Tuned for Hearth's own wallpaper, the default kind: a flat, already muted
+	 * drawing that needs no dimming and has no detail for a blur to soften —
+	 * the cards' own surfaces carry the contrast. A little of the theme still
+	 * shows through, so it sits with a custom theme's colours. A photo is
+	 * dimmed on the way in instead (see {@link retuneBackground}). */
+	backgroundOpacity: 0.8,
+	backgroundBlur: 0,
 	/* The wallpaper board is what Hearth has always been, so it stays the
 	 * default; the banner is a choice, not an upgrade. */
 	backgroundLayout: "full",
@@ -2483,7 +2760,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	// down this file, so reading it here would hit the temporal dead zone while
 	// this object is being built. `maxWidth` above keeps its literal for the
 	// same reason. The clamp in migrateSettings is what holds them together.
-	narrowWidth: 600,
+	narrowWidth: 700,
 	disableExternalCalls: false,
 
 	// A new tab is what Hearth has always done; existing vaults must not change
@@ -2818,6 +3095,23 @@ export function effectiveSkyAnimate(s: HomeSettings): boolean {
 	return (activeDashboard(s).backgroundSkyAnimate ?? s.backgroundSkyAnimate) !== false;
 }
 
+/** The two ways a card can be drawn. */
+export type CardDesign = "classic" | "expressive";
+
+/** The design a card is drawn in: its own choice, else the active board's,
+ * else the vault's, else Classic. For the weather and market cards `own` is
+ * their config's `design`; for every other kind it is the card's. A synced
+ * card follows whichever board it is showing on. */
+export function effectiveCardDesign(s: HomeSettings, own: CardDesign | undefined): CardDesign {
+	return own ?? activeDashboard(s)?.cardDesign ?? s.cardDesign ?? "classic";
+}
+
+/** How the drawn backgrounds (weather sky, Hearth's own wallpaper) are drawn
+ * on the active board: its own choice, else the vault's, else classic. */
+export function effectiveSkyDesign(s: HomeSettings): "classic" | "expressive" {
+	return activeDashboard(s).backgroundSkyDesign ?? s.backgroundSkyDesign ?? "classic";
+}
+
 export const HEADER_SCALE_MIN = 0.6;
 export const HEADER_SCALE_MAX = 1.8;
 export const HEADER_MARGIN_TOP_MIN = 0;
@@ -2921,16 +3215,24 @@ export const CONTENT_WIDTH_STEP = 20;
  * which nothing is ever wide enough to be called anything but narrow; the
  * ceiling is a half-screen window on a large desktop, past which "narrow" would
  * cover every board anyone actually uses and the stacked layout is better asked
- * for outright. The default is the width at which a half-width card stops being
- * able to hold a line of text and a label: a phone in landscape, a small tablet
- * in portrait, or a desktop pane at roughly a third of a 1080p screen.
+ * for outright.
+ *
+ * The default is set above the widest phone rather than at the width a
+ * half-width card stops holding a line of text, because a phone that misses the
+ * threshold gets the free-form layout and a board nobody can read on it. It was
+ * 600 — the readability answer, and the wrong one: an Android phone at a device
+ * pixel ratio of 2 reports a ~608px viewport, so a 1216px display, an ordinary
+ * phone held in the hand, landed eight pixels on the free-form side and drew a
+ * desktop board on a phone screen (#326). 700 clears the phones that report
+ * 600-680 and still leaves a half-screen desktop window free-form; a board that
+ * wants the column sooner, or later, says so for itself.
  *
  * The settings slider, the per-board override and the clamp applied to an
  * imported layout all read these, so the range has exactly one definition. */
 export const NARROW_WIDTH_MIN = 320;
 export const NARROW_WIDTH_MAX = 1200;
 export const NARROW_WIDTH_STEP = 20;
-export const NARROW_WIDTH_DEFAULT = 600;
+export const NARROW_WIDTH_DEFAULT = 700;
 
 /** A stored or imported narrow threshold, brought into range. Anything that
  * isn't a finite number — a missing key in settings saved before the threshold
@@ -3020,6 +3322,38 @@ export function skyDensity(s: HomeSettings): number {
  * re-evaluate whenever anything behind it changes. */
 export function frostAllowed(s: HomeSettings): boolean {
 	return tierRank(s) < PERFORMANCE_TIERS.indexOf("reduced");
+}
+
+/**
+ * Whether Obsidian's own translucent window is in force: macOS vibrancy, from
+ * Settings -> Appearance -> Translucent window, which Obsidian marks with
+ * `is-translucent` on `body`.
+ *
+ * Read from the DOM rather than from settings because it is Obsidian's switch
+ * and not Hearth's — there is nothing in HomeSettings to consult, and the class
+ * goes on and comes off live as the user flips it. `document` is resolved at
+ * call time (never at import), so this stays safe to load in a DOM-less test.
+ */
+export function translucentWindowActive(doc: Document = document): boolean {
+	return Platform.isMacOS && doc.body.classList.contains("is-translucent");
+}
+
+/**
+ * Whether the frosted glass is being withheld because the window is vibrant.
+ *
+ * A backdrop-filter samples what is behind it, and under a translucent window
+ * what is behind it is the vibrant material macOS paints for the whole window —
+ * so every frost layer re-filtering drags the window's own chrome through a
+ * re-blend with it. That is what #272 sees: the tab bar flickering while the
+ * board is up, at Balanced and Full (the rungs that build frost) and never at
+ * Reduced or below, and gone outright with Translucent window switched off.
+ *
+ * True only where the tier would otherwise have allowed frost, so the settings
+ * note it drives speaks up in exactly the case the tier's own note does not
+ * already cover.
+ */
+export function frostSuppressedByVibrancy(s: HomeSettings, doc?: Document): boolean {
+	return frostAllowed(s) && translucentWindowActive(doc);
 }
 
 /** Whether timer-driven work may run at all: card auto-refresh and the
@@ -3203,23 +3537,55 @@ export function effectiveBackground(s: HomeSettings): ResolvedBackground {
 	};
 }
 
-/** Whether a background kind is fetched from the web. "weather" is not in the
- * list: a live sky asks for a forecast, but the fetch is gated on its own and
- * what it draws is drawn locally either way (see background.ts), so it still
- * paints something. */
+/** The opacity a photo is dimmed to, and the blur it is softened by, so the
+ * board on top of it reads. */
+const PHOTO_TUNING = { opacity: 0.35, blur: 2 };
+
+/**
+ * Opacity and blur after switching a background from one kind to another.
+ *
+ * The two numbers mean different things to different backdrops. A photo is
+ * busy, so it is dimmed and softened until text reads over it. A drawn one —
+ * the weather sky, Hearth's own wallpaper — is flat and already calm: dimmed
+ * that far it is a grey slab, and its contrast comes from the card surfaces
+ * instead. So a switch between the two families moves the numbers once, and
+ * only from values that belong to the other family; the sliders are right
+ * there to put them back, and a switch within a family leaves them alone.
+ */
+export function retuneBackground(
+	from: BackgroundKind,
+	to: BackgroundKind,
+	current: { opacity: number; blur: number },
+): { opacity: number; blur: number } {
+	const photo = (k: BackgroundKind): boolean =>
+		k === "image" || k === "url" || k === "animated";
+	let { opacity, blur } = current;
+	if (to === "weather" && opacity <= 0.5) opacity = 1;
+	if (to === "default" || to === "harbour") {
+		if (opacity <= 0.5) opacity = DEFAULT_SETTINGS.backgroundOpacity;
+		blur = DEFAULT_SETTINGS.backgroundBlur;
+	}
+	if (photo(to) && !photo(from)) {
+		if (opacity > 0.5) opacity = PHOTO_TUNING.opacity;
+		if (blur === 0) blur = PHOTO_TUNING.blur;
+	}
+	return { opacity, blur };
+}
+
+/** Whether a background kind is fetched from the web. Typed-in URLs and the
+ * legacy animated GIF are remote; "default" and "harbour" are drawn locally,
+ * and "weather" gates its forecast fetch separately while always drawing a
+ * sky (see background.ts). */
 export function backgroundIsRemote(kind: BackgroundKind): boolean {
-	// The animated wallpaper is also fetched from GitHub; keeping it in this
-	// predicate makes the external-call kill switch cover every web-served
-	// built-in background, not just the current default.
-	return kind === "url" || kind === "default" || kind === "animated";
+	return kind === "url" || kind === "animated";
 }
 
 /**
  * Whether a resolved background has anything to paint.
  *
- * "default" ships its own image so it needs no value; every other kind but
+ * "default" draws its own wallpaper so it needs no value; every other kind but
  * "none" needs one. `externalCallsDisabled` — the vault's **Disable external
- * calls** setting — takes the two remote kinds out: a wallpaper the switch will
+ * calls** setting — takes the remote kind out: a wallpaper the switch will
  * not let Hearth fetch is a wallpaper that isn't there, and saying so here is
  * what keeps the banner strip from being reserved for a picture that never
  * arrives.
@@ -3233,7 +3599,12 @@ export function backgroundPaintable(
 	// `animated` has no value field because its URL is fixed in background.ts;
 	// treating it like a value-based kind makes the selected GIF silently vanish
 	// before the renderer gets a chance to assign that URL.
-	return bg.kind === "default" || bg.kind === "animated" || !!bg.value;
+	return (
+		bg.kind === "default" ||
+		bg.kind === "harbour" ||
+		bg.kind === "animated" ||
+		!!bg.value
+	);
 }
 
 /** Whether the active board paints its backdrop as a banner rather than as a
@@ -3356,16 +3727,19 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	if (typeof s.lowPowerBackgroundColor !== "string" || !s.lowPowerBackgroundColor.trim()) {
 		s.lowPowerBackgroundColor = LOW_POWER_BACKGROUND;
 	}
-	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = 0.35;
-	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = 2;
+	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = DEFAULT_SETTINGS.backgroundOpacity;
+	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = DEFAULT_SETTINGS.backgroundBlur;
 	// Banner mode is purely additive: settings saved before it existed have none
 	// of these keys, and defaulting them to the full-view wallpaper leaves every
 	// existing board looking exactly as it did.
 	if (s.backgroundLayout !== "banner") s.backgroundLayout = "full";
 	s.bannerHeight = clampBannerHeight(s.bannerHeight);
 	// Additive: settings saved before the narrow threshold was customizable have
-	// no key here, and the clamp hands those the default the threshold was
-	// hard-coded to — so nothing about an existing vault's layout changes.
+	// no key here, and the clamp hands those the current default. Raising that
+	// default from 600 to 700 (#326) therefore does move such a vault on upgrade,
+	// which is deliberate: a pane between the two widths now stacks where it used
+	// to draw a free-form board too narrow to read. A stored threshold is a
+	// choice and is kept — 600 included.
 	s.narrowWidth = clampNarrowWidth(s.narrowWidth);
 	if (typeof s.bannerFade !== "boolean") s.bannerFade = true;
 	if (typeof s.bannerFullWidth !== "boolean") s.bannerFullWidth = false;
@@ -3387,20 +3761,20 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 		s.mobileActionButtons = defaultMobileActionButtons();
 	}
 	// One-way migration (added 1.9.0): fold the legacy per-button `commandId`
-	// into the unified `target` field so the deprecated fallback can be retired.
+	// into the unified `target` field. `commandId` is no longer part of
+	// `MobileActionButton` — this loop and `sanitizeMobileActionButton` (for
+	// imported backups) are the only code that still knows the name, which is
+	// why the field is reached through `LegacyMobileActionButton` here.
 	// This does NOT round-trip — a user who upgrades and then downgrades below
 	// 1.9.0 loses any button whose action was stored only as `commandId`. See
 	// CHANGELOG.
-	// Remove in 1.11.0 or later — two minor releases after 1.9.0, once the
-	// migration has run for everyone — together with the `commandId` field on
-	// MobileActionButton and the fallback read in actionTarget().
+	// The loop is convergent: it deletes what it folds, so once every install
+	// has run it is a no-op over data that no longer carries the field. Keep it
+	// for as long as a vault might still be opening from a pre-1.9.0 data.json.
 	let migratedCommandId = false;
 	if (Array.isArray(s.mobileActionButtons)) {
-		for (const btn of s.mobileActionButtons) {
-			// Reading (and below, deleting) `commandId` intentionally trips
-			// no-deprecated — the repo forbids silencing that rule, so the
-			// warnings stay visible until the field is removed in 1.11.0. That is
-			// expected: a migration must touch the field it is retiring.
+		for (const button of s.mobileActionButtons) {
+			const btn = button as LegacyMobileActionButton;
 			const legacy = btn.commandId;
 			if (legacy === undefined) continue;
 			// Only lift the value into `target` when `target` is unset: a button

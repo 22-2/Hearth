@@ -2,7 +2,8 @@
 
 This chapter documents the cards in the **Integrations** category of Hearth's
 Add card picker. Each one is a window onto another plugin or another service:
-Templater, Dataview, Datacore, Git, Jira, RSS, Weather, Operon (four cards) and
+Templater, Dataview, Datacore, Git, Jira, RSS, Weather, Markets, Operon (four
+cards) and
 the Plugin view card.
 
 A card whose plugin is not installed is still listed in the picker, marked
@@ -224,8 +225,8 @@ disabled)* rather than failing silently.
 
 ## Weather
 
-**What it shows:** current conditions and a forecast, in five styles up to a
-full painted sky.
+**What it shows:** current conditions and a forecast, in seven styles up to a
+full painted sky — plus tonight's moon and the sun's path across the day.
 
 **Requires:** network access. Forecasts come from
 [Open-Meteo](https://open-meteo.com) — free, key-less, no account. Only the
@@ -250,9 +251,34 @@ coordinates by hand still works.
 | *Detailed* | A grid of metrics |
 | *Forecast* | An hourly curve |
 | *Artistic* | An edge-to-edge painted sky that follows the real conditions and time of day |
+| *Moon* | Tonight's moon in its real phase on a night sky, with how much of it is lit, the next full and new moon, and today's moonrise and moonset |
+| *Daylight* | The sun on a parabola from sunrise to sunset, the time of the next sunset (or sunrise) and how long until it, and the day's length |
 
-*Animate the sky* adds drifting clouds, falling rain and twinkling stars. It is
-always off in low power mode.
+*Design* chooses **Classic** — line icons and the painted sky — or **Expressive**, in
+Material 3 Expressive's manner: flat weather drawings (the big one on a cookie
+shape), feels-like, high / low and metrics as chips, the hours as pills, thick
+range bars, metric tiles with round badges, heavy type, and on *Artistic* the flat
+illustrated sky. The interface parts take tonal steps of your accent colour; the
+weather drawings and the sky take their colours from the weather. Every style
+follows the board's or vault's *Design* ([chapter 11](11-appearance.md)) except *Moon*
+and *Daylight*, which start Expressive; set them to
+Classic for a shaded moon on a night-sky gradient and a rayed sun trailing a
+gradient along a dashed arc.
+
+*Moon* has a *Layout* setting: *Full* (the moon with its name, the month's
+slider and the next full and new moon, moonrise and moonset) or *Clean* (just the
+moon on its turning shape and the slider, with the phase as the hover text).
+
+*Moon* and *Daylight* make no extra request: the moon is worked out on your
+device from the time and the card's coordinates, and the sun's arc from the
+forecast's sunrise and sunset. Both use the place's own clock. On them, *What to
+display* offers only the place name, last updated and — on *Daylight* — the
+condition, shown as a small glyph and temperature.
+
+*Animate the sky* adds drifting clouds, falling rain and twinkling stars; on
+*Moon* the moon rising into place, its shape turning and the slider filling, and
+on *Daylight* the sun walking its arc up to the hour. It is always off in low
+power mode.
 
 Clicking a card opens the full forecast, hour by hour.
 
@@ -277,6 +303,97 @@ ahead* how many days the daily forecast covers (0 hides it). *Auto-refresh
 The same painted sky can be used as the whole board's background, which is a
 separate feature described in [chapter 11](11-appearance.md). A sky pinned to
 one fixed condition needs no location at all and never goes online.
+
+---
+
+## Markets
+
+**What it shows:** prices and moves for stocks, ETFs, funds, indices, forex
+pairs and crypto — one instrument or many, a portfolio, or a search field right
+on the card.
+
+**Requires:** network access. Quotes come from free, key-less sources, none of
+them an official API: [Yahoo Finance](https://finance.yahoo.com) for most of the
+world's exchanges, forex, crypto and futures; [Tencent](https://gu.qq.com) for
+Shanghai, Shenzhen, Beijing and Hong Kong listings, on-exchange funds among
+them; [Eastmoney](https://fund.eastmoney.com) for Chinese off-exchange (OTC)
+funds, valued through the day; [CoinGecko](https://www.coingecko.com) for any
+coin it lists; and the ECB's daily rates via
+[Frankfurter](https://www.frankfurter.app/). Only the symbols on your cards,
+and what you type into a search, are sent.
+
+### Symbols
+
+Search by name or symbol and press *Add* — a search asks every source that
+could know the answer, and a Chinese name or a mainland code asks Tencent first.
+Or type a symbol and *Add as typed*; the card works out where it trades:
+
+| Typed | Fetched as |
+| --- | --- |
+| `AAPL`, `SAP.DE`, `^GSPC`, `GC=F` | Yahoo, as typed |
+| `510300`, `sh510300`, `159915` | Tencent, then Yahoo (`510300.SS`) |
+| `600519.SS`, `0700.HK` | Yahoo, then Tencent |
+| `EUR/USD`, `EURUSD=X` | Yahoo forex, then the ECB |
+| `BTC-USD`, `BTC/USD` | Yahoo |
+| `fund:161725` | Eastmoney (an OTC fund's running estimate) |
+| `cg:bitcoin`, `cg:bitcoin/eur` | CoinGecko |
+| `fx:USD/CZK` | The ECB only |
+
+Every instrument that more than one source carries has a fallback: if one
+source fails, the card asks the next, and remembers which one answered. That is
+what keeps a mainland board working where Yahoo is unreachable.
+
+The arrows reorder the list; one-instrument styles show the first.
+
+### Style
+
+| Style | What it draws |
+| --- | --- |
+| *Minimal* | The price and its move |
+| *Spotlight* | Name, price, move, a chart with a range switcher (1D to 5Y), the day's and the 52-week range, open, previous close and volume. With several instruments, chips along the top switch between them |
+| *Chart* | The chart edge to edge, with the price laid over it |
+| *Watchlist* | One row each, with a sparkline |
+| *Tiles* | A grid of tiles |
+| *Ticker tape* | A scrolling tape; it pauses under the pointer, and sits still (scroll it by hand) when *Scroll the tape* is off or the performance tier is reduced |
+| *Portfolio* | The total value in one currency, today's and the overall gain, an allocation bar, and each holding's value and gain. Set *Units* and *Average cost* per symbol; symbols without units are listed as watched |
+| *Lookup* | A search field over the card's watchlist: look anything up, see its chart and stats, and add it with one click |
+
+*Design* chooses **Classic** or **Expressive** — the weather card's two — or
+follows the board's or vault's *Design*. In
+Expressive the move sits on a pill in its own colour, the single-instrument
+styles set a trend glyph on a cookie shape, chips and rows become tonal
+containers in your accent colour, tiles are tinted by their move and the chart
+is drawn heavier.
+
+*Rising colour* is green for a rise in most of the world and red in China,
+Japan and Korea. *Automatic* follows Obsidian's language.
+
+*Chart range* sets the span of the sparklines, or the range the spotlight and
+chart styles open on. *Show the move as* a percentage, an amount, or both.
+
+A portfolio's *Portfolio currency* is the one its totals are converted into, at
+the ECB's daily rates; *Automatic* picks the currency most holdings are in. A
+holding in a currency the ECB doesn't quote is left out of the totals, and the
+card says so. London prices quoted in pence are counted in pounds.
+
+Clicking an instrument opens it in full: a chart over any range with a
+crosshair, the day's and the year's range, the stats, where the quote came from
+and when, your position if the card holds some, and a link to the instrument's
+page on the web.
+
+### What to display and refresh
+
+Names, sparklines, the spotlight's stats, whether the market is open, and when
+the quotes were fetched are individually switchable where a style shows them.
+
+*Refresh every (minutes)* defaults to 5; 0 fetches only when the board opens.
+Quotes are shared by every card on every board, so ten cards watching the same
+fund make one request, and a market that has closed is checked at most every
+half hour.
+
+**When publishing a board**, the units and costs on a portfolio are removed with
+the other private details (see [chapter 16](16-sharing-and-gallery.md)); the
+symbols travel.
 
 ---
 
