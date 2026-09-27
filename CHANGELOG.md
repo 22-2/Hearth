@@ -15,6 +15,37 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 
 ### Added
 
+- **Instant answers in the search bar.** A query that has an answer of its
+  own gets it above the notes:
+  - sums and unit conversions — `1+1`, `20% of 150`, `10 km to mi`
+  - currencies with the pair's chart — `20 CZK to EUR`, `20 euros in
+    dollars`, `100 CHF nach EUR`, `20美元换成人民币`, `eur/usd`
+  - market quotes with a chart — `$AAPL`, or by name: `apple stock`,
+    `bitcoin price`, `Siemens Aktie`, `茅台股价`
+  - the weather — `weather Prague`, `Wetter Berlin`, `北京天气`
+  - Wikipedia summaries — `wiki Alan Turing`, `wiki:de Prag`, `维基 布拉格`
+  - chance — `coin flip`, `roll 2d6`, `d20`, `random 1-10`
+  - dates — `days until 2026-12-24`, `today + 45 days`, `Tage bis …`,
+    `距离2026-12-24还有几天`
+  - the time elsewhere — `time in Tokyo`, `Zeit in Prag`, `东京时间`
+
+  Phrases work in English, German and Chinese; a leading `=` forces the
+  calculator. Enter copies the answer, opens a quote or article, or rolls
+  again; a date or a clock leaves Enter on the first note. Online answers are
+  fetched only for queries that ask for them, reuse the calculator's, Markets
+  and Weather cards' cached sources, and stop with **Disable external calls**.
+
+  Each answer can be switched off vault-wide (**Settings → Search → Instant
+  answers**), per board (*Dashboard settings → Header*) and per Search bar card.
+  A board or card can only switch answers off, never back on, so an installed
+  board can't turn on requests you have off.
+
+- **Search tips.** One dialog lists everything the search bar understands —
+  `#tags`, `key:value`, `>commands` and every instant answer — with examples
+  that type themselves into the bar when clicked. Type `?` into any search
+  bar, run **Hearth: Show search tips**, or open it from Settings → Search. An
+  empty search bar offers it once after this update.
+
 - **Material 3 Expressive: a second design for all of Hearth.** A new
   **Design** setting — *Classic* or *Expressive* — heads **Settings → Hearth →
   Appearance**. Expressive redraws everything Hearth draws in tonal steps of
@@ -103,6 +134,11 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   work with Recent files' **Fit to card height** too.
 
 ### Changed
+
+- **The search results float more clearly above the board.** The dropdown
+  casts a deeper two-layer shadow, denser in dark themes, and in the
+  Expressive design takes Material 3's menu elevation with a tonal edge, so
+  it no longer reads as sitting flat on the cards below.
 
 - **A shorter, visual setup wizard.** First-run setup is three steps instead of
   six: what the vault is for (with the plugins Hearth found), the look — design
