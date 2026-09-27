@@ -102,11 +102,31 @@ export interface ConfirmOptions {
 	onConfirm: () => void;
 	/** Optional: the dialog was closed without confirming. */
 	onDismiss?: () => void;
+	/** Draw the dialog in the Expressive design (see {@link dressModal}). */
+	expressive?: boolean;
 }
 
 /** Convenience: open a confirm dialog. */
 export function confirmAction(app: App, opts: ConfirmOptions): void {
-	new ConfirmModal(app, opts).open();
+	dressModal(new ConfirmModal(app, opts), opts.expressive === true).open();
+}
+
+/**
+ * Dress a dialog in the Expressive design when it was opened from a card drawn
+ * in it, so a task, an event or a folder opens looking like the card it came
+ * from. styles.css keys everything off the one class on `modalEl` (which the
+ * Modal constructor has already built). Returns the modal, to chain `open()`.
+ */
+export function dressModal<M extends Modal>(modal: M, expressive: boolean): M {
+	modal.modalEl.toggleClass("hearth-x-modal", expressive);
+	return modal;
+}
+
+/** Whether `el` sits in a card drawn in the Expressive design — for a dialog
+ * opened from something the card drew, where the element is the one thing at
+ * hand that knows. */
+export function inExpressiveCard(el: Element | null | undefined): boolean {
+	return el?.closest(".hearth-card.is-expressive") != null;
 }
 
 /**
@@ -235,4 +255,35 @@ export function pickTextFile(accept = "application/json,.json"): Promise<string 
 		input.addEventListener("cancel", () => finish(null));
 		input.click();
 	});
+}
+
+/**
+ * The card's *Design* row: follow the vault's default, or pin Classic or
+ * Expressive. `fallback` is what the card draws while it follows — the vault's
+ * choice, or a style's own default — and is named in the first option so the
+ * reader sees what "default" means right now. `set(undefined)` means follow.
+ */
+export function designSetting(
+	containerEl: HTMLElement,
+	opts: {
+		name: string;
+		desc: string;
+		own: "classic" | "expressive" | undefined;
+		fallback: "classic" | "expressive";
+		set: (design: "classic" | "expressive" | undefined) => void;
+	},
+): Setting {
+	const strings = t().editors.design;
+	const label = { classic: strings.classic, expressive: strings.expressive };
+	return new Setting(containerEl)
+		.setName(opts.name)
+		.setDesc(opts.desc)
+		.addDropdown((d) => {
+			d.addOption("default", strings.followDefault(label[opts.fallback]));
+			d.addOption("classic", label.classic);
+			d.addOption("expressive", label.expressive);
+			d.setValue(opts.own ?? "default").onChange((v) => {
+				opts.set(v === "classic" || v === "expressive" ? v : undefined);
+			});
+		});
 }

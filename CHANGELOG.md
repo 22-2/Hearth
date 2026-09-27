@@ -15,6 +15,35 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 
 ### Added
 
+- **The Expressive design for the rest of the cards.** The Material 3
+  Expressive look the weather and market cards introduced now reaches every
+  card whose content Hearth draws itself: clock, mini and full calendar, tasks
+  (list and Kanban), statistics, activity heatmap, links, commands, new note,
+  favourites, bookmarks, recent files, folder, query, search bar, calculator,
+  Git, RSS, Jira and Operon. Rows become a grouped list of tonal containers with
+  their icons on round badges, tiles and keys become soft tonal shapes that
+  firm up their corners under the pointer, controls become pills and connected
+  button groups, and each card's headline is set heavy — the time, the
+  calculator's answer, the statistics — or on a cookie: today in the mini
+  calendar, the analogue clock's face. Everything takes tonal steps of your
+  accent colour, in light and dark themes.
+
+  It cascades vault → board → card: **Settings → Hearth → Dashboard → Card
+  surface → Card design** sets it for the whole vault, *Dashboard settings →
+  Style → Card design* for one board, and each card's *Style* tab can follow
+  that or choose *Classic* or *Expressive* for itself. The weather and market
+  cards follow the default too until they're told otherwise (moon and daylight
+  stay Expressive). A shared or published board carries its card design.
+  The search row at the top of the board follows the board's card design as
+  well: a pill of a field and button, round filter chips, and a tonal results
+  sheet — as does the search-bar card's own chips and results.
+  The dialogs such a card opens follow it — a task and its filter and sort, an
+  event, the folder browser, the full forecast (with the flat weather
+  drawings), an instrument's chart, a confirmation: a tonal surface with large
+  corners, pill buttons, filled fields and the card's own rows and chips. Cards showing
+  your own content — notes, embeds, web pages, Dataview and Datacore, the pets —
+  are left as they are, and no card's frame changes.
+
 - **A Markets card: stocks, funds, forex and crypto.** (#337) Type or search a
   symbol — `AAPL`, `0700.HK`, `510300`, `EUR/USD`, `BTC-USD`, `fund:161725` —
   and the card finds where it trades, across Yahoo Finance (most of the world's

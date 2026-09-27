@@ -2,8 +2,10 @@ import { type App, Component, Modal, setIcon, Setting } from "obsidian";
 import { emptyState } from "../cardbodies";
 import { t } from "../i18n";
 import {
+	type CardDesign,
 	type DashboardCard,
 	effectiveAutoRefreshMinutes,
+	effectiveCardDesign,
 	motionAllowed,
 	skyDensity,
 	type PrecipitationUnit,
@@ -39,7 +41,7 @@ import { configuredPlaces, renderPlacePicker } from "../placepicker";
 import { drawSky } from "../sky";
 import { drawWeatherIcon } from "../weathericons";
 import { type AstroOptions, moonSummary, paintDaylight, paintMoon } from "./weatherastro";
-import { makeClickable } from "../ui";
+import { designSetting, dressModal, makeClickable } from "../ui";
 import { type CardDefinition, type CardEditorContext } from "./definition";
 
 
@@ -123,13 +125,20 @@ function resolveHour12(cfg: WeatherConfig): boolean | undefined {
 	return undefined;
 }
 
-/** The design a style is drawn in when the card doesn't say. */
-function defaultDesign(style: WeatherStyle): "classic" | "expressive" {
-	return style === "moon" || style === "daylight" ? "expressive" : "classic";
+/** The design a style is drawn in when the card doesn't say: the vault's
+ * card design, bar moon and daylight, which are always Expressive unless told
+ * otherwise. */
+function defaultDesign(style: WeatherStyle, vaultDesign: CardDesign): CardDesign {
+	return style === "moon" || style === "daylight" ? "expressive" : vaultDesign;
 }
 
 /** Apply every default, so the paint functions read one flat object. */
-export function resolveConfig(cfg: WeatherConfig, lowPower = false, density = 1): Resolved {
+export function resolveConfig(
+	cfg: WeatherConfig,
+	lowPower = false,
+	density = 1,
+	vaultDesign: CardDesign = "classic",
+): Resolved {
 	const style = cfg.style ?? "compact";
 	return {
 		style,
@@ -155,8 +164,8 @@ export function resolveConfig(cfg: WeatherConfig, lowPower = false, density = 1)
 		animate: (cfg.animate ?? true) && !lowPower,
 		moonLayout: cfg.moonLayout ?? "full",
 		// Moon and daylight were drawn expressively first, and default to it;
-		// every other style defaults to Classic.
-		expressive: cfg.design ? cfg.design === "expressive" : defaultDesign(style) === "expressive",
+		// every other style follows the vault's card design.
+		expressive: (cfg.design ?? defaultDesign(style, vaultDesign)) === "expressive",
 		density,
 	};
 }
@@ -728,6 +737,7 @@ export function renderWeather(
 		cfg,
 		!motionAllowed(view.plugin.settings),
 		skyDensity(view.plugin.settings),
+		effectiveCardDesign(view.plugin.settings, undefined),
 	);
 	const req = requestFor(cfg, r);
 	if (!req) {
@@ -812,7 +822,7 @@ export function renderWeather(
 	 */
 	const openDetail = (): void => {
 		if (!cachedWeather(req)) return;
-		new WeatherDetailModal(view.app, {
+		const modal = new WeatherDetailModal(view.app, {
 			cfg,
 			r,
 			// Read, not captured, so a refresh from inside the dialog shows.
@@ -825,7 +835,8 @@ export function renderWeather(
 					await loadWeather(req, { ttlMs, disabled, force: true });
 					if (!destroyed) paint();
 				},
-		}).open();
+		});
+		dressModal(modal, r.expressive).open();
 	};
 	wrap.addEventListener("click", openDetail);
 	makeClickable(wrap, openDetail, t().cards.weather.detail.open);
@@ -995,6 +1006,9 @@ class WeatherDetailModal extends Modal {
 			this.titleEl.createSpan({ cls: "hearth-weather-detail-region", text: place.region });
 		}
 		this.host = this.contentEl.createDiv("hearth-weather-detail");
+		// The card's design reaches its dialog: flat glyphs, and the metric
+		// tiles, day rows and range bars in the Expressive manner.
+		this.host.toggleClass("is-expressive", this.opts.r.expressive);
 		this.draw();
 	}
 
@@ -1031,7 +1045,7 @@ class WeatherDetailModal extends Modal {
 		const now = snapshot.now;
 
 		const head = this.host.createDiv("hearth-weather-detail-now");
-		glyph(head, weatherIcon(now.code, now.isDay), "hearth-weather-detail-glyph");
+		conditionGlyph(head, now.code, now.isDay, "hearth-weather-detail-glyph", r, true);
 		const text = head.createDiv("hearth-weather-detail-nowtext");
 		text.createDiv({
 			cls: "hearth-weather-detail-temp",
@@ -1087,7 +1101,7 @@ class WeatherDetailModal extends Modal {
 			const name = row.createDiv("hearth-weather-detail-day-name");
 			name.createDiv({ cls: "hearth-weather-detail-day-weekday", text: label });
 			name.createDiv({ cls: "hearth-weather-detail-day-date", text: formatDayDate(day.date) });
-			glyph(row, weatherIcon(day.code, true), "hearth-weather-detail-day-icon");
+			conditionGlyph(row, day.code, true, "hearth-weather-detail-day-icon", this.opts.r);
 			row.createDiv({
 				cls: "hearth-weather-detail-day-condition",
 				text: conditionText(day.code),
@@ -1158,10 +1172,12 @@ class WeatherDetailModal extends Modal {
 				cls: "hearth-weather-detail-cell-time",
 				text: isNow ? strings.now : formatHour(hour.time, r.hour12),
 			});
-			glyph(
+			conditionGlyph(
 				row.createEl("td", { cls: "hearth-weather-detail-cell-icon" }),
-				weatherIcon(hour.code, hour.isDay),
+				hour.code,
+				hour.isDay,
 				"hearth-weather-detail-cellicon",
+				r,
 			);
 			row.createEl("td", { text: conditionText(hour.code) });
 			row.createEl("td", { text: formatTemp(hour.temp, r.tempUnit) });
@@ -1293,21 +1309,18 @@ export function weatherEditor(ctx: CardEditorContext, containerEl: HTMLElement):
 			});
 		});
 
-	// Stored only when it differs from the style's own default (see
-	// defaultDesign), so a card left alone follows whichever that is.
-	new Setting(containerEl)
-		.setName(strings.design)
-		.setDesc(strings.designDesc)
-		.addDropdown((d) => {
-			d.addOption("classic", strings.designClassic);
-			d.addOption("expressive", strings.designExpressive);
-			d.setValue(cfg.design ?? defaultDesign(style)).onChange((v) => {
-				const design = v === "expressive" ? "expressive" : "classic";
-				cfg.design = design === defaultDesign(style) ? undefined : design;
-				ctx.opts.save();
-				ctx.opts.rerender();
-			});
-		});
+	// Undefined follows the style's own default (see defaultDesign).
+	designSetting(containerEl, {
+		name: strings.design,
+		desc: strings.designDesc,
+		own: cfg.design,
+		fallback: defaultDesign(style, effectiveCardDesign(ctx.opts.settings, undefined)),
+		set: (design) => {
+			cfg.design = design;
+			ctx.opts.save();
+			ctx.opts.rerender();
+		},
+	});
 
 	if (style === "moon") {
 		new Setting(containerEl)

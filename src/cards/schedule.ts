@@ -34,7 +34,7 @@ import {
 	type DaySpan,
 	type DayWindow,
 } from "../timegrid";
-import { type DashboardCard, type ScheduleConfig, type ScheduleView } from "../types";
+import { type DashboardCard, effectiveCardDesign, type ScheduleConfig, type ScheduleView } from "../types";
 import { makeClickable } from "../ui";
 import { type HomeView } from "../view";
 import { type CardDefinition, type CardEditorContext } from "./definition";
@@ -74,7 +74,13 @@ export function renderSchedule(
 	}
 
 	const state = scheduleState(card, cfg);
-	const ics = buildIcsContext(view, cfg, sources, component);
+	const ics = buildIcsContext(
+		view,
+		cfg,
+		sources,
+		component,
+		effectiveCardDesign(view.plugin.settings, card.design) === "expressive",
+	);
 	const wrap = body.createDiv("hearth-sched");
 
 	const draw = (): void => {
@@ -1025,5 +1031,6 @@ export const scheduleCard: CardDefinition<"schedule"> = {
 					: undefined,
 			};
 	},
+	expressive: true,
 	liveness: { mode: "vault" },
 };

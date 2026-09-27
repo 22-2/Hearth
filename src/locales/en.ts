@@ -630,6 +630,9 @@ export const en = {
 			skyAnimateStateOff: "still",
 			skyAnimateOptionOn: "Animate",
 			skyAnimateOptionOff: "Hold still",
+			cardDesign: "Card design",
+			cardDesignDesc:
+				"How this board's cards are drawn unless a card chooses for itself: Classic, or Material 3 Expressive.",
 			skyDesign: "Sky design",
 			skyDesignDesc:
 				"The classic painted sky, or the flat Material 3 Expressive one, on this board.",
@@ -1555,6 +1558,9 @@ export const en = {
 			cardBorderWidth: "Card border",
 			cardBorderWidthDesc:
 				"Thickness of the card border and header divider, in pixels. 0 hides the border.",
+			cardDesign: "Card design",
+			cardDesignDesc:
+				"How cards are drawn unless a dashboard or a card chooses for itself: Classic, or Material 3 Expressive — tonal containers in your accent colour, pills and soft shapes, heavier type. Cards whose content is your own (notes, embeds, web pages) stay as they are.",
 			cards: "Cards",
 			cardsDesc:
 				"Add and configure cards on the dashboard itself: open the home view, " +
@@ -3131,6 +3137,13 @@ export const en = {
 			openButtonDesc:
 				"A button in the card's corner that opens Vault Pet's house in the " +
 				"sidebar, the same as its ribbon icon.",
+		},
+		design: {
+			name: "Design",
+			desc: "Classic, or Material 3 Expressive: tonal containers in your accent colour, pills and soft shapes.",
+			classic: "Classic",
+			expressive: "Expressive",
+			followDefault: (design: string) => `Default (${design})`,
 		},
 		colors: {
 			heading: "Colors",
