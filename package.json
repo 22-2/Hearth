@@ -22,7 +22,6 @@
 	"author": "ondreu",
 	"license": "MIT",
 	"devDependencies": {
-		"@22-2/obsidian-copy-bundler-plugin": "^1.0.2",
 		"@stratejya/operon-cli": "^1.2.0",
 		"@types/node": "^24.13.3",
 		"esbuild": "^0.28.2",
