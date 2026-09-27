@@ -123,6 +123,16 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 - **A board set to *Hearth default* keeps it.** Choosing it in a board's own
   background settings painted nothing and was forgotten on restart.
 
+- **No more sideways wobble on a phone with the Arrange button on hover.**
+  The hidden button was nudged past the board's right edge, which left the
+  whole board a few pixels wider than the screen and scrollable sideways
+  (#326). It now fades and shrinks in place.
+
+- **A fit-to-page board follows the pane as you resize it.** Its cards stayed
+  at their old size until the pane edge stopped moving and then jumped into
+  place. On the *Full* performance tier they now follow the resize frame by
+  frame; the lower tiers keep the single re-fit at the end to save the work.
+
 
 ## [3.1.1]
 
