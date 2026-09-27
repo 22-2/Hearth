@@ -28,9 +28,9 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   calendar, the analogue clock's face. Everything takes tonal steps of your
   accent colour, in light and dark themes.
 
-  It cascades vault → board → card: **Settings → Hearth → Dashboard → Card
-  surface → Card design** sets it for the whole vault, *Dashboard settings →
-  Style → Card design* for one board, and each card's *Style* tab can follow
+  It cascades vault → board → card: **Settings → Hearth → Appearance →
+  Design** sets it for the whole vault, *Dashboard settings →
+  Style → Design* for one board, and each card's *Style* tab can follow
   that or choose *Classic* or *Expressive* for itself. The weather and market
   cards follow the default too until they're told otherwise (moon and daylight
   stay Expressive). A shared or published board carries its card design.
@@ -43,6 +43,44 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   corners, pill buttons, filled fields and the card's own rows and chips. Cards showing
   your own content — notes, embeds, web pages, Dataview and Datacore, the pets —
   are left as they are, and no card's frame changes.
+
+- **Expressive for all of Hearth.** With the vault's design on Expressive, the
+  look reaches past the cards to everything else Hearth draws: every dialog and
+  picker (tonal surfaces, pill buttons and fields, Material's wide switches and
+  slim-handled sliders, pill tab ribbons), every menu Hearth opens, the board's
+  toolbar, dashboard switcher and card buttons, and Hearth's own settings pane.
+  Obsidian's own interface and other plugins' are left to your theme.
+
+  The cascade stays the same: a card's design, else its board's, else the
+  vault's. A dialog or menu takes the design of whatever it was opened from —
+  so a Classic card or board keeps its dialogs Classic inside an Expressive
+  vault, and a confirmation opened from a dialog matches that dialog — and
+  anything opened from elsewhere (the command palette, the ribbon) follows the
+  vault. The setting is now called **Design** and heads *Settings → Hearth →
+  Appearance*, where the two choices are shown as a small card drawn each way;
+  the board's own is in *Dashboard settings → Style*.
+
+  Hearth's menus are grouped the Expressive way: a board's menu, for one, keeps
+  the board, moving it in and out, and deleting it as three separate groups,
+  and the destructive entry (delete, discard) is marked as such.
+
+- **A livelier Ko-fi button.** The tip button (About, *What's new*, the add-card
+  picker) is now a filled pill in Ko-fi's red with the cup on a white badge,
+  and the cup gives a little wobble under the pointer unless you've asked your
+  system for less motion.
+
+- **Choose Classic or Expressive in setup.** The setup wizard's *Look* step
+  opens with the design, and the wizard redraws itself in the one you pick. The
+  first setup makes it the vault's design and the drawn background's (so
+  Expressive gets Hearth's wallpaper in its Expressive shapes); running setup
+  again later puts the choice on the new board only.
+
+- **A harbour town background.** A new *Harbour town* background: houses
+  stepping down a hill to the quay, a lighthouse at the end of the pier and
+  sailing boats on the bay, drawn — not downloaded — from Material 3
+  Expressive's soft shapes in tonal steps of your accent colour. By day in a
+  light theme; at night in a dark one, with lit windows, the lamp burning and
+  stars out. Offered in settings, per board, and in the setup wizard.
 
 - **Five new clock faces.** The Clock card's *Style* gains **Stacked** (hours
   over minutes, large), **Flip** (split tiles that turn over as the number
@@ -261,6 +299,11 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   same thing after switching to the other.
 
 ### Fixed
+
+- **Category names in the gallery and the add-card picker are no longer cut
+  off.** A name too long for the rail wraps onto a second line instead of
+  ending in an ellipsis, and a theme's border and shadow on buttons no longer
+  box in every row.
 
 - **Hue and glow task colours show in the Expressive design.** A task field
   drawn as *Hue* or *Glow* — a priority tinting its Kanban card, say — lost its

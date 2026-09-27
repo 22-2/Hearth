@@ -241,6 +241,8 @@ export const en = {
 			showSearchDesc: "The search and command field under the title.",
 		},
 		look: {
+			designHeading: "Design",
+			designNote: "This one applies to all of Hearth, not just this board. Change it any time in Settings → Hearth → Appearance.",
 			surfaceHeading: "Cards",
 			backgroundHeading: "Background",
 			color: "Colour",
@@ -274,11 +276,28 @@ export const en = {
 				desc: "No card surface at all — content floating on the background.",
 			},
 		},
+		designs: {
+			classic: {
+				icon: "square",
+				name: "Classic",
+				desc: "Hearth as it has always looked: quiet surfaces, fine borders.",
+			},
+			expressive: {
+				icon: "shapes",
+				name: "Expressive",
+				desc: "Material 3 Expressive across all of Hearth — cards, buttons, menus, dialogs and settings — in tones of your accent colour.",
+			},
+		},
 		backgrounds: {
 			default: {
 				icon: "image",
 				name: "Hearth's wallpaper",
 				desc: "Hills drawn by Hearth, by day or by night with your theme.",
+			},
+			harbour: {
+				icon: "anchor",
+				name: "A harbour town",
+				desc: "A lighthouse, boats and houses on the hill, drawn in flat Expressive shapes in your accent colour.",
 			},
 			weather: {
 				icon: "cloud-sun",
@@ -630,9 +649,9 @@ export const en = {
 			skyAnimateStateOff: "still",
 			skyAnimateOptionOn: "Animate",
 			skyAnimateOptionOff: "Hold still",
-			cardDesign: "Card design",
+			cardDesign: "Design",
 			cardDesignDesc:
-				"How this board's cards are drawn unless a card chooses for itself: Classic, or Material 3 Expressive.",
+				"How this board is drawn — its cards, its buttons and the dialogs and menus opened from it — unless a card chooses for itself: Classic, or Material 3 Expressive.",
 			skyDesign: "Background design",
 			skyDesignDesc:
 				"The classic painted sky, or the flat Material 3 Expressive one, on this board.",
@@ -728,6 +747,7 @@ export const en = {
 			default: "Use global default",
 			none: "None",
 			hdefault: "Hearth default",
+			harbour: "Harbour town",
 			color: "Solid color",
 			image: "Vault image",
 			url: "Image URL",
@@ -761,7 +781,7 @@ export const en = {
 		/** One line per category, shown on its index row and again at the top of
 		 * its page: what a reader will find if they open it. */
 		tabDescs: {
-			appearance: "Title, title icon, background, and low power mode.",
+			appearance: "Design, title, title icon, background, and low power mode.",
 			search: "The search bar and which results it offers.",
 			dashboard: "Grid, card surface, and the controls around the board.",
 			behaviour: "Startup, how notes open, and privacy.",
@@ -1049,6 +1069,7 @@ export const en = {
 				"Run the banner edge to edge instead of lining it up with the content below.",
 			labels: {
 				default: "Hearth default",
+				harbour: "Harbour town",
 				none: "None",
 				color: "Solid color",
 				image: "Vault image",
@@ -1564,9 +1585,12 @@ export const en = {
 			cardBorderWidth: "Card border",
 			cardBorderWidthDesc:
 				"Thickness of the card border and header divider, in pixels. 0 hides the border.",
-			cardDesign: "Card design",
+			cardDesign: "Design",
 			cardDesignDesc:
-				"How cards are drawn unless a dashboard or a card chooses for itself: Classic, or Material 3 Expressive — tonal containers in your accent colour, pills and soft shapes, heavier type. Cards whose content is your own (notes, embeds, web pages) stay as they are.",
+				"How Hearth is drawn: Classic, or Material 3 Expressive — tonal containers in your accent colour, pills and soft shapes, heavier type. Expressive reaches all of Hearth's interface: the cards, the board's buttons, every dialog and menu, and this settings pane. A dashboard or a card can still choose for itself; cards whose content is your own (notes, embeds, web pages) stay as they are.",
+			designClassicDesc: "Quiet surfaces and fine borders — Hearth as it has always looked.",
+			designExpressiveDesc: "Material 3 Expressive everywhere: tonal colour from your accent, pills and soft shapes, bold type.",
+			designInUse: "In use",
 			cards: "Cards",
 			cardsDesc:
 				"Add and configure cards on the dashboard itself: open the home view, " +

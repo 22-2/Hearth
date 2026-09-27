@@ -21,6 +21,7 @@ import { openGallery } from "./gallerybrowse";
 import { makeClickable } from "./ui";
 import { isOmnisearchAvailable, OMNISEARCH_PLUGIN_ID } from "./omnisearch";
 import { formatSkyValue, parseSkyValue } from "./sky";
+import { shapePath, sparklePath } from "./shapes";
 import {
 	type IntegrationEntry,
 	type IntegrationGroup,
@@ -38,6 +39,7 @@ import {
 import { CHANGELOG, WhatsNewModal } from "./whatsnew";
 import { openSetupWizard } from "./onboarding";
 import { t } from "./i18n";
+import { stateDesign } from "./uidesign";
 import { isWebSearchEngineId, WEB_SEARCH_ENGINES, webSearchEngine } from "./websearch";
 import {
 	destinationSummary,
@@ -281,6 +283,15 @@ export class HomeSettingTab extends PluginSettingTab {
 		this.renderInto(this.containerEl);
 	}
 
+	/** Draw the pane in the vault's Card design — the global switch, never a
+	 * board's, since nothing here belongs to one board — and state it, so a
+	 * dialog opened from the pane takes it too (src/uidesign.ts). */
+	private applyPaneDesign(containerEl: HTMLElement): void {
+		const design = this.plugin.settings.cardDesign ?? "classic";
+		containerEl.toggleClass("hearth-x-settings", design === "expressive");
+		stateDesign(containerEl, design);
+	}
+
 	/** Re-render the pane in place after a state change (tab switch, list
 	 * mutation, import) — into whichever element the pane currently lives in. */
 	private rerender(): void {
@@ -297,6 +308,7 @@ export class HomeSettingTab extends PluginSettingTab {
 	private renderInto(containerEl: HTMLElement): void {
 		containerEl.empty();
 		containerEl.addClass("hearth-settings");
+		this.applyPaneDesign(containerEl);
 
 		// Whole-pane backstop. #52 reports a completely blank settings pane — no
 		// content, no error in the (main-window) console — for some users on
@@ -440,6 +452,7 @@ export class HomeSettingTab extends PluginSettingTab {
 		const s = t().settings;
 		switch (tab) {
 			case "appearance":
+				this.designHero(body);
 				this.section(body, s.sections.performance, s.sections.performanceDesc, (b) =>
 					this.performanceSection(b),
 				);
@@ -1131,10 +1144,12 @@ export class HomeSettingTab extends PluginSettingTab {
 			this.backgroundDesignSetting(containerEl);
 		}
 
-		// "default", "none" and "weather" have no free-text value field; the rest do.
+		// The drawn kinds, "none" and "weather" have no free-text value field; the
+		// rest do.
 		if (
 			s.backgroundKind !== "none" &&
 			s.backgroundKind !== "default" &&
+			s.backgroundKind !== "harbour" &&
 			s.backgroundKind !== "weather"
 		) {
 			const desc =
@@ -2181,18 +2196,80 @@ export class HomeSettingTab extends PluginSettingTab {
 			this.addSliderReset(cardBorderWidth, sl, "cardBorderWidth");
 		});
 
-		new Setting(containerEl)
-			.setName(t().settings.dashboard.cardDesign)
-			.setDesc(t().settings.dashboard.cardDesignDesc)
-			.addDropdown((d) => {
-				d.addOption("classic", t().editors.design.classic);
-				d.addOption("expressive", t().editors.design.expressive);
-				// Classic, the default, is stored as absence.
-				d.setValue(s.cardDesign ?? "classic").onChange((v) => {
-					s.cardDesign = v === "expressive" ? "expressive" : undefined;
-					this.save();
-				});
+	}
+
+	/**
+	 * The vault's Design, Classic or Expressive, at the head of the Appearance
+	 * page.
+	 *
+	 * Not a dropdown among the card-surface sliders any more: it decides how all
+	 * of Hearth looks — every card, dialog, menu and this pane — so it is the
+	 * first thing on the page that is about looks, and it shows rather than
+	 * names its two choices: a small card drawn each way, the one in use marked.
+	 * Its own ornaments are Expressive shapes in the accent, so the switch is
+	 * noticed whichever design the pane is in.
+	 */
+	private designHero(containerEl: HTMLElement): void {
+		const s = this.plugin.settings;
+		const strings = t().settings.dashboard;
+		const current = s.cardDesign ?? "classic";
+
+		const hero = containerEl.createDiv("hearth-design-hero");
+		const art = hero.createSvg("svg", {
+			cls: "hearth-design-hero-art",
+			attr: { viewBox: "0 0 240 140", "aria-hidden": "true" },
+		});
+		art.createSvg("path", { cls: "is-cookie", attr: { d: shapePath(196, 34, 46, 9, 0.07, 16) } });
+		art.createSvg("circle", { cls: "is-dot", attr: { cx: "132", cy: "22", r: "9" } });
+		art.createSvg("path", { cls: "is-sparkle", attr: { d: sparklePath(222, 112, 13) } });
+		art.createSvg("path", { cls: "is-sparkle", attr: { d: sparklePath(150, 62, 8) } });
+
+		const head = hero.createDiv("hearth-design-hero-head");
+		head.createDiv({ cls: "hearth-design-hero-title", text: strings.cardDesign });
+		head.createDiv({ cls: "hearth-design-hero-desc", text: strings.cardDesignDesc });
+
+		const choices = hero.createDiv({ cls: "hearth-design-choices", attr: { role: "radiogroup" } });
+		for (const design of ["classic", "expressive"] as const) {
+			const chosen = design === current;
+			const choice = choices.createDiv({
+				cls: ["hearth-design-choice", `is-${design}`],
+				attr: { role: "radio", "aria-checked": String(chosen) },
 			});
+			choice.toggleClass("is-chosen", chosen);
+
+			// A card in miniature, drawn the way this design draws one.
+			const preview = choice.createDiv("hearth-design-preview");
+			const card = preview.createDiv("hearth-design-preview-card");
+			card.createDiv("hearth-design-preview-badge");
+			const lines = card.createDiv("hearth-design-preview-lines");
+			lines.createDiv("hearth-design-preview-line");
+			lines.createDiv("hearth-design-preview-line is-short");
+			const rows = preview.createDiv("hearth-design-preview-rows");
+			for (let i = 0; i < 3; i++) rows.createDiv("hearth-design-preview-row");
+			preview.createDiv("hearth-design-preview-button");
+
+			const label = choice.createDiv("hearth-design-choice-label");
+			const name = label.createDiv("hearth-design-choice-name");
+			name.createSpan({ text: t().editors.design[design] });
+			if (chosen) name.createSpan({ cls: "hearth-design-choice-badge", text: strings.designInUse });
+			label.createDiv({
+				cls: "hearth-design-choice-desc",
+				text: design === "classic" ? strings.designClassicDesc : strings.designExpressiveDesc,
+			});
+
+			const pick = (): void => {
+				if (design === (s.cardDesign ?? "classic")) return;
+				// Classic, the default, is stored as absence.
+				s.cardDesign = design === "expressive" ? "expressive" : undefined;
+				this.save();
+				// The pane wears the switch itself, so it changes on the spot.
+				this.rerender();
+			};
+			makeClickable(choice, pick, t().editors.design[design]);
+			// One of two, not a plain button: announced as the radio it is.
+			choice.setAttribute("role", "radio");
+			choice.addEventListener("click", pick);
+		}
 	}
 
 	// ---- Layout import / export ----------------------------------------

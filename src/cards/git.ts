@@ -1,4 +1,5 @@
-import { Component, Menu, Notice, setIcon, Setting, TFile } from "obsidian";
+import { Component, Notice, setIcon, Setting, TFile } from "obsidian";
+import { hearthMenu } from "../uidesign";
 import { emptyState, moment } from "../cardbodies";
 import { addResetButton, moveItem } from "../editors";
 import {
@@ -479,7 +480,7 @@ function paintChangeRow(
 
 	el.addEventListener("contextmenu", (evt) => {
 		evt.preventDefault();
-		const menu = new Menu();
+		const menu = hearthMenu();
 		const strings = t().cards.git;
 		if (plugin.tools?.openDiff) {
 			menu.addItem((item) =>
@@ -509,10 +510,13 @@ function paintChangeRow(
 					}),
 			);
 		}
+		// Discarding loses work, so it sits in a group of its own.
+		menu.addSeparator();
 		menu.addItem((item) =>
 			item
 				.setTitle(strings.discardFile)
 				.setIcon("undo")
+				.setWarning(true)
 				.onClick(() => {
 					confirmAction(view.app, {
 						title: t().cards.git.confirmTitle,

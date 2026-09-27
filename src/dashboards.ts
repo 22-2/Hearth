@@ -1,4 +1,5 @@
-import { Menu, Setting, setIcon } from "obsidian";
+import { Setting, setIcon } from "obsidian";
+import { hearthMenu } from "./uidesign";
 import type { HomeView } from "./view";
 import {
 	type BackgroundConfig,
@@ -191,14 +192,17 @@ export function openDashboardSettings(view: HomeView, dash: Dashboard): void {
 	new DashboardSettingsModal(view, dash).open();
 }
 
-/** Context menu for a single dashboard button: settings and delete. */
+/** Context menu for a single dashboard button, in three groups — the board
+ * itself, moving it in and out of the vault, and deleting it — so the one
+ * destructive entry stands apart (an Expressive menu draws each group as a
+ * container of its own). */
 function showDashboardMenu(
 	view: HomeView,
 	dash: Dashboard,
 	evt: MouseEvent,
 ): void {
 	const s = view.plugin.settings;
-	const menu = new Menu();
+	const menu = hearthMenu();
 
 	menu.addItem((item) =>
 		item
@@ -221,6 +225,8 @@ function showDashboardMenu(
 			}),
 	);
 
+	menu.addSeparator();
+
 	menu.addItem((item) =>
 		item
 			.setTitle(t().dashboards.menu.exportBoard)
@@ -235,10 +241,13 @@ function showDashboardMenu(
 			.onClick(() => void pickAndImport(view.plugin)),
 	);
 
+	menu.addSeparator();
+
 	menu.addItem((item) =>
 		item
 			.setTitle(t().dashboards.menu.delete)
 			.setIcon("trash-2")
+			.setWarning(true)
 			// Always keep at least one dashboard around.
 			.setDisabled(s.dashboards.length <= 1)
 			.onClick(() => confirmDeleteDashboard(view, dash)),
@@ -1517,7 +1526,7 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			});
 		}
 
-		if (bg.kind !== "default" && bg.kind !== "weather") {
+		if (bg.kind !== "default" && bg.kind !== "harbour" && bg.kind !== "weather") {
 			const desc =
 				bg.kind === "color"
 					? t().dashboards.backgroundValueDesc.color
