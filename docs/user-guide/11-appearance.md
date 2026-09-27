@@ -20,7 +20,7 @@ Per dashboard: *Dashboard settings → Background*.
 
 | Type | What it is |
 | --- | --- |
-| *Hearth default* | The soft ambient wallpaper that ships with the plugin. Note that this image is served from `raw.githubusercontent.com`, so it is a web request like any other |
+| *Hearth default* | A wallpaper Hearth draws itself, so nothing is downloaded. Its *Design* is **Classic** — layered hills with a cabin, a soft morning in a light theme and a moonlit night with stars in a dark one — or **Expressive**: flat Material 3 Expressive shapes in the corners, in tones of your accent colour. It is the same *Design* setting the live sky uses, and a dashboard can override it |
 | *None* | Your theme's own background, untouched |
 | *Solid color* | Any CSS colour, for example `#1e1e2e` or `rgb(30,30,46)` |
 | *Vault image* | An image path in your vault, for example `Attachments/bg.png` |
@@ -32,9 +32,12 @@ Per dashboard: *Dashboard settings → Background*.
 *Opacity* controls how much the background shows through; lower is more subtle.
 *Blur* is the background blur in pixels.
 
-The defaults are deliberately ambient: opacity 0.35 and blur 2. The background
-is visible but does not compete with the content, and the image is still
-recognisable rather than a wash of colour.
+The defaults suit Hearth's own wallpaper: opacity 0.8 and no blur. It is a flat,
+already muted drawing, so it needs little dimming and has no detail to soften;
+the card surfaces keep the content readable. Switching to a vault image or an
+image URL dims a photo to 0.35 and blurs it by 2, so text reads over it, and
+switching back lifts it again. Either way the sliders are right there to change
+it.
 
 ### Full background or banner
 

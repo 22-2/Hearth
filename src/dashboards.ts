@@ -4,6 +4,7 @@ import {
 	type BackgroundConfig,
 	type BackgroundKind,
 	backgroundIsRemote,
+	retuneBackground,
 	type BackgroundLayout,
 	BANNER_HEIGHT_MAX,
 	BANNER_HEIGHT_MIN,
@@ -1406,19 +1407,24 @@ class DashboardSettingsModal extends HearthTabbedModal {
 						d.addOption(k, label);
 					},
 				);
-				d.setValue(bg ? bg.kind : "default").onChange((v) => {
+				// The dropdown's "default" means "follow the vault", so Hearth's
+				// own wallpaper — the "default" kind — goes by "hdefault" here.
+				d.setValue(!bg ? "default" : bg.kind === "default" ? "hdefault" : bg.kind).onChange((v) => {
 					if (v === "default") {
 						dash.background = undefined;
 					} else {
-						const opacity = bg?.opacity ?? DEFAULT_DASH_BG_OPACITY;
-						dash.background = {
-							kind: v as BackgroundKind,
-							value: bg?.value ?? "",
-							// See the same lift in the global background settings:
-							// the photo default (0.35) mutes the sky to a slab.
-							opacity: v === "weather" && opacity <= 0.5 ? 1 : opacity,
-							blur: bg?.blur ?? DEFAULT_DASH_BG_BLUR,
-						};
+						const kind = v === "hdefault" ? "default" : (v as BackgroundKind);
+						// Retuned from the backdrop the board shows now — its own,
+						// or the vault's — as the global setting does.
+						const tuned = retuneBackground(
+							bg?.kind ?? this.view.plugin.settings.backgroundKind,
+							kind,
+							{
+								opacity: bg?.opacity ?? DEFAULT_DASH_BG_OPACITY,
+								blur: bg?.blur ?? DEFAULT_DASH_BG_BLUR,
+							},
+						);
+						dash.background = { kind, value: bg?.value ?? "", ...tuned };
 					}
 					this.commit();
 					this.render();
@@ -1451,7 +1457,8 @@ class DashboardSettingsModal extends HearthTabbedModal {
 		// resolves the kind instead of testing the override. It sits with the
 		// banner controls for the same reason those do: it says how the board
 		// wears its backdrop, not what the backdrop is.
-		if ((bg?.kind ?? this.view.plugin.settings.backgroundKind) === "weather") {
+		const drawnKind = bg?.kind ?? this.view.plugin.settings.backgroundKind;
+		if (drawnKind === "weather") {
 			this.overrideBool(
 				containerEl,
 				t().dashboards.modal.skyAnimate,
@@ -1468,6 +1475,10 @@ class DashboardSettingsModal extends HearthTabbedModal {
 					dash.backgroundSkyAnimate = v;
 				},
 			);
+		}
+		// Hearth's own wallpaper is drawn in the same two designs as the sky, so
+		// it takes the same override.
+		if (drawnKind === "weather" || drawnKind === "default") {
 			const sky = t().settings.background;
 			const designs = {
 				classic: sky.skyDesignClassic,
@@ -1476,7 +1487,9 @@ class DashboardSettingsModal extends HearthTabbedModal {
 			this.overrideChoice(
 				containerEl,
 				t().dashboards.modal.skyDesign,
-				t().dashboards.modal.skyDesignDesc,
+				drawnKind === "default"
+					? t().dashboards.modal.wallpaperDesignDesc
+					: t().dashboards.modal.skyDesignDesc,
 				dash.backgroundSkyDesign,
 				designs,
 				designs[this.view.plugin.settings.backgroundSkyDesign ?? "classic"],

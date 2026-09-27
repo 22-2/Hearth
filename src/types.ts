@@ -1940,10 +1940,9 @@ export interface MobileCardOptions {
 	collapsed?: boolean;
 }
 
-/** Background mode for the home view. "default" uses Hearth's bundled
- * background (a curated image shipped with a release); "weather" paints the
- * live sky for a place (see sky.ts); the other kinds use the user's own
- * value. */
+/** Background mode for the home view. "default" draws Hearth's own wallpaper
+ * (see wallpaper.ts); "weather" paints the live sky for a place (see sky.ts);
+ * the other kinds use the user's own value. */
 export type BackgroundKind =
 	| "none"
 	| "default"
@@ -2195,7 +2194,8 @@ export interface Dashboard extends BannerOverrides {
 	 * performance tier and the reader's reduced-motion preference both still
 	 * override it downwards; this can ask for motion, never insist on it. */
 	backgroundSkyAnimate?: boolean;
-	/** Override how the weather sky is drawn on this board (undefined = follow
+	/** Override how the drawn backgrounds (the weather sky, Hearth's own
+	 * wallpaper) are drawn on this board (undefined = follow
 	 * {@link HomeSettings.backgroundSkyDesign}). Beside {@link background} for
 	 * the same reason as {@link backgroundSkyAnimate}. */
 	backgroundSkyDesign?: "classic" | "expressive";
@@ -2352,8 +2352,9 @@ export interface HomeSettings {
 	 * power mode replaces the whole background anyway, and a reader who has
 	 * asked their OS for reduced motion gets a still sky regardless. */
 	backgroundSkyAnimate?: boolean;
-	/** How the "weather" background is drawn: the classic painted sky, or the
-	 * flat Material 3 Expressive one. Default "classic". */
+	/** How the drawn backgrounds — the "weather" sky and Hearth's own "default"
+	 * wallpaper — are drawn: classic, or flat Material 3 Expressive. Default
+	 * "classic". */
 	backgroundSkyDesign?: "classic" | "expressive";
 
 	// ---- Behaviour ----
@@ -2664,11 +2665,13 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 
 	backgroundKind: "default",
 	backgroundValue: "",
-	/* Ambient: the background is visible but doesn't compete with content.
-	 * Opacity is low enough that foreground reads clearly; blur is gentle so
-	 * the image is still recognizable, not a wash of colour. */
-	backgroundOpacity: 0.35,
-	backgroundBlur: 2,
+	/* Tuned for Hearth's own wallpaper, the default kind: a flat, already muted
+	 * drawing that needs no dimming and has no detail for a blur to soften —
+	 * the cards' own surfaces carry the contrast. A little of the theme still
+	 * shows through, so it sits with a custom theme's colours. A photo is
+	 * dimmed on the way in instead (see {@link retuneBackground}). */
+	backgroundOpacity: 0.8,
+	backgroundBlur: 0,
 	/* The wallpaper board is what Hearth has always been, so it stays the
 	 * default; the banner is a choice, not an upgrade. */
 	backgroundLayout: "full",
@@ -3037,8 +3040,8 @@ export function effectiveCardDesign(s: HomeSettings, own: CardDesign | undefined
 	return own ?? activeDashboard(s)?.cardDesign ?? s.cardDesign ?? "classic";
 }
 
-/** How the weather sky is drawn on the active board: its own choice, else the
- * vault's, else the classic painted sky. */
+/** How the drawn backgrounds (weather sky, Hearth's own wallpaper) are drawn
+ * on the active board: its own choice, else the vault's, else classic. */
 export function effectiveSkyDesign(s: HomeSettings): "classic" | "expressive" {
 	return activeDashboard(s).backgroundSkyDesign ?? s.backgroundSkyDesign ?? "classic";
 }
@@ -3468,20 +3471,54 @@ export function effectiveBackground(s: HomeSettings): ResolvedBackground {
 	};
 }
 
-/** Whether a background kind is fetched from the web. "weather" is not in the
- * list: a live sky asks for a forecast, but the fetch is gated on its own and
- * what it draws is drawn locally either way (see background.ts), so it still
- * paints something. */
+/** The opacity a photo is dimmed to, and the blur it is softened by, so the
+ * board on top of it reads. */
+const PHOTO_TUNING = { opacity: 0.35, blur: 2 };
+
+/**
+ * Opacity and blur after switching a background from one kind to another.
+ *
+ * The two numbers mean different things to different backdrops. A photo is
+ * busy, so it is dimmed and softened until text reads over it. A drawn one —
+ * the weather sky, Hearth's own wallpaper — is flat and already calm: dimmed
+ * that far it is a grey slab, and its contrast comes from the card surfaces
+ * instead. So a switch between the two families moves the numbers once, and
+ * only from values that belong to the other family; the sliders are right
+ * there to put them back, and a switch within a family leaves them alone.
+ */
+export function retuneBackground(
+	from: BackgroundKind,
+	to: BackgroundKind,
+	current: { opacity: number; blur: number },
+): { opacity: number; blur: number } {
+	const photo = (k: BackgroundKind): boolean => k === "image" || k === "url";
+	let { opacity, blur } = current;
+	if (to === "weather" && opacity <= 0.5) opacity = 1;
+	if (to === "default") {
+		if (opacity <= 0.5) opacity = DEFAULT_SETTINGS.backgroundOpacity;
+		blur = DEFAULT_SETTINGS.backgroundBlur;
+	}
+	if (photo(to) && !photo(from)) {
+		if (opacity > 0.5) opacity = PHOTO_TUNING.opacity;
+		if (blur === 0) blur = PHOTO_TUNING.blur;
+	}
+	return { opacity, blur };
+}
+
+/** Whether a background kind is fetched from the web. Only a typed-in URL is.
+ * "default" is drawn locally (see wallpaper.ts), and "weather" asks for a
+ * forecast but gates that fetch on its own and draws locally either way (see
+ * background.ts), so both still paint something. */
 export function backgroundIsRemote(kind: BackgroundKind): boolean {
-	return kind === "url" || kind === "default";
+	return kind === "url";
 }
 
 /**
  * Whether a resolved background has anything to paint.
  *
- * "default" ships its own image so it needs no value; every other kind but
+ * "default" draws its own wallpaper so it needs no value; every other kind but
  * "none" needs one. `externalCallsDisabled` — the vault's **Disable external
- * calls** setting — takes the two remote kinds out: a wallpaper the switch will
+ * calls** setting — takes the remote kind out: a wallpaper the switch will
  * not let Hearth fetch is a wallpaper that isn't there, and saying so here is
  * what keeps the banner strip from being reserved for a picture that never
  * arrives.
@@ -3615,8 +3652,8 @@ export function migrateSettings(s: HomeSettings, raw: Record<string, unknown>): 
 	if (typeof s.lowPowerBackgroundColor !== "string" || !s.lowPowerBackgroundColor.trim()) {
 		s.lowPowerBackgroundColor = LOW_POWER_BACKGROUND;
 	}
-	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = 0.35;
-	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = 2;
+	if (typeof s.backgroundOpacity !== "number") s.backgroundOpacity = DEFAULT_SETTINGS.backgroundOpacity;
+	if (typeof s.backgroundBlur !== "number") s.backgroundBlur = DEFAULT_SETTINGS.backgroundBlur;
 	// Banner mode is purely additive: settings saved before it existed have none
 	// of these keys, and defaulting them to the full-view wallpaper leaves every
 	// existing board looking exactly as it did.
