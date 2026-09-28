@@ -10,11 +10,14 @@ import {
 	searchFileContents,
 	slotsAboveBody,
 } from "./query";
+import { InstantAnswers, type InstantRow } from "./instantview";
+import { type InstantFeature, instantOnly } from "./instant";
+import { markSearchTipsSeen, SearchTipsModal, searchTipsSeen } from "./searchtips";
 import { isOmnisearchAvailable, searchWithOmnisearch } from "./omnisearch";
 import { openFile as openInLeaf } from "./opener";
 import { renderHighlighted } from "./ui";
 import { t } from "./i18n";
-import { effectiveHiddenFilters, effectiveSearchPlaceholder } from "./types";
+import { effectiveHiddenFilters, effectiveHiddenInstantAnswers, effectiveSearchPlaceholder } from "./types";
 
 /** Recently opened-via-search files, kept in the vault's local storage (never
  * in settings/data.json) so it stays out of the settings UI and layout
@@ -25,6 +28,8 @@ const HISTORY_MAX = 6;
 const MAX_RESULTS = 40;
 /** A leading ">" switches the bar to command mode (run any command). */
 const COMMAND_PREFIX = ">";
+/** A lone "?" offers the search tips. */
+const TIPS_QUERY = "?";
 
 let resultsIdSeq = 0;
 
@@ -33,7 +38,9 @@ let resultsIdSeq = 0;
  * Searches the whole vault (Obsidian's vault index already excludes the
  * .obsidian config folder). A leading "#" searches tags, "key:value" searches
  * frontmatter, ">" runs commands; otherwise names/paths (and, optionally, note
- * bodies) are matched.
+ * bodies) are matched. A query that has an answer of its own — a sum, a
+ * currency conversion, a `$` market lookup, a date or a clock — gets it above
+ * the notes (see instant.ts).
  */
 export class SearchSection {
 	private view: HomeView;
@@ -50,9 +57,28 @@ export class SearchSection {
 	/** Bumped on every query so a slow async content search can't render results
 	 * for a query the user has already moved on from. */
 	private generation = 0;
+	/** The instant answer above the notes, when the query has one. */
+	private instant: InstantAnswers;
+	/** Redraws what the dropdown shows now; an instant answer calls it when
+	 * its rate, quote or chart arrives. */
+	private redraw: (() => void) | null = null;
+	/** The row Enter opens when none is selected. */
+	private defaultRow = 0;
 
 	constructor(view: HomeView) {
 		this.view = view;
+		this.instant = new InstantAnswers({
+			externalCallsDisabled: () => this.view.plugin.settings.disableExternalCalls,
+			changed: () => {
+				if (!this.redraw || !this.resultsEl?.isShown()) return;
+				this.redrawing = true;
+				try {
+					this.redraw();
+				} finally {
+					this.redrawing = false;
+				}
+			},
+		});
 	}
 
 	// resetTimer=true so it fires once typing pauses, not 140ms after the first key.
@@ -137,9 +163,10 @@ export class SearchSection {
 		overlayParent: HTMLElement,
 		boundary: HTMLElement,
 		component: Component,
-		opts: { filters?: boolean; hiddenFilters?: string[] } = {},
+		opts: { filters?: boolean; hiddenFilters?: string[]; hiddenInstantAnswers?: string[] } = {},
 	): void {
 		this.hiddenFilters = opts.hiddenFilters ?? [];
+		this.hiddenInstant = opts.hiddenInstantAnswers ?? [];
 		this.rootEl = boundary;
 		this.resultsEl = overlayParent.createDiv("hearth-search-results");
 		this.resultsEl.id = this.resultsId;
@@ -175,6 +202,33 @@ export class SearchSection {
 	/** Chips this instance leaves out on top of the vault-wide ones, set by the
 	 * search-bar card (which can hide them per card). */
 	private hiddenFilters: string[] = [];
+	/** Instant answers this instance switches off on top of the board's or the
+	 * vault's (the search-bar card can). */
+	private hiddenInstant: string[] = [];
+
+	/** Whether an instant answer is on here: on vault-wide, not off on this
+	 * board (or the vault), and not off on this search bar. */
+	private instantEnabled = (feature: InstantFeature): boolean => {
+		const s = this.view.plugin.settings;
+		return (
+			s.searchInstantAnswers &&
+			!effectiveHiddenInstantAnswers(s).includes(feature) &&
+			!this.hiddenInstant.includes(feature)
+		);
+	};
+
+	/** The search tips, with examples typed into this bar on a click. */
+	openTips(): void {
+		this.hide();
+		new SearchTipsModal(this.view.app, {
+			enabled: this.instantEnabled,
+			onTry: (example) => {
+				this.inputEl.value = example;
+				this.inputEl.focus();
+				this.update();
+			},
+		}).open();
+	}
 
 	private detectGroups(): FileTypeGroup[] {
 		const present = new Set<string>();
@@ -261,12 +315,32 @@ export class SearchSection {
 
 		// Command mode: a leading ">" runs any command-palette command.
 		if (query.startsWith(COMMAND_PREFIX)) {
+			this.instant.clear();
 			this.renderCommandRows(this.searchCommands(query.slice(1).trim()));
 			return;
 		}
 
 		if (!query && !this.activeFilter) {
+			this.instant.clear();
 			this.renderHistory();
+			return;
+		}
+
+		if (query === TIPS_QUERY) {
+			this.instant.clear();
+			this.renderTipsRow(false);
+			return;
+		}
+
+		// An instant answer only answers the whole vault's query: with a file
+		// type picked, the reader is plainly looking for a file.
+		const intent =
+			this.view.plugin.settings.searchInstantAnswers && !this.activeFilter
+				? this.instant.setQuery(query, this.instantEnabled)
+				: (this.instant.clear(), null);
+		// A `$` lookup or an `=` sum is a mode of its own, like ">" commands.
+		if (intent && instantOnly(intent)) {
+			this.renderFileRows([]);
 			return;
 		}
 
@@ -343,11 +417,62 @@ export class SearchSection {
 		const files = this.getHistory()
 			.map((p) => this.view.app.vault.getAbstractFileByPath(p))
 			.filter((f): f is TFile => f instanceof TFile);
-		if (files.length === 0) {
+		// Until the reader has seen the tips once, an empty bar offers them —
+		// the one moment the question "what can I type here?" comes up.
+		const hint = this.view.plugin.settings.searchInstantAnswers && !searchTipsSeen(this.view.app);
+		if (files.length === 0 && !hint) {
 			this.hide();
 			return;
 		}
+		if (files.length === 0) {
+			this.renderTipsRow(true);
+			return;
+		}
 		this.renderFileRows(files.map((file) => ({ file, score: 0 })));
+		if (hint) this.prependTipsRow();
+	}
+
+	/** Only the tips row (a lone "?"). */
+	private renderTipsRow(isNew: boolean): void {
+		this.beginResults();
+		this.addTipsRow(isNew);
+		this.finishResults();
+	}
+
+	/** The one-time "the bar can answer questions" hint above the recents. */
+	private prependTipsRow(): void {
+		const first = this.resultsEl.firstChild;
+		const rowsBefore = this.rows;
+		this.rows = [];
+		const el = this.addTipsRow(true);
+		if (first) this.resultsEl.insertBefore(el, first);
+		this.rows.push(...rowsBefore);
+		this.rows.forEach((r, i) => {
+			if (r.el.id.includes("-opt-")) r.el.id = `${this.resultsId}-opt-${i}`;
+		});
+		// Enter still opens the most recent note, not the hint.
+		if (rowsBefore.length) this.defaultRow = 1;
+		this.finishResults();
+	}
+
+	private addTipsRow(isNew: boolean): HTMLElement {
+		const strings = t().search.tips;
+		const row = this.newRow(this.rows.length, isNew ? "sparkles" : "lightbulb");
+		row.addClass("hearth-tips-hint");
+		const text = row.createDiv("hearth-result-text");
+		text.createDiv({ cls: "hearth-result-name", text: isNew ? strings.newHint : strings.openRow });
+		text.createDiv({ cls: "hearth-result-path", text: isNew ? strings.newHintDesc : strings.openRowDesc });
+		if (isNew) {
+			const dismiss = row.createDiv({ cls: "hearth-tips-dismiss clickable-icon", attr: { "aria-label": strings.dismiss } });
+			setIcon(dismiss, "x");
+			dismiss.addEventListener("click", (e) => {
+				e.stopPropagation();
+				markSearchTipsSeen(this.view.app);
+				this.update();
+			});
+		}
+		this.commitRow(row, () => this.openTips());
+		return row;
 	}
 
 	private getHistory(): string[] {
@@ -372,18 +497,38 @@ export class SearchSection {
 	// ---- Results rendering ---------------------------------------------
 
 	private beginResults(): void {
+		// Keep a selection across a redraw of the same list (an instant answer
+		// filling in), so a quote landing doesn't throw the reader's place.
+		const keep = this.redrawing ? this.selected : -1;
 		this.resultsEl.empty();
 		this.rows = [];
-		this.selected = -1;
+		this.selected = keep;
+		this.defaultRow = 0;
 		this.inputEl.removeAttribute("aria-activedescendant");
+		if (!this.redrawing) this.redraw = null;
+	}
+
+	private redrawing = false;
+
+	/** Draw the instant answer, if any, at the top of the list; returns how
+	 * many keyboard rows it added. */
+	private renderInstant(): number {
+		const rows: InstantRow[] = this.instant.render(this.resultsEl, this.resultsId);
+		this.rows.push(...rows);
+		return rows.length;
 	}
 
 	private renderFileRows(hits: QueryHit[]): void {
 		this.beginResults();
+		this.redraw = () => this.renderFileRows(hits);
+		const instantRows = this.renderInstant();
 		if (hits.length === 0) {
-			this.showEmpty();
+			if (instantRows) this.finishResults();
+			else this.showEmpty();
 			return;
 		}
+		// A date or a clock beside notes leaves Enter on the first note.
+		if (instantRows && !this.instant.takesEnter()) this.defaultRow = instantRows;
 		const icons = fileIconOptions(this.view.plugin.settings);
 		hits.forEach((hit, i) => {
 			// A badge icon says why the file matched, so it outranks the file's own.
@@ -445,6 +590,7 @@ export class SearchSection {
 	}
 
 	private showEmpty(text: string = t().search.noMatches): void {
+		this.selected = -1;
 		this.resultsEl.createDiv("hearth-search-empty").setText(text);
 		this.resultsEl.show();
 		this.placeResults();
@@ -453,6 +599,14 @@ export class SearchSection {
 	}
 
 	private finishResults(): void {
+		const kept = this.rows[this.selected]?.el;
+		if (kept) {
+			kept.addClass("is-selected");
+			kept.setAttribute("aria-selected", "true");
+			this.inputEl.setAttribute("aria-activedescendant", kept.id);
+		} else {
+			this.selected = -1;
+		}
 		this.resultsEl.show();
 		this.placeResults();
 		this.capResultsToViewport();
@@ -512,7 +666,7 @@ export class SearchSection {
 			this.move(-1);
 		} else if (e.key === "Enter") {
 			e.preventDefault();
-			const target = this.selected >= 0 ? this.selected : 0;
+			const target = this.selected >= 0 ? this.selected : this.defaultRow;
 			this.rows[target]?.open();
 		}
 	}

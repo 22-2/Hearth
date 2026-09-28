@@ -11,6 +11,75 @@ preceding beta series.
 History begins at 1.5.0. For releases before 1.5.0, see the
 [GitHub Releases](https://github.com/ondreu/Hearth/releases) page.
 
+## [3.3.0]
+
+### Added
+
+- **Instant answers in the search bar.** A query that has an answer of its
+  own gets it above the notes:
+  - sums and unit conversions — `1+1`, `20% of 150`, `10 km to mi`
+  - currencies with the pair's chart — `20 CZK to EUR`, `20 euros in
+    dollars`, `100 CHF nach EUR`, `20美元换成人民币`, `eur/usd`
+  - market quotes with a chart — `$AAPL`, or by name: `apple stock`,
+    `bitcoin price`, `Siemens Aktie`, `茅台股价`
+  - the weather — `weather Prague`, `Wetter Berlin`, `北京天气`
+  - Wikipedia summaries — `wiki Alan Turing`, `wiki:de Prag`, `维基 布拉格`
+  - chance — `coin flip`, `roll 2d6`, `d20`, `random 1-10`
+  - dates — `days until 2026-12-24`, `today + 45 days`, `Tage bis …`,
+    `距离2026-12-24还有几天`
+  - the time elsewhere — `time in Tokyo`, `Zeit in Prag`, `东京时间`
+
+  Phrases work in English, German and Chinese; a leading `=` forces the
+  calculator. Enter copies the answer, opens a quote or article, or rolls
+  again; a date or a clock leaves Enter on the first note. Online answers are
+  fetched only for queries that ask for them, reuse the calculator's, Markets
+  and Weather cards' cached sources, and stop with **Disable external calls**.
+
+  Each answer can be switched off vault-wide (**Settings → Search → Instant
+  answers**), per board (*Dashboard settings → Header*) and per Search bar card.
+  A board or card can only switch answers off, never back on, so an installed
+  board can't turn on requests you have off.
+
+- **Search tips.** One dialog lists everything the search bar understands —
+  `#tags`, `key:value`, `>commands` and every instant answer — with examples
+  that type themselves into the bar when clicked. Type `?` into any search
+  bar, run **Hearth: Show search tips**, or open it from Settings → Search. An
+  empty search bar offers it once after this update.
+
+- **Checkbox tasks on the calendars.** Both calendar cards can now draw
+  Markdown checkbox tasks (`- [ ] …`) by the dates written on them in the Tasks
+  format — 📅 due and ⏳ scheduled — the way they already draw TaskNotes. Turn
+  it on under **Checkbox tasks** in the card's settings; entries can be ticked
+  off from the calendar and open the note at the task's line. Optionally limit
+  it to some folders and pick its colours.
+
+- **List or tiles for Favorites and Recent files** (#358). Both cards get a
+  **Display** setting: *List* puts the icon beside the name, one row per file;
+  *Tiles* draws the grid with the icon above it. Existing cards keep the look
+  they had (tiles for Favorites, a list for Recent files); a newly added
+  Favorites card starts as a list, like every other file-listing card. Tiles
+  work with Recent files' **Fit to card height** too.
+
+### Changed
+
+- **The search results float more clearly above the board.** The dropdown
+  casts a deeper two-layer shadow, denser in dark themes, and in the
+  Expressive design takes Material 3's menu elevation with a tonal edge, so
+  it no longer reads as sitting flat on the cards below.
+
+### Fixed
+
+- **No more sideways wobble on a phone with the Arrange button on hover.**
+  The hidden button was nudged past the board's right edge, which left the
+  whole board a few pixels wider than the screen and scrollable sideways
+  (#326). It now fades and shrinks in place.
+
+- **A fit-to-page board follows the pane as you resize it.** Its cards stayed
+  at their old size until the pane edge stopped moving and then jumped into
+  place. On the *Full* performance tier they now follow the resize frame by
+  frame; the lower tiers keep the single re-fit at the end to save the work.
+
+
 ## [3.2.0]
 
 ### Added
@@ -88,20 +157,6 @@ History begins at 1.5.0. For releases before 1.5.0, see the
   Find it in the "Add card" picker's Fun section. Hearth's own *Pet* card is
   unchanged.
 
-- **Checkbox tasks on the calendars.** Both calendar cards can now draw
-  Markdown checkbox tasks (`- [ ] …`) by the dates written on them in the Tasks
-  format — 📅 due and ⏳ scheduled — the way they already draw TaskNotes. Turn
-  it on under **Checkbox tasks** in the card's settings; entries can be ticked
-  off from the calendar and open the note at the task's line. Optionally limit
-  it to some folders and pick its colours.
-
-- **List or tiles for Favorites and Recent files** (#358). Both cards get a
-  **Display** setting: *List* puts the icon beside the name, one row per file;
-  *Tiles* draws the grid with the icon above it. Existing cards keep the look
-  they had (tiles for Favorites, a list for Recent files); a newly added
-  Favorites card starts as a list, like every other file-listing card. Tiles
-  work with Recent files' **Fit to card height** too.
-
 ### Changed
 
 - **A shorter, visual setup wizard.** First-run setup is three steps instead of
@@ -129,16 +184,6 @@ History begins at 1.5.0. For releases before 1.5.0, see the
 
 - **A board set to *Hearth default* keeps it.** Choosing it in a board's own
   background settings painted nothing and was forgotten on restart.
-
-- **No more sideways wobble on a phone with the Arrange button on hover.**
-  The hidden button was nudged past the board's right edge, which left the
-  whole board a few pixels wider than the screen and scrollable sideways
-  (#326). It now fades and shrinks in place.
-
-- **A fit-to-page board follows the pane as you resize it.** Its cards stayed
-  at their old size until the pane edge stopped moving and then jumped into
-  place. On the *Full* performance tier they now follow the resize frame by
-  frame; the lower tiers keep the single re-fit at the end to save the work.
 
 
 ## [3.1.1]
