@@ -1,4 +1,5 @@
-import { Component, moment as createMoment, Notice, setIcon, Setting } from "obsidian";
+import { Component, moment as createMoment, Notice, Setting } from "obsidian";
+import { setIcon } from "../glyphs";
 import { emptyState, feedHost } from "../cardbodies";
 import { moveItem } from "../editors";
 import { t } from "../i18n";
@@ -19,7 +20,7 @@ import { type CardDefinition, type CardEditorContext } from "./definition";
 /** Which source tab each rss card is showing. Transient (not persisted): keyed
  * by the card object so the choice survives body redraws and full rebuilds —
  * the card objects live in settings and are reused — but resets on reload. */
-const rssActiveTab = new WeakMap<DashboardCard, string>();
+export const rssActiveTab = new WeakMap<DashboardCard, string>();
 
 
 /** moment's `.fromNow()` isn't on the shared Moment shim; assert it locally. */
@@ -433,16 +434,19 @@ export function rssEditor(ctx: CardEditorContext, containerEl: HTMLElement): voi
 
 	const isCards = (cfg.layout ?? "list") === "cards";
 	if (isCards) {
-		new Setting(containerEl)
-			.setName(t().editors.rss.showImages)
-			.setDesc(t().editors.rss.showImagesDesc)
-			.addToggle((tg) =>
-				tg.setValue(cfg.showImages !== false).onChange((v) => {
-					cfg.showImages = v ? undefined : false;
-					ctx.opts.save();
-					ctx.opts.rerender();
-				}),
-			);
+		// Terminal mode leaves the pictures out.
+		if (!ctx.terminal) {
+			new Setting(containerEl)
+				.setName(t().editors.rss.showImages)
+				.setDesc(t().editors.rss.showImagesDesc)
+				.addToggle((tg) =>
+					tg.setValue(cfg.showImages !== false).onChange((v) => {
+						cfg.showImages = v ? undefined : false;
+						ctx.opts.save();
+						ctx.opts.rerender();
+					}),
+				);
+		}
 		new Setting(containerEl)
 			.setName(t().editors.rss.showExcerpt)
 			.setDesc(t().editors.rss.showExcerptDesc)

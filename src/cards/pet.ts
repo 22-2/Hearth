@@ -42,7 +42,7 @@ export const PET_SLEEPY_AFTER_MS = 6 * 60 * 60 * 1000;
 
 /** How often the card re-derives its mood without a vault event, so a pet left
  * on screen still drifts from bored to sleepy (and out of a petting). */
-const PET_TICK_MS = 5 * 60 * 1000;
+export const PET_TICK_MS = 5 * 60 * 1000;
 
 
 // ---- Mood ---------------------------------------------------------------
@@ -193,7 +193,7 @@ interface VaultPulse {
 	sinceLastMs: number | null;
 }
 
-function readVaultPulse(view: HomeView, metric: "modified" | "created"): VaultPulse {
+export function readVaultPulse(view: HomeView, metric: "modified" | "created"): VaultPulse {
 	const counts = new Map<string, number>();
 	let newest = 0;
 	for (const file of view.app.vault.getMarkdownFiles()) {
@@ -717,7 +717,7 @@ export function petName(cfg: PetConfig): string {
 	return t().cards.pet.species[cfg.species ?? "cat"];
 }
 
-function moodLabel(mood: PetMood): string {
+export function moodLabel(mood: PetMood): string {
 	const s = t().cards.pet;
 	switch (mood) {
 		case "excited":
@@ -948,15 +948,18 @@ export function petEditor(container: HTMLElement, ctx: CardEditorContext): void 
 				}),
 		);
 
-	new Setting(container).setName(strings.size).addDropdown((d) => {
-		d.addOption("sm", strings.sizeSmall);
-		d.addOption("md", strings.sizeMedium);
-		d.addOption("lg", strings.sizeLarge);
-		d.setValue(cfg.size ?? "md").onChange((v) => {
-			cfg.size = v as NonNullable<PetConfig["size"]>;
-			ctx.opts.save();
+	// Terminal mode draws the pet as a sprite of a fixed size.
+	if (!ctx.terminal) {
+		new Setting(container).setName(strings.size).addDropdown((d) => {
+			d.addOption("sm", strings.sizeSmall);
+			d.addOption("md", strings.sizeMedium);
+			d.addOption("lg", strings.sizeLarge);
+			d.setValue(cfg.size ?? "md").onChange((v) => {
+				cfg.size = v as NonNullable<PetConfig["size"]>;
+				ctx.opts.save();
+			});
 		});
-	});
+	}
 
 	new Setting(container).setName(strings.metric).setDesc(strings.metricDesc).addDropdown((d) => {
 		d.addOption("modified", strings.metricModified);
@@ -1070,16 +1073,19 @@ export function petEditor(container: HTMLElement, ctx: CardEditorContext): void 
 		hours.addDropdown(hourPicker(cfg.nightTo ?? PET_DEFAULT_NIGHT[1], (h) => (cfg.nightTo = h)));
 	}
 
-	new Setting(container).setName(strings.eyesFollow).setDesc(strings.eyesFollowDesc).addDropdown((d) => {
-		d.addOption("off", strings.eyesOff);
-		d.addOption("card", strings.eyesCard);
-		d.addOption("board", strings.eyesBoard);
-		d.setValue(cfg.eyesFollow ?? "card").onChange((v) => {
-			cfg.eyesFollow = v as NonNullable<PetConfig["eyesFollow"]>;
-			ctx.opts.save();
-			ctx.opts.rerender();
+	// A sprite drawn in characters has no eyes to follow the pointer with.
+	if (!ctx.terminal) {
+		new Setting(container).setName(strings.eyesFollow).setDesc(strings.eyesFollowDesc).addDropdown((d) => {
+			d.addOption("off", strings.eyesOff);
+			d.addOption("card", strings.eyesCard);
+			d.addOption("board", strings.eyesBoard);
+			d.setValue(cfg.eyesFollow ?? "card").onChange((v) => {
+				cfg.eyesFollow = v as NonNullable<PetConfig["eyesFollow"]>;
+				ctx.opts.save();
+				ctx.opts.rerender();
+			});
 		});
-	});
+	}
 
 	new Setting(container).setName(strings.showName).addToggle((toggle) =>
 		toggle.setValue(cfg.showName !== false).onChange((v) => {

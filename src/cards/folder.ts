@@ -1,4 +1,5 @@
-import { Keymap, Setting, TAbstractFile, TFile, TFolder, setIcon, type App } from "obsidian";
+import { Keymap, Setting, TAbstractFile, TFile, TFolder, type App } from "obsidian";
+import { setIcon } from "../glyphs";
 import { HearthModal } from "../uidesign";
 import { cardOverlayButton, emptyState, redrawCard, resetCardBody } from "../cardbodies";
 import { addResetButton } from "../editors";
@@ -33,11 +34,11 @@ import { type CardDefinition, type CardEditorContext } from "./definition";
 
 /** Rows on the card when the config names no count. The browser the card opens
  * is the place for the whole folder, so the card itself stays a glance. */
-const CARD_COUNT_DEFAULT = 12;
+export const CARD_COUNT_DEFAULT = 12;
 
 /** The vault root, as this module spells it. Obsidian's own root folder has
  * path "/", which is not a path anything else here would accept. */
-const ROOT = "";
+export const ROOT = "";
 
 /** A config path as a folder path: trimmed, unslashed, root as `ROOT`. */
 export function folderPath(raw: string | undefined): string {
@@ -48,7 +49,7 @@ export function folderPath(raw: string | undefined): string {
 /** The folder a path names, or null when it names nothing (or names a file —
  * a card whose folder was replaced by a note must say so, not list the note's
  * siblings). */
-function folderAt(app: App, path: string): TFolder | null {
+export function folderAt(app: App, path: string): TFolder | null {
 	if (path === ROOT) return app.vault.getRoot();
 	const found = app.vault.getAbstractFileByPath(path);
 	return found instanceof TFolder ? found : null;
@@ -107,7 +108,7 @@ function childEntries(app: App, entry: FolderEntry, sort: FolderSort, show: Fold
 /** How many things a subfolder holds, for the optional count badge. Its own
  * level only — a number that counted the whole subtree would say something the
  * row it sits on doesn't. */
-function childCount(app: App, path: string): number {
+export function childCount(app: App, path: string): number {
 	return folderAt(app, path)?.children.length ?? 0;
 }
 
@@ -128,7 +129,7 @@ function childCount(app: App, path: string): number {
  * One entry serves both ways of browsing: the card's own position when it
  * navigates in place, and where the browser dialog reopens otherwise.
  */
-const browsedPath = new WeakMap<DashboardCard, string>();
+export const browsedPath = new WeakMap<DashboardCard, string>();
 
 /**
  * Where this card is looking now: the folder it was walked into, as long as
@@ -137,7 +138,7 @@ const browsedPath = new WeakMap<DashboardCard, string>();
  * deleted or renamed away — falls back to the card's own folder rather than
  * leaving the card pointed somewhere it was never set to.
  */
-function currentPath(app: App, card: DashboardCard, root: string): string {
+export function currentPath(app: App, card: DashboardCard, root: string): string {
 	const at = browsedPath.get(card);
 	if (at === undefined || at === root) return root;
 	if (!pathWithin(at, root) || !folderAt(app, at)) {
@@ -283,7 +284,7 @@ function drawCardNav(
 }
 
 /** `path` unless it has climbed above `root`, which it must not. */
-function maxPath(path: string, root: string): string {
+export function maxPath(path: string, root: string): string {
 	return pathWithin(path, root) ? path : root;
 }
 
@@ -614,18 +615,21 @@ export function folderEditor(ctx: CardEditorContext, containerEl: HTMLElement): 
 			});
 		});
 
-	new Setting(containerEl)
-		.setName(strings.display)
-		.setDesc(strings.displayDesc)
-		.addDropdown((d) => {
-			d.addOption("list", strings.displayList);
-			d.addOption("tiles", strings.displayTiles);
-			d.setValue(cfg.view ?? "list").onChange((v) => {
-				cfg.view = v === "list" ? undefined : (v as "tiles");
-				ctx.opts.save();
-				ctx.opts.rerender();
+	// Terminal mode draws the folder as a tree either way.
+	if (!ctx.terminal) {
+		new Setting(containerEl)
+			.setName(strings.display)
+			.setDesc(strings.displayDesc)
+			.addDropdown((d) => {
+				d.addOption("list", strings.displayList);
+				d.addOption("tiles", strings.displayTiles);
+				d.setValue(cfg.view ?? "list").onChange((v) => {
+					cfg.view = v === "list" ? undefined : (v as "tiles");
+					ctx.opts.save();
+					ctx.opts.rerender();
+				});
 			});
-		});
+	}
 
 	const count = new Setting(containerEl).setName(strings.count).setDesc(strings.countDesc);
 	count.addText((txt) => {

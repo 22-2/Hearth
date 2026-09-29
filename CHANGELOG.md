@@ -11,6 +11,51 @@ preceding beta series.
 History begins at 1.5.0. For releases before 1.5.0, see the
 [GitHub Releases](https://github.com/ondreu/Hearth/releases) page.
 
+## [3.4.0]
+
+### Added
+
+- **Terminal mode (experimental).** A third design beside Classic and
+  Expressive (**Settings → Hearth → Appearance → Terminal**, and in the setup
+  wizard's look step) that draws the whole of
+  Hearth as a text interface, the way a terminal tool such as `htop` looks:
+  one character grid in a bundled monospaced font, every card a box drawn in
+  line characters that joins its neighbours, and keys for everything.
+  - Cards keep their places on the board, rounded to the grid; a narrow pane
+    stacks them in one column. Tab moves between cards, the arrows move inside
+    one, Enter opens, Space ticks or folds, `m` opens the card menu, `z` zooms
+    the card to the size of a dialog, and F1–F10 run the board (help,
+    arrange, search, filter, refresh, sort, add, board settings, colours,
+    quit). Arranging works by keys (arrows move, Shift and an arrow resizes)
+    or by dragging a frame and its corner.
+  - The boards are tabs along the top, like tmux windows: `1`–`9` open one,
+    `[` and `]` step through them all, and when there are more than the line
+    holds it shows those around the active board, with a count on each side
+    that has more — click it to list every board.
+  - Every card with a text form is drawn as text: tasks as an htop table or a
+    board, notes as highlighted Markdown you can tick and edit in place, the
+    calendars as `cal` and a time grid, the weather as ASCII art with the full
+    forecast when zoomed, markets as tables and block-character charts, Git as
+    `git status`, folders and bookmarks as trees, a Dataview table as a table,
+    the pet as its sprite in half blocks. Pictures, web pages, hosted views,
+    Datacore and DataviewJS are drawn graphically inside their frame.
+  - Emoji are replaced by ASCII where there is an equivalent and left out where
+    there isn't. Hearth's dialogs, menus and settings follow the same look.
+  - Five colour schemes (your Obsidian theme's colours, Htop, Hearth, Amber,
+    Paper) and a font size. Switching terminal mode off brings every board
+    back exactly as it was.
+  - Settings that would change nothing while terminal mode is on are hidden
+    until it is switched off. These include:
+    - a card's Style tab and the sizing of its buttons
+    - the board dialog's Style and Background tabs, the header's icon,
+      alignment and sizes, and the width
+    - the wallpaper, card surfaces and compact spacing
+    - designs and animations of the weather and market cards, picture and
+      icon options, pixel sizes, live preview and open buttons on notes
+    The vault-wide settings stay while a plugin board, which terminal mode
+    leaves as it is, still uses them. The time grid's now line and the Git
+    card's paths now follow their settings in terminal mode too.
+
 ## [3.3.0]
 
 ### Added

@@ -110,7 +110,7 @@ export function renderTemplater(view: HomeView, card: DashboardCard, body: HTMLE
 
 /** The text on a tile: the user's label, or the template's own name so a tile
  * added and never renamed still reads correctly. */
-function tileLabel(item: TemplaterItem): string {
+export function tileLabel(item: TemplaterItem): string {
 	return item.label.trim() || templateDisplayName(item.template) || t().cards.templater.untitledTile;
 }
 
@@ -138,7 +138,7 @@ function tileTooltip(item: TemplaterItem): string {
  * Every failure is reported as a Notice rather than swallowed — a launcher
  * button that silently does nothing is worse than one that says why.
  */
-async function runTemplaterItem(view: HomeView, item: TemplaterItem): Promise<void> {
+export async function runTemplaterItem(view: HomeView, item: TemplaterItem): Promise<void> {
 	const strings = t().notices;
 	const app = view.app;
 
@@ -196,19 +196,22 @@ export function templaterEditor(ctx: CardEditorContext, containerEl: HTMLElement
 		new Setting(containerEl).setName(strings.missing).setDesc(strings.missingDesc);
 	}
 
-	new Setting(containerEl)
-		.setName(strings.autoShift)
-		.setDesc(strings.autoShiftDesc)
-		.addToggle((tg) =>
-			tg.setValue(card.tileAutoFlow ?? false).onChange((v) => {
-				card.tileAutoFlow = v;
-				ctx.opts.save();
-			}),
-		);
+	// Terminal mode lays the buttons out in a row at the card's width, in order.
+	if (!ctx.terminal) {
+		new Setting(containerEl)
+			.setName(strings.autoShift)
+			.setDesc(strings.autoShiftDesc)
+			.addToggle((tg) =>
+				tg.setValue(card.tileAutoFlow ?? false).onChange((v) => {
+					card.tileAutoFlow = v;
+					ctx.opts.save();
+				}),
+			);
+	}
 
 	// Only the fixed style has a pixel size to set; the scaled one sizes its
 	// buttons from the card's column count (see tileSizingSettings).
-	if (tileSizing(card) === "fixed") {
+	if (tileSizing(card) === "fixed" && !ctx.terminal) {
 		const buttonSize = new Setting(containerEl)
 			.setName(strings.buttonSize)
 			.setDesc(strings.buttonSizeDesc);
@@ -261,17 +264,20 @@ export function templaterEditor(ctx: CardEditorContext, containerEl: HTMLElement
 				}),
 		);
 
-		row.addText((txt) => {
-			txt
-				.setPlaceholder(t().pickers.iconPlaceholder)
-				.setValue(item.icon)
-				.onChange((v) => {
-					item.icon = v;
-					ctx.opts.save();
-				});
-			setTooltip(txt.inputEl, t().editors.iconHelp);
-		});
-		addIconHelp(row.controlEl);
+		// Terminal mode marks every template button with a "+" instead.
+		if (!ctx.terminal) {
+			row.addText((txt) => {
+				txt
+					.setPlaceholder(t().pickers.iconPlaceholder)
+					.setValue(item.icon)
+					.onChange((v) => {
+						item.icon = v;
+						ctx.opts.save();
+					});
+				setTooltip(txt.inputEl, t().editors.iconHelp);
+			});
+			addIconHelp(row.controlEl);
+		}
 
 		// A template is addressed by vault path, which is exactly the kind of
 		// thing a fuzzy picker is for. Scoped to Templater's own template folder
