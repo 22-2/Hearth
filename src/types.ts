@@ -3,6 +3,7 @@ import type { DatacoreLanguage } from "./datacore";
 import { normalizeAuthorKey } from "./identity";
 import { DEFAULT_GALLERY_URL, normalizeGalleryUrl } from "./gallery/client";
 import { type PublishedEntry, readGalleryEntries } from "./gallery/published";
+import type { ClipTemplate } from "./clip";
 import type { EventNoteConfig } from "./eventnote";
 import type { FolderShow, FolderSort } from "./foldercontents";
 import type { Granularity } from "./periodic";
@@ -44,6 +45,7 @@ export type CardKind =
 	| "jira"
 	| "weather"
 	| "market"
+	| "tension"
 	| "git"
 	| "operon"
 	| "leaf"
@@ -778,6 +780,24 @@ export interface FolderCardConfig {
 	 * rewrote itself (and synced) on every click into a subfolder would be a
 	 * board nobody could share. See `browsedPath` in `cards/folder.ts`. */
 	navigate?: "card";
+	/** Where the folder browser opens. Omitted is a dialog over the board, with
+	 * a button that moves it to a tab; "tab" opens it straight in a tab of its
+	 * own (`folderview.ts`), where a folder has the whole page (#375). */
+	browseIn?: "tab";
+	/** The browser's own layout, separate from the card's `view`: the card is a
+	 * glance a few rows tall, the browser is a page. "list" (default) is rows,
+	 * "tiles" a grid of larger tiles that carry a preview of each note. */
+	browserView?: "list" | "tiles";
+	/** Show a preview of each note's text on the browser's tiles. Default on;
+	 * false leaves the tiles with their icon and name only. */
+	preview?: boolean;
+	/** The preview text's size in pixels. Omitted is `PREVIEW_SIZE.default` —
+	 * small on purpose: it is there to recognise a note by, not to read it. */
+	previewSize?: number;
+	/** Pictures on the browser's tiles: an image file shows itself, a note its
+	 * first embedded image as a cover. Default on, and drawn only on the Full
+	 * performance tier (`picturesAllowed` in `folderbrowse.ts`). */
+	images?: boolean;
 }
 
 /** Per-card configuration for a "searchbar" (live search field) card. */
@@ -1153,7 +1173,25 @@ export interface RssConfig {
 	showDate?: boolean;
 	/** Add a leading "All" tab that merges every source, newest first. Default false. */
 	mergeAll?: boolean;
+	/** Where a click on an entry goes: its page in the browser (the default;
+	 * an entry with no link still opens in the reader dialog), or Hearth's
+	 * reader as a dialog or in a tab of its own. */
+	openIn?: RssOpenIn;
+	/** Whether the reader loads an entry's pictures: only on request (the
+	 * default — a remote picture tells its sender the entry was opened),
+	 * always, or never. External calls off means never, whatever this says. */
+	readerImages?: RssReaderImages;
+	/** List only the entries not yet read. Default false. */
+	unreadOnly?: boolean;
+	/** The note template behind the reader's "Save as note" (src/clip.ts). */
+	note?: ClipTemplate;
 }
+
+/** Where an RSS card opens its entries. */
+export type RssOpenIn = "browser" | "dialog" | "tab";
+
+/** When the RSS reader loads pictures. */
+export type RssReaderImages = "ask" | "always" | "never";
 
 /** A place a "weather" card shows the forecast for.
  *
@@ -1276,6 +1314,45 @@ export interface WeatherConfig {
 	// ---- Refresh ----
 	/** Auto-refresh interval in minutes. 0 means "only when opened or refreshed
 	 * by hand". Default 30. */
+	refreshMin?: number;
+}
+
+/**
+ * How a "tension" card (Kagi News' World Tension index) draws itself:
+ *
+ * - `minimal`  — the score, its band and where it sits on the scale.
+ * - `artistic` — an edge-to-edge diorama that goes from a peaceful village to
+ *   a village at war as the score climbs (see src/tensionscene.ts), with the
+ *   reading laid over it.
+ */
+export type TensionStyle = "minimal" | "artistic";
+
+/** Per-card configuration for a "tension" card. Every default is what the
+ * "Add card" menu gives you. Classic or Expressive is the card's own `design`. */
+export interface TensionConfig {
+	/** Visual style. Default "minimal". */
+	style?: TensionStyle;
+	/** Show the band's name ("Hot"). Default true. */
+	showBand?: boolean;
+	/** Show the explanation Kagi's language model wrote for the score.
+	 * Default false. */
+	showSummary?: boolean;
+	/** How much of it: its first sentence, or all of it. Default "sentence". */
+	summaryLength?: "sentence" | "full";
+	/** Show how the score moved since the day before. Default false. */
+	showChange?: boolean;
+	/** Show a sparkline of the last days. Default false. */
+	showHistory?: boolean;
+	/** How many days the sparkline covers. Default 30. */
+	historyDays?: number;
+	/** Show the scale the score sits on (minimal style). Default true. */
+	showScale?: boolean;
+	/** Show when Kagi last scored it. Default false. */
+	showUpdated?: boolean;
+	/** Animate the artistic style's diorama. Default true; forced off from the
+	 * `reduced` tier down. */
+	animate?: boolean;
+	/** Auto-refresh interval in minutes; 0 means "only when opened". Default 60. */
 	refreshMin?: number;
 }
 
@@ -1816,6 +1893,8 @@ export interface DashboardCard {
 	weather?: WeatherConfig;
 	/** kind === "market": instruments, holdings, style and what to display. */
 	market?: MarketConfig;
+	/** kind === "tension": style and what to display. */
+	tension?: TensionConfig;
 	/** kind === "git": sections, action buttons and commit behaviour. */
 	git?: GitConfig;
 	/** kind === "operon": view, Operon filters and display options. */
@@ -2564,6 +2643,18 @@ export interface HomeSettings {
 	 * "classic", or Material 3 "expressive". Default (absent) "classic". Read
 	 * through {@link effectiveCardDesign}. */
 	cardDesign?: CardDesign;
+	/** Terminal mode: the whole plugin drawn as a text interface — a character
+	 * grid, box-drawn card frames, a function-key bar — instead of the graphical
+	 * board. Vault-wide only; while it is on it takes precedence over every
+	 * card's and board's Classic/Expressive choice, which are kept untouched for
+	 * when it is switched off. Default (absent) off. See src/tui/. */
+	terminalMode?: boolean;
+	/** The colour scheme terminal mode paints in. Default (absent) "theme",
+	 * which takes every colour from the Obsidian theme. */
+	terminalScheme?: TerminalScheme;
+	/** Terminal mode's font size in pixels. Default (absent)
+	 * {@link TERMINAL_FONT_SIZE_DEFAULT}. */
+	terminalFontSize?: number;
 
 	// ---- Search filters ----
 	/** Group ids the user has hidden from the auto-detected filter row. */
@@ -2617,6 +2708,12 @@ export interface HomeSettings {
 	 * default rather than assuming nobody changed it. */
 	iconizeIconProperty: string;
 
+	// ---- Front Matter Title ----
+	/** Show the titles the Front Matter Title plugin gives notes in the file
+	 * explorer wherever Hearth lists a folder's contents, instead of the file
+	 * names. Inert without the plugin, or while its explorer feature is off. */
+	frontMatterTitles: boolean;
+
 	// ---- Operon ----
 	/** Let Hearth talk to the Operon plugin's Developer API. Turning this off
 	 * is a kill switch: Operon cards stop reading and no capability grant is
@@ -2648,6 +2745,9 @@ export interface HomeSettings {
 	lastSeenVersion: string;
 	/** How far the first-run setup wizard has got. See {@link SetupStatus}. */
 	setupStatus: SetupStatus;
+	/** The RSS entries opened or marked read, by key (see `src/rssstate.ts`),
+	 * against the day — days since the epoch — they were read. */
+	rssRead: Record<string, number>;
 	/**
 	 * The secret behind this vault's export identity, minted the first time a
 	 * dashboard is exported. Empty until then.
@@ -2839,6 +2939,11 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	customFileIcons: true,
 	iconizeIconProperty: "icon",
 
+	// On by default for the same reason: with the plugin absent (or its explorer
+	// feature off) nothing changes, and with it on the folder card matches the
+	// sidebar the user already set up.
+	frontMatterTitles: true,
+
 	// On by default, but inert until an Operon card exists: no session is
 	// opened — and so no grant is requested — until one renders.
 	operonIntegration: true,
@@ -2850,6 +2955,7 @@ export const DEFAULT_SETTINGS: HomeSettings = {
 	fullWidth: false,
 
 	lastSeenVersion: "",
+	rssRead: {},
 	// Fresh installs start out owing the wizard a run; `migrateSettings` marks
 	// every *existing* vault as done, so nobody is offered a rebuild of a
 	// dashboard they already have.
@@ -3120,6 +3226,50 @@ export function effectiveSkyAnimate(s: HomeSettings): boolean {
 
 /** The two ways a card can be drawn. */
 export type CardDesign = "classic" | "expressive";
+
+/**
+ * The colour schemes terminal mode offers. "theme" reads every colour from the
+ * Obsidian theme, so the terminal looks like the vault it lives in; the others
+ * are fixed palettes named for what they imitate.
+ */
+export type TerminalScheme = "theme" | "htop" | "hearth" | "amber" | "paper";
+
+/** Every terminal scheme, in the order the settings dropdown offers them. */
+export const TERMINAL_SCHEMES: readonly TerminalScheme[] = ["theme", "htop", "hearth", "amber", "paper"];
+
+export const TERMINAL_FONT_SIZE_DEFAULT = 13;
+export const TERMINAL_FONT_SIZE_MIN = 10;
+export const TERMINAL_FONT_SIZE_MAX = 20;
+
+/** Whether terminal mode is on. */
+export function terminalModeActive(s: HomeSettings): boolean {
+	return s.terminalMode === true;
+}
+
+/** Whether any board is still drawn graphically: every board outside terminal
+ * mode, and in it only a plugin board, which terminal mode leaves as it is.
+ * While this is false the settings that shape nothing but the graphical board
+ * — the wallpaper, card surfaces, the header's icon and sizes — are hidden,
+ * since changing them would change nothing on screen. */
+export function graphicalBoardsInUse(s: HomeSettings): boolean {
+	return !terminalModeActive(s) || s.dashboards.some(isPluginBoard);
+}
+
+/** The terminal scheme in force, repaired on read so a hand-edited or
+ * newer-version value falls back to the theme's colours. */
+export function effectiveTerminalScheme(s: HomeSettings): TerminalScheme {
+	return TERMINAL_SCHEMES.includes(s.terminalScheme as TerminalScheme)
+		? (s.terminalScheme as TerminalScheme)
+		: "theme";
+}
+
+/** Terminal font size, clamped to the range the character grid is laid out
+ * for. */
+export function effectiveTerminalFontSize(s: HomeSettings): number {
+	const v = s.terminalFontSize;
+	if (typeof v !== "number" || !Number.isFinite(v)) return TERMINAL_FONT_SIZE_DEFAULT;
+	return Math.min(TERMINAL_FONT_SIZE_MAX, Math.max(TERMINAL_FONT_SIZE_MIN, Math.round(v)));
+}
 
 /** The design a card is drawn in: its own choice, else the active board's,
  * else the vault's, else Classic. For the weather and market cards `own` is

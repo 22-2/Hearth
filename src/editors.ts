@@ -1,4 +1,5 @@
-import { Notice, Setting, setIcon, type App } from "obsidian";
+import { Notice, Setting, type App } from "obsidian";
+import { setIcon } from "./glyphs";
 import { CARD_KINDS, cardDefinition, resolveCardDesign } from "./cards";
 import { type CardEditorContext } from "./cards/definition";
 import { t } from "./i18n";
@@ -23,6 +24,7 @@ import {
 	type DashboardCard,
 	type HomeSettings,
 	type MobileCardOptions,
+	terminalModeActive,
 } from "./types";
 import { confirmAction, designSetting } from "./ui";
 
@@ -86,6 +88,7 @@ export class CardSettingsModal extends HearthTabbedModal {
 			opts: this.opts,
 			requestRender: () => this.render(),
 			session: this.session,
+			terminal: this.terminal,
 		};
 	}
 
@@ -104,11 +107,20 @@ export class CardSettingsModal extends HearthTabbedModal {
 		return "hearth-card-settings-tab";
 	}
 
+	/** Whether the board this card is on is drawn as text. Terminal mode draws
+	 * every card in its own frame and colours, so what only shapes the graphical
+	 * card — its design, colours and surface, its buttons' sizing — is not
+	 * offered while it is on. (A card only ever sits on a card board, and
+	 * terminal mode draws every one of those.) */
+	private get terminal(): boolean {
+		return terminalModeActive(this.opts.settings);
+	}
+
 	protected hearthTabs(): HearthModalTab[] {
 		const tabs = t().editors.tabs;
 		return [
 			{ id: "content", label: tabs.content, icon: "square-pen" },
-			{ id: "style", label: tabs.style, icon: "palette" },
+			...(this.terminal ? [] : [{ id: "style", label: tabs.style, icon: "palette" }]),
 			{ id: "layout", label: tabs.layout, icon: "layout-dashboard" },
 		];
 	}
@@ -494,7 +506,9 @@ export class CardSettingsModal extends HearthTabbedModal {
 	 * them. The three cards share it — they draw the same grid.
 	 */
 	private buttonsSection(containerEl: HTMLElement): void {
-		if (!cardDefinition(this.card).tileButtons) return;
+		// Terminal mode lays the buttons out as a row of `[ label ]`s at the
+		// card's width, whatever their sizing.
+		if (!cardDefinition(this.card).tileButtons || this.terminal) return;
 		const strings = t().editors.tiles;
 		const card = this.card;
 		new Setting(containerEl).setName(strings.heading).setHeading();

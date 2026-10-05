@@ -1,6 +1,13 @@
 import { addIcon, debounce, Platform, Plugin, setIcon, WorkspaceLeaf, Notice } from "obsidian";
+import { installGlyphMode } from "./glyphs";
 import { HomeView, VIEW_TYPE_HOME } from "./view";
-import { effectiveHiddenInstantAnswers, HomeSettings, hydrateSettings, timersAllowed } from "./types";
+import { VIEW_TYPE_FOLDER } from "./cards/folder";
+import { FolderView } from "./folderview";
+import { flushRssState, initRssState } from "./rssstate";
+import { VIEW_TYPE_RSS_READER } from "./rssreader";
+import { RssReaderView } from "./rssreaderview";
+import { whenFrontMatterTitleReady } from "./frontmattertitle";
+import { effectiveHiddenInstantAnswers, HomeSettings, effectiveTerminalScheme, hydrateSettings, terminalModeActive, timersAllowed } from "./types";
 import { SearchTipsModal } from "./searchtips";
 import { HomeSettingTab } from "./settings";
 import {
@@ -100,10 +107,17 @@ export default class HearthPlugin extends Plugin {
 		setLanguage();
 
 		await this.loadSettings();
+		initRssState(this);
 
 		// Hearth's dialogs and menus take the design of wherever they are opened
 		// from, which needs the last press remembered (see src/uidesign.ts).
-		installUiDesign(this, () => this.settings.cardDesign ?? "classic");
+		installUiDesign(
+			this,
+			() => this.settings.cardDesign ?? "classic",
+			() => (terminalModeActive(this.settings) ? effectiveTerminalScheme(this.settings) : null),
+		);
+		// Terminal mode draws Hearth's icons as characters (src/glyphs.ts).
+		installGlyphMode(() => terminalModeActive(this.settings));
 
 		// Register both Hearth crystals (brand purple and themeable) so either
 		// can be used as the ribbon, tab and header icon per the
@@ -112,6 +126,9 @@ export default class HearthPlugin extends Plugin {
 		addIcon(HEARTH_ICON_THEMED_ID, HEARTH_ICON_THEMED_SVG);
 
 		this.registerView(VIEW_TYPE_HOME, (leaf) => new HomeView(leaf, this));
+		// The folder browser, opened in a tab of its own (#375).
+		this.registerView(VIEW_TYPE_FOLDER, (leaf) => new FolderView(leaf, this));
+		this.registerView(VIEW_TYPE_RSS_READER, (leaf) => new RssReaderView(leaf, this));
 
 		// A renegotiated Operon session may be looking at different settings, so
 		// the cached taxonomy it filled is no longer trustworthy.
@@ -235,6 +252,9 @@ export default class HearthPlugin extends Plugin {
 			// tab as a request to open Hearth when startup is disabled.
 			this.startupComplete = true;
 			if (this.applyMobileDefaultDashboard()) this.refreshViews();
+			// Front Matter Title can still be starting up when the first boards
+			// draw; once it is running, their folder cards can show its titles.
+			whenFrontMatterTitleReady(this.app, () => this.refreshViews());
 			if (this.settings.openOnStartup) void this.activateView();
 			// Pop the release-notes dialog after an update (but not on a fresh
 			// install). Runs once layout is ready so it doesn't fight startup.
@@ -250,6 +270,7 @@ export default class HearthPlugin extends Plugin {
 		// plugin has no business re-rendering views or reading its own data file.
 		this.liveRefreshDebounced.cancel();
 		this.externalSettingsDebounced.cancel();
+		flushRssState();
 		// Views are detached automatically by Obsidian on plugin unload.
 		// The content-search cache holds lower-cased note bodies, though, so
 		// drop it rather than leave a copy of the vault behind after unload.
@@ -505,6 +526,8 @@ export default class HearthPlugin extends Plugin {
 	/** Re-apply the tab icon to the ribbon and open tab headers after the tab
 	 * icon or themeColorTarget setting changes. */
 	refreshBrandIcons() {
+		// Obsidian's own icon, not the terminal glyph: the ribbon is Obsidian's
+		// chrome, not Hearth's.
 		if (this.ribbonEl) setIcon(this.ribbonEl, this.brandIconId());
 		this.app.workspace.getLeavesOfType(VIEW_TYPE_HOME).forEach((leaf) => {
 			// updateHeader is undocumented; when absent the tab icon simply
@@ -531,6 +554,14 @@ export default class HearthPlugin extends Plugin {
 			// A board nobody is looking at is skipped, but not forgotten: the
 			// tracker records that it owes a render to whoever next shows it.
 			if (this.boards.refresh(leaf, leafIsVisible(leaf))) view.render();
+		});
+		// The folder browser's tabs follow the same settings (#375). A page of
+		// a folder is far cheaper than a board, so it is simply redrawn.
+		this.app.workspace.getLeavesOfType(VIEW_TYPE_FOLDER).forEach((leaf) => {
+			if (leaf.view instanceof FolderView) leaf.view.refresh();
+		});
+		this.app.workspace.getLeavesOfType(VIEW_TYPE_RSS_READER).forEach((leaf) => {
+			if (leaf.view instanceof RssReaderView) leaf.view.refresh();
 		});
 	}
 

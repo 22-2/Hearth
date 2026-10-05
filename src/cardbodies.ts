@@ -1,4 +1,5 @@
-import { Component, debounce, getAllTags, MarkdownRenderer, moment as createMoment, setIcon, Setting, TFile } from "obsidian";
+import { Component, debounce, getAllTags, MarkdownRenderer, moment as createMoment, Setting, TFile } from "obsidian";
+import { setIcon } from "./glyphs";
 import { type CardEditorContext } from "./cards/definition";
 import { type CheckboxScanOptions, countCheckboxes, toggleCheckboxAt } from "./checkboxes";
 import { dailyNameMatcher } from "./dailyformat";
@@ -417,7 +418,7 @@ export function wireMarkdownCheckboxes(
 
 /** Apply an edit to a note, atomically re-reading it first so a checkbox click
  * can't clobber a concurrent edit. */
-function processFile(
+export function processFile(
 	view: HomeView,
 	file: TFile,
 ): (fn: (data: string) => string) => Promise<unknown> {

@@ -245,6 +245,7 @@ Categorized as **Integrations** in the picker.
 | **RSS feed** | Headlines from any RSS 2.0 or Atom feed you follow | Network |
 | **Weather** | Current conditions and forecast from [Open-Meteo](https://open-meteo.com) in seven styles, up to an edge-to-edge painted sky that follows real conditions and time of day, tonight's moon in its real phase (*Moon*) and the sun's arc from sunrise to sunset (*Daylight*) — click a card for the full forecast, hour by hour | Network |
 | **Markets** | Stocks, ETFs, funds, indices, forex and crypto from most of the world's exchanges — Chinese on- and off-exchange funds included — as a single price, a spotlight with a chart, an edge-to-edge chart, a watchlist, tiles, a ticker tape, a portfolio with gains in one currency, or a search field on the card. Classic or Material 3 Expressive; red-up or green-up. Click anything for the full chart and stats | Network |
+| **World tension** | Kagi News' [World Tension index](https://kite.kagi.com/?view=chaos) — a language model's 0–100 reading of the day's world news — as a minimal reading on a scale, or an edge-to-edge diorama of a village that goes from peace to war as the score climbs. Classic or Material 3 Expressive; the model's explanation, the change since yesterday and a sparkline are optional | Network |
 | **Operon tasks / board / agenda / timer** | Four cards on [Operon](https://github.com/hasanyilmaz/operon)'s own API — a task list, a pipeline board, a few days' agenda, and the running time tracker | Operon (desktop) |
 | **Plugin view** *(beta)* | Another plugin's side-panel view (calendar, outline, tag pane, Kanban…) hosted in a card, optionally pinned to one file | A plugin with a view |
 
@@ -293,6 +294,7 @@ full list, with live status and where each one's settings live, is under
 | [Git](https://github.com/Vinzent03/obsidian-git) | The Git card, acting through the plugin's own task queue | The card |
 | [Operon](https://github.com/hasanyilmaz/operon) | Four cards on Operon's Developer API — [details below](#operon) | Integrations tab |
 | [Iconic](https://obsidian.md/plugins?id=iconic) / [Iconize](https://obsidian.md/plugins?id=obsidian-icon-folder) | Your per-file icons show wherever Hearth lists a file | Integrations tab |
+| [Front Matter Title](https://obsidian.md/plugins?id=obsidian-front-matter-title-plugin) | Folder cards list notes by the titles the file explorer shows | Integrations tab |
 | [Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin) | Drawings render live in Embed cards; "New drawing" runs its command | The card |
 | [Kanban](https://github.com/obsidian-community/obsidian-kanban) | Tasks cards read and write its board notes in its own format | The card |
 | [Vault Pet](https://github.com/elliott-json-park/obsidian-vault-pet) | The Vault Pet card gives the plugin a place on the board — its own pet card, or its whole pet house | The card |
@@ -319,6 +321,7 @@ network → Disable external calls**.
 | [Open-Meteo](https://open-meteo.com) | Weather cards and the live weather sky | None. Only the coordinates you pick are sent, and a pinned sky needs no location at all |
 | [Frankfurter](https://www.frankfurter.app/) (ECB rates) | Calculator currency conversion | None |
 | [Yahoo Finance](https://finance.yahoo.com), [Tencent](https://gu.qq.com), [Eastmoney](https://fund.eastmoney.com), [CoinGecko](https://www.coingecko.com), [Frankfurter](https://www.frankfurter.app/) | Markets cards. None is an official API, so a card falls back to the next source that carries the same instrument | None. Only the symbols on your cards (and what you type into a search) are sent |
+| [Kagi News](https://kite.kagi.com) | World tension cards | None. Nothing but the request for the index |
 | Jira Cloud / Server | Jira cards, over REST with bearer PAT auth | Yours, entered on the card; exports never include the PAT |
 | RSS / Atom feeds | RSS cards | None |
 | ICS / webcal feeds | Mini calendar subscriptions (Google, iCloud, Fastmail, Nextcloud…) | The feed URL |
@@ -416,6 +419,13 @@ Before you add one:
   button groups, and the same look on the search row, dialogs, menus and
   Hearth's settings. Obsidian's own interface is left to your theme. The choice
   cascades vault → board → card (**Settings → Hearth → Appearance → Design**).
+- **Terminal mode** — the third design: all of Hearth as a text interface, the
+  way `htop` looks. One character grid in a bundled monospaced font, cards as
+  box-drawn frames that join their neighbours, tasks as tables, notes as
+  highlighted Markdown you can tick and edit, calendars as `cal`, the weather
+  as ASCII art, charts in block characters, folders as trees — and keys for
+  everything (Tab between cards, arrows inside, `m` the card menu, `z` zoom,
+  F1–F10 for the board). Five colour schemes, one of them your theme's.
 - **Background** — solid color, vault image, URL, a background **drawn by
   Hearth** (*Hearth default* — hills and a cabin, or Material's soft shapes in
   Expressive — and *Harbour town*, both following your light or dark theme and
@@ -520,6 +530,7 @@ switches all of them off at once.
 | --- | --- | --- |
 | **Weather** card | `api.open-meteo.com`, `geocoding-api.open-meteo.com` | The coordinates or place name you set |
 | **Markets** card | `query1/query2.finance.yahoo.com`, `api.coingecko.com`, `qt.gtimg.cn`, `web.ifzq.gtimg.cn`, `smartbox.gtimg.cn`, `fundgz.1234567.com.cn`, `fund.eastmoney.com`, `api.frankfurter.app` | The symbols on your watchlist or the name you search for |
+| **World tension** card | `kite.kagi.com` | Nothing but the request for today's index (and its history, if the card shows it) |
 | **Calculator** card and currency answers in search | `api.frankfurter.app` | Nothing but the request for today's rates |
 | `wiki …` answers in search | `<language>.wikipedia.org` | The term you look up |
 | **RSS feed**, **Mini calendar** (ICS/iCal), **Web page** cards | Only the addresses you enter | A plain request for that feed, calendar or page |
@@ -560,7 +571,7 @@ npm run typecheck
 To test in a vault, symlink or copy `main.js`, `manifest.json` and `styles.css`
 into `<vault>/.obsidian/plugins/hearth/`.
 
-**Translations** — Hearth speaks English, Simplified Chinese and German,
+**Translations** — Hearth speaks English, Simplified Chinese, German and French,
 following Obsidian's display language. User-facing strings live in
 [`src/locales/`](src/locales/). English (`en.ts`) is the source of truth; copy
 it, translate the values and register the file. See [`src/locales/README.md`](src/locales/README.md).
@@ -583,3 +594,7 @@ page, you can buy me a coffee — it genuinely helps keep the updates coming.
 ## License
 
 MIT © ondreu · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+
+Terminal mode draws with a subset of [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono),
+embedded in `styles.css`: Copyright 2020 The JetBrains Mono Project Authors,
+licensed under the [SIL Open Font License 1.1](assets/fonts/JetBrainsMono-OFL.txt).
