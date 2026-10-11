@@ -508,7 +508,7 @@ export const de: Translations = {
 				recent: "Zuletzt verwendete Dateien",
 				favorites: "Favoriten",
 				bookmarks: "Lesezeichen",
-				commands: "Befehle",
+				links: "Links",
 				stats: "Vault-Statistiken",
 				heatmap: "Aktivität",
 				rss: "Lesen",
@@ -1818,7 +1818,6 @@ export const de: Translations = {
 			recent: "Letzte Dateien",
 			folder: "Ordnerinhalt",
 			links: "Links / Zentrale",
-			commands: "Befehle",
 			templater: "Neue Notiz aus Vorlage",
 			clock: "Uhr & Begrüßung",
 			tasks: "Aufgaben",
@@ -2505,24 +2504,11 @@ export const de: Translations = {
 			moveDown: "Nach unten",
 			removeLink: "Link entfernen",
 			addLink: "Link hinzufügen",
-		},
-		commands: {
-			autoShift: "Auto-Verschieben (Beta)",
-			autoShiftDesc:
-				"Wenn an, schieben Kacheln einander beim Ziehen beiseite (wie " +
-				"Handy-Widgets). Standardmäßig aus - Kacheln sind frei formbar und dürfen sich überlappen.",
+			addCommand: "Befehl hinzufügen",
 			buttonSize: "Buttongröße",
 			buttonSizeDesc:
-				"Standardgröße der Befehls-Kacheln. Ändere die Größe einer einzelnen Kachel, indem du " +
-				"ihre rechte untere Ecke ziehst, oder lege unten eine Größe pro Kachel fest.",
-			heading: "Befehle",
-			iconOptionalPlaceholder: "Symbol (optional)",
-			sizePlaceholder: "Größe",
-			tileSizeAria: "Kachelgröße in Pixeln (optional)",
-			moveUp: "Nach oben",
-			moveDown: "Nach unten",
-			removeCommand: "Befehl entfernen",
-			addCommand: "Befehl hinzufügen",
+				"Standardgröße der Kacheln. Ändere die Größe einer einzelnen Kachel, indem du " +
+				"im Anordnen-Modus ihre rechte untere Ecke ziehst.",
 		},
 		templater: {
 			missing: "Templater ist nicht aktiviert",
@@ -3542,7 +3528,6 @@ export const de: Translations = {
 			folderMissing: (path: string) =>
 				path ? `Kein Ordner unter „${path}“` : "Ordner in den Karteneinstellungen wählen",
 			linksEmpty: "Füge Links in den Einstellungen hinzu",
-			commandsEmpty: "Füge Befehle in den Karteneinstellungen hinzu",
 			templaterEnable: "Aktiviere das Templater-Plugin, um Notizen aus Vorlagen zu erstellen",
 			templaterEmpty: "Füge eine Vorlage in den Karteneinstellungen hinzu",
 			tasksEnable:
@@ -4318,7 +4303,6 @@ export const de: Translations = {
 		recent: "Zuletzt verwendete Dateien",
 		folder: "Ordner",
 		links: "Links / Zentrale",
-		commands: "Befehle",
 		templater: "Neue Notiz aus Vorlage",
 		clock: "Uhr & Begrüßung",
 		tasks: "Aufgaben",
@@ -4366,8 +4350,7 @@ export const de: Translations = {
 		favorites: "Die Notizen, die du in Hearth markiert hast",
 		recent: "Die Dateien, die du zuletzt geöffnet hast",
 		folder: "Was in einem Ordner liegt, eine Ebene tief, mit Browser dahinter",
-		links: "Eine Zentrale für Links, Notizen und Ordner",
-		commands: "Schaltflächen, die Obsidian-Befehle ausführen",
+		links: "Eine Zentrale für Links, Notizen, Befehle und Ordner",
 		templater: "Schaltflächen, die aus einer Templater-Vorlage eine Notiz in einem Ordner deiner Wahl erstellen",
 		clock: "Uhrzeit, Datum und Begrüßung",
 		tasks: "Kontrollkästchen aus deinem Vault, als Liste oder Board",
@@ -4864,6 +4847,19 @@ export const de: Translations = {
 			'Kein Hearth-Layout - kein „dashboards“- oder „cards“-Array gefunden.',
 		notHearthSettings:
 			'Keine Hearth-Einstellungs-Sicherung - kein „hearthSettings“-Marker oder Layout gefunden.',
+	},
+
+	fileMenu: {
+		newNote: "Neue Notiz",
+		newFolder: "Neuer Ordner",
+		rename: "Umbenennen …",
+		makeCopy: "Kopie erstellen",
+		delete: "Löschen",
+		untitled: "Unbenannt",
+		folderName: "Ordnername",
+		newName: "Neuer Name",
+		exists: (name: string) => `„${name}“ existiert bereits.`,
+		invalidName: "Ein Name darf weder / noch \\ oder : enthalten.",
 	},
 
 	// ---- Terminalmodus (src/tui/) -----------------------------------------
